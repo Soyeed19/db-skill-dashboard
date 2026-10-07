@@ -399,15 +399,6 @@ export const Navbar: React.FC<NavbarProps> = ({
           {currentPersona.role !== 'CEO' && (
             <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
               <button
-                onClick={onOpenAttendance}
-                className="px-2.5 py-1 rounded-sm text-xs font-bold bg-[#E0F2FE] text-[#0284C7] border border-[#00AEEF]/40 hover:bg-[#E0F2FE]/80 transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer"
-                title="Open Batch Roll-Call & Live Classroom Photo"
-              >
-                <Camera className="w-3.5 h-3.5 text-[#00AEEF]" />
-                <span className="hidden sm:inline">Batch Roll-Call</span>
-              </button>
-
-              <button
                 onClick={onOpenClassroom}
                 className="px-2.5 py-1 rounded-sm text-xs font-bold bg-[#007A3D] text-white hover:bg-[#005C2E] transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer border border-[#005C2E]"
                 title="Launch 1-Day Classroom Safety Presentation Deck"

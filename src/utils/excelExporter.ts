@@ -208,7 +208,7 @@ export interface ExportNationalDossierOptions {
 export function exportNationalMasterAuditDossier({
   leagueData,
   nationalMetrics,
-  exportedBy = 'Col. Ajay Bakshi (Retd.) (CEO / Managing Director)'
+  exportedBy = 'Gopal Mani (CEO / Managing Director)'
 }: ExportNationalDossierOptions): string {
   const dateStr = new Date().toISOString().split('T')[0];
   const timeStr = new Date().toLocaleTimeString('en-IN');

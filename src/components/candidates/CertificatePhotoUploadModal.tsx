@@ -174,8 +174,8 @@ export const CertificatePhotoUploadModal: React.FC<CertificatePhotoUploadModalPr
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 overflow-y-auto">
-      <div className="bg-white rounded-sm max-w-2xl w-full p-5 sm:p-6 shadow-md border border-slate-300 space-y-4 my-8">
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-900/75 backdrop-blur-xs overflow-y-auto">
+      <div className="bg-white rounded-sm max-w-2xl w-full p-5 sm:p-6 shadow-2xl border border-slate-300 space-y-4 my-8 relative" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-start justify-between border-b border-slate-200 pb-3">
           <div className="flex items-center gap-3">

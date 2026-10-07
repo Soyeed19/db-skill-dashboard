@@ -4,11 +4,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   Lock,
-  Award,
-  Users,
-  Camera,
-  ArrowRight,
-  ShieldCheck,
   Send
 } from 'lucide-react';
 import { Candidate } from '../../types';
@@ -40,8 +35,8 @@ export const BatchDispatchValidationModal: React.FC<BatchDispatchValidationModal
   const hasIncomplete = incompleteCandidates.length > 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 overflow-y-auto">
-      <div className="bg-white rounded-sm max-w-2xl w-full p-5 sm:p-6 shadow-md border border-slate-300 space-y-4 my-8">
+    <div className="fixed inset-0 z-[9990] flex items-center justify-center p-4 bg-slate-900/60 overflow-y-auto">
+      <div className="bg-white rounded-sm max-w-2xl w-full p-5 sm:p-6 shadow-md border border-slate-300 space-y-4 my-8" onClick={(e) => e.stopPropagation()}>
         {/* Top Header */}
         <div className="flex items-start justify-between border-b border-slate-200 pb-3">
           <div className="flex items-center gap-3">
@@ -179,9 +174,9 @@ export const BatchDispatchValidationModal: React.FC<BatchDispatchValidationModal
                     <button
                       type="button"
                       onClick={() => onUploadPhotosForCandidate(c)}
-                      className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-teal-700 hover:from-amber-600 hover:to-teal-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-transform active:scale-95 shrink-0"
+                      className="px-3.5 py-1.5 bg-[#007A3D] hover:bg-[#005C2E] text-white text-xs font-bold rounded-xs flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer shrink-0"
                     >
-                      <Camera className="w-3.5 h-3.5" />
+                      <span>📷</span>
                       <span>Upload Now</span>
                     </button>
                   </div>

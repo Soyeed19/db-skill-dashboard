@@ -106,7 +106,9 @@ interface AppContextType {
   performCheckIn: (employeeId: string) => boolean;
   onboardEmployee: (employeeData: Omit<Employee, 'id' | 'empCode' | 'tenureMonths' | 'casualLeaveBalance' | 'compOffBalance'>) => Employee;
   attendancePunches: AttendancePunch[];
+  attendanceLogs: AttendancePunch[];
   recordSelfPunch: (punchData: Omit<AttendancePunch, 'id'>) => AttendancePunch;
+  refreshAttendanceLogs: () => void;
 
   // Tours & Expenses
   tours: TourRequest[];
@@ -1055,12 +1057,50 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const [attendancePunches, setAttendancePunches] = useState<AttendancePunch[]>(() => {
-    const saved = localStorage.getItem('dbs_attendance_punches');
+    const saved = localStorage.getItem('dbs_attendance_logs') || localStorage.getItem('dbs_attendance_punches');
     if (saved) {
       try { return JSON.parse(saved); } catch (e) { console.error(e); }
     }
     return INITIAL_ATTENDANCE_PUNCHES;
   });
+
+  const refreshAttendanceLogs = () => {
+    const saved = localStorage.getItem('dbs_attendance_logs') || localStorage.getItem('dbs_attendance_punches');
+    if (saved) {
+      try {
+        setAttendancePunches(JSON.parse(saved));
+      } catch (e) {
+        console.error('Failed to parse attendance logs from storage:', e);
+      }
+    }
+  };
+
+  useEffect(() => {
+    localStorage.setItem('dbs_attendance_logs', JSON.stringify(attendancePunches));
+    localStorage.setItem('dbs_attendance_punches', JSON.stringify(attendancePunches));
+  }, [attendancePunches]);
+
+  useEffect(() => {
+    const handleStorageSync = (e: StorageEvent) => {
+      if (e.key === 'dbs_attendance_logs' || e.key === 'dbs_attendance_punches') {
+        if (e.newValue) {
+          try {
+            setAttendancePunches(JSON.parse(e.newValue));
+          } catch (err) {
+            console.error('Failed to parse updated attendance logs:', err);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageSync);
+    window.addEventListener('dbs_attendance_logs_updated', refreshAttendanceLogs);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageSync);
+      window.removeEventListener('dbs_attendance_logs_updated', refreshAttendanceLogs);
+    };
+  }, []);
 
   // Maintenance & Facility Tickets State
   const [maintenanceTickets, setMaintenanceTickets] = useState<CenterIssueTicket[]>(() => {
@@ -1099,7 +1139,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: `pnch-${Date.now()}`
     };
     setAttendancePunches(prev => {
-      const updated = [newPunch, ...prev];
+      const updated = [newPunch, ...prev.filter(p => p.id !== newPunch.id)];
+      localStorage.setItem('dbs_attendance_logs', JSON.stringify(updated));
       localStorage.setItem('dbs_attendance_punches', JSON.stringify(updated));
       return updated;
     });
@@ -1519,7 +1560,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         performCheckIn,
         onboardEmployee,
         attendancePunches,
+        attendanceLogs: attendancePunches,
         recordSelfPunch,
+        refreshAttendanceLogs,
         tours,
         expenseClaims,
         applyTour,

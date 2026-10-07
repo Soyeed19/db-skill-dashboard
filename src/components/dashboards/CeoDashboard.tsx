@@ -384,7 +384,7 @@ export const CeoDashboard: React.FC = () => {
           quarter: selectedQuarter,
           stateFilter: selectedState
         },
-        exportedBy: 'Col. Ajay Bakshi (Retd.) (CEO / Managing Director)'
+        exportedBy: 'Gopal Mani (CEO / Managing Director)'
       });
       showToast(`Exported: ${fileName}`);
     } catch (err) {
@@ -420,11 +420,11 @@ export const CeoDashboard: React.FC = () => {
             <div className="flex items-center gap-3">
               <img
                 src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=256&q=80"
-                alt="Col. Ajay Bakshi"
+                alt="Gopal Mani"
                 className="w-10 h-10 rounded-xl object-cover ring-2 ring-emerald-400"
               />
               <div>
-                <span className="font-bold text-white block">Col. Ajay Bakshi (Retd.)</span>
+                <span className="font-bold text-white block">Gopal Mani</span>
                 <span className="text-[11px] text-emerald-300 font-medium">CEO / Managing Director</span>
               </div>
             </div>

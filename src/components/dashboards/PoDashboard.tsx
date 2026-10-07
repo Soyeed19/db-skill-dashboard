@@ -28,10 +28,11 @@ import {
   Wrench,
   CheckCircle,
   XCircle,
-  Send
+  Send,
+  Camera
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { Candidate, AuditQuery, Center, CenterIssueTicket } from '../../types';
+import { Candidate, AuditQuery, Center, CenterIssueTicket, AttendancePunch } from '../../types';
 
 export const PoDashboard: React.FC = () => {
   const {
@@ -44,11 +45,17 @@ export const PoDashboard: React.FC = () => {
     maintenanceTickets,
     endorseTicketByPo,
     rejectTicketByPo,
+    attendanceLogs,
     showToast
   } = useApp();
 
   // PO Workspace Mode
-  const [poWorkspaceMode, setPoWorkspaceMode] = useState<'candidates' | 'facility_audit'>('candidates');
+  const [poWorkspaceMode, setPoWorkspaceMode] = useState<'candidates' | 'facility_audit' | 'staff_attendance'>('candidates');
+
+  // Staff Attendance Audit State
+  const [inspectWatermarkPunch, setInspectWatermarkPunch] = useState<AttendancePunch | null>(null);
+  const [attendanceSearchQuery, setAttendanceSearchQuery] = useState('');
+  const [attendanceTypeFilter, setAttendanceTypeFilter] = useState<'ALL' | 'CHECK_IN' | 'CHECK_OUT'>('ALL');
 
   // Facility Audit State
   const [facilityStatusFilter, setFacilityStatusFilter] = useState<'ALL' | 'PENDING' | 'ENDORSED' | 'RESOLVED'>('PENDING');
@@ -94,6 +101,21 @@ export const PoDashboard: React.FC = () => {
       return t.status === "Pending PO Verification";
     }).length;
   }, [maintenanceTickets, filterCenterId]);
+
+  // Filter attendance logs from shared store
+  const filteredAttendanceLogs = useMemo(() => {
+    return attendanceLogs.filter(punch => {
+      if (attendanceTypeFilter !== 'ALL' && punch.type !== attendanceTypeFilter) return false;
+      if (attendanceSearchQuery.trim()) {
+        const q = attendanceSearchQuery.toLowerCase();
+        const matchesName = punch.employeeName?.toLowerCase().includes(q);
+        const matchesDesig = punch.designation?.toLowerCase().includes(q);
+        const matchesAddr = punch.locationAddress?.toLowerCase().includes(q);
+        if (!matchesName && !matchesDesig && !matchesAddr) return false;
+      }
+      return true;
+    });
+  }, [attendanceLogs, attendanceTypeFilter, attendanceSearchQuery]);
 
   const handleConfirmRejectTicket = () => {
     if (!selectedTicketForPoAction || !rejectTicketReason.trim()) {
@@ -236,6 +258,22 @@ export const PoDashboard: React.FC = () => {
               {pendingPoTicketsCount} Urgent
             </span>
           )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setPoWorkspaceMode("staff_attendance")}
+          className={`flex-1 min-w-[240px] px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+            poWorkspaceMode === "staff_attendance"
+              ? "bg-dbs-green text-white shadow-xs"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+          }`}
+        >
+          <Camera className="w-4 h-4" />
+          <span>3. Staff Biometric Attendance Logs</span>
+          <span className="ml-1 px-2 py-0.5 rounded-full text-[10px] font-mono bg-white/20 text-white font-bold">
+            {attendanceLogs.length} Records
+          </span>
         </button>
       </div>
 
@@ -786,7 +824,7 @@ export const PoDashboard: React.FC = () => {
       </div>
 
         </>
-      ) : (
+      ) : poWorkspaceMode === 'facility_audit' ? (
         /* CENTER FACILITY ISSUES AUDIT QUEUE */
         <div className="space-y-6">
           {/* Section Header */}
@@ -986,6 +1024,202 @@ export const PoDashboard: React.FC = () => {
             )}
           </div>
         </div>
+      ) : (
+        /* STAFF BIOMETRIC ATTENDANCE LOGS AUDIT BOARD */
+        <div className="space-y-6">
+          {/* Section Header */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-2xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                  Live Biometric Audit Desk
+                </span>
+                <span className="text-slate-400">•</span>
+                <span className="text-xs text-slate-500 font-medium">Shared Store (localStorage: dbs_attendance_logs)</span>
+              </div>
+              <h2 className="text-lg font-bold text-slate-900 mt-1">
+                Staff Biometric Attendance & Indelible Watermark Audit
+              </h2>
+              <p className="text-xs text-slate-500 max-w-2xl mt-0.5">
+                Every record contains an indelible dark bottom banner watermark burned during hardware camera capture with real-time Timestamp, Lat/Lng coordinates, Accuracy, and Resolved Center Address.
+              </p>
+            </div>
+
+            {/* Quick Metrics */}
+            <div className="flex items-center gap-3 shrink-0">
+              <div className="px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                <span className="text-[10px] text-slate-500 uppercase font-semibold block">Total Punches</span>
+                <span className="text-sm font-extrabold text-slate-800 font-mono">{attendanceLogs.length}</span>
+              </div>
+              <div className="px-3.5 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-center">
+                <span className="text-[10px] text-emerald-700 uppercase font-semibold block">Within Geofence</span>
+                <span className="text-sm font-extrabold text-emerald-800 font-mono">
+                  {attendanceLogs.filter(p => p.centerProximityStatus === 'Within Center Geofence').length}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Filters Bar */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="flex flex-wrap items-center gap-3 flex-1 min-w-[280px]">
+              {/* Search */}
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search staff name, title, center or address..."
+                  value={attendanceSearchQuery}
+                  onChange={(e) => setAttendanceSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                />
+              </div>
+
+              {/* Punch Type Filter */}
+              <div className="flex items-center bg-slate-100 p-1 rounded-xl">
+                {(['ALL', 'CHECK_IN', 'CHECK_OUT'] as const).map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => setAttendanceTypeFilter(type)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      attendanceTypeFilter === type
+                        ? 'bg-white text-slate-900 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    {type === 'ALL' ? 'All Types' : type === 'CHECK_IN' ? 'Check-Ins' : 'Check-Outs'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <span className="text-xs text-slate-500 font-medium">
+              Showing {filteredAttendanceLogs.length} of {attendanceLogs.length} verified records
+            </span>
+          </div>
+
+          {/* Attendance Records Table */}
+          <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    <th className="py-3.5 px-4">Watermark Proof</th>
+                    <th className="py-3.5 px-4">Staff Member</th>
+                    <th className="py-3.5 px-4">Punch Type</th>
+                    <th className="py-3.5 px-4">Timestamp (Real-time)</th>
+                    <th className="py-3.5 px-4">GPS & Geofence Accuracy</th>
+                    <th className="py-3.5 px-4">Resolved Address</th>
+                    <th className="py-3.5 px-4 text-right">Audit Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredAttendanceLogs.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="text-center py-12 text-slate-400">
+                        <Camera className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                        <p className="text-xs font-semibold">No attendance punch logs found matching the filter.</p>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredAttendanceLogs.map((punch) => {
+                      const isCheckIn = punch.type === 'CHECK_IN';
+                      return (
+                        <tr key={punch.id} className="hover:bg-slate-50/80 transition-colors">
+                          {/* Photo Thumbnail */}
+                          <td className="py-3 px-4">
+                            <div
+                              onClick={() => setInspectWatermarkPunch(punch)}
+                              className="relative w-16 h-16 rounded-lg overflow-hidden border border-slate-300 shadow-2xs group cursor-pointer bg-slate-900"
+                              title="Click to inspect indelible watermark"
+                            >
+                              <img
+                                src={punch.photoWithWatermark}
+                                alt="Selfie proof"
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                              />
+                              <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                <ZoomIn className="w-4 h-4 text-white" />
+                              </div>
+                              <span className="absolute bottom-0 inset-x-0 bg-black/75 text-[8px] text-white font-mono text-center truncate px-0.5">
+                                WATERMARKED
+                              </span>
+                            </div>
+                          </td>
+
+                          {/* Staff Info */}
+                          <td className="py-3 px-4">
+                            <div>
+                              <p className="font-bold text-slate-900">{punch.employeeName}</p>
+                              <p className="text-[11px] text-slate-500">{punch.designation}</p>
+                              <span className="font-mono text-[10px] text-teal-800 bg-teal-50 px-1 rounded">
+                                {punch.employeeId}
+                              </span>
+                            </div>
+                          </td>
+
+                          {/* Type */}
+                          <td className="py-3 px-4">
+                            <span
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold ${
+                                isCheckIn
+                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                  : 'bg-orange-100 text-orange-800 border border-orange-200'
+                              }`}
+                            >
+                              {isCheckIn ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                              <span>{isCheckIn ? 'Check-In (Duty Start)' : 'Check-Out (Duty End)'}</span>
+                            </span>
+                          </td>
+
+                          {/* Timestamp */}
+                          <td className="py-3 px-4 font-mono">
+                            <p className="font-bold text-slate-800">{punch.timeFormatted}</p>
+                            <p className="text-[10px] text-slate-400">
+                              {new Date(punch.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </p>
+                          </td>
+
+                          {/* GPS & Accuracy */}
+                          <td className="py-3 px-4 font-mono text-[11px]">
+                            <div className="space-y-0.5">
+                              <div className="flex items-center gap-1 text-slate-700">
+                                <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
+                                <span>{punch.lat?.toFixed(5)}, {punch.lng?.toFixed(5)}</span>
+                              </div>
+                              <span className="inline-block text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                                {punch.centerProximityStatus}
+                              </span>
+                            </div>
+                          </td>
+
+                          {/* Resolved Address */}
+                          <td className="py-3 px-4 max-w-xs">
+                            <p className="text-slate-700 truncate text-[11px]" title={punch.locationAddress}>
+                              {punch.locationAddress || activeCenter.address}
+                            </p>
+                          </td>
+
+                          {/* Inspect Action */}
+                          <td className="py-3 px-4 text-right">
+                            <button
+                              type="button"
+                              onClick={() => setInspectWatermarkPunch(punch)}
+                              className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                            >
+                              <Eye className="w-3.5 h-3.5 text-emerald-400" />
+                              <span>Inspect Watermark</span>
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* PO REJECT TICKET MODAL */}
@@ -1154,6 +1388,92 @@ export const PoDashboard: React.FC = () => {
                 className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-xs"
               >
                 Flag & Route to OSE
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* WATERMARK AUDIT INSPECTION MODAL */}
+      {inspectWatermarkPunch && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-3xl w-full overflow-hidden shadow-2xl border border-slate-300 flex flex-col max-h-[90vh]">
+            <div className="px-5 py-3.5 bg-slate-900 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                <div>
+                  <h3 className="font-bold text-sm leading-tight">
+                    Biometric Watermark Verification Audit
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Live hardware camera capture with indelible dark bottom banner watermark
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setInspectWatermarkPunch(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto space-y-4">
+              {/* Photo Preview */}
+              <div className="relative w-full max-h-[460px] bg-slate-950 rounded-xl overflow-hidden flex items-center justify-center border border-slate-700">
+                <img
+                  src={inspectWatermarkPunch.photoWithWatermark}
+                  alt="Watermarked punch proof"
+                  className="max-h-[460px] w-auto object-contain mx-auto"
+                />
+              </div>
+
+              {/* Watermark Verification Breakdown */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Staff Identity</span>
+                  <p className="font-bold text-slate-900 text-sm">{inspectWatermarkPunch.employeeName}</p>
+                  <p className="text-slate-600">{inspectWatermarkPunch.designation}</p>
+                  <span className="text-xs font-mono text-teal-800 font-semibold">{inspectWatermarkPunch.employeeId}</span>
+                </div>
+
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Punch Timestamp & Duty</span>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${inspectWatermarkPunch.type === 'CHECK_IN' ? 'bg-emerald-100 text-emerald-800' : 'bg-orange-100 text-orange-800'}`}>
+                      {inspectWatermarkPunch.type === 'CHECK_IN' ? 'DUTY CHECK-IN' : 'DUTY CHECK-OUT'}
+                    </span>
+                    <strong className="text-slate-900 font-mono">{inspectWatermarkPunch.timeFormatted}</strong>
+                  </div>
+                  <p className="text-[11px] text-slate-500 font-mono">ISO: {inspectWatermarkPunch.timestamp}</p>
+                </div>
+
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">GPS Coordinates & Geofence</span>
+                  <p className="font-mono text-emerald-800 font-bold">
+                    Lat: {inspectWatermarkPunch.lat?.toFixed(6)}, Lng: {inspectWatermarkPunch.lng?.toFixed(6)}
+                  </p>
+                  <p className="text-[11px] text-slate-600">Status: {inspectWatermarkPunch.centerProximityStatus}</p>
+                </div>
+
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Resolved Address & Hub</span>
+                  <p className="text-slate-800 text-[11px]">{inspectWatermarkPunch.locationAddress || activeCenter.address}</p>
+                  <span className="inline-block text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded mt-1">
+                    ✓ Verified Indelible Watermark
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-5 py-3 bg-slate-100 border-t border-slate-200 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setInspectWatermarkPunch(null)}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl cursor-pointer"
+              >
+                Close Audit View
               </button>
             </div>
           </div>

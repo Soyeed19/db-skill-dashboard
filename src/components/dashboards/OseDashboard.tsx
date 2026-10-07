@@ -1929,14 +1929,6 @@ export const OseDashboard: React.FC = () => {
                 Every punch records real device GPS latitude/longitude, timestamp, and watermarked front camera selfie.
               </p>
             </div>
-
-            <button
-              onClick={() => setIsSelfAttendanceModalOpen(true)}
-              className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs flex items-center gap-2 shadow-lg transition-all shrink-0"
-            >
-              <Camera className="w-4 h-4" />
-              <span>Punch Live Attendance Now</span>
-            </button>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

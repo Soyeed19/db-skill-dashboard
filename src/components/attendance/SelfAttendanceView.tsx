@@ -25,14 +25,15 @@ export const SelfAttendanceView: React.FC = () => {
   const [punchModalDefaultType, setPunchModalDefaultType] = useState<'CHECK_IN' | 'CHECK_OUT'>('CHECK_IN');
   const [inspectPhotoUrl, setInspectPhotoUrl] = useState<string | null>(null);
 
-  // If CEO/Leadership, show all staff punches with filter, otherwise only show authenticated employee's punches
-  const isCeo = currentPersona.role === 'GM';
-  const myPunches = isCeo
+  // Senior leadership (PO, Senior Manager, GM, CEO) can inspect all staff punches across centers
+  const isLeadership = currentPersona.role === 'GM' || currentPersona.role === 'CEO' || currentPersona.role === 'Senior Manager' || currentPersona.role === 'PO';
+  const isCeo = isLeadership;
+  const myPunches = isLeadership
     ? attendancePunches
     : attendancePunches.filter(p => p.employeeId === currentPersona.id || p.employeeName === currentPersona.name);
 
   // Find latest punch today
-  const latestPunch = myPunches[0];
+  const latestPunch = attendancePunches.find(p => p.employeeId === currentPersona.id || p.employeeName === currentPersona.name) || myPunches[0];
 
   const handleOpenPunch = (type: 'CHECK_IN' | 'CHECK_OUT') => {
     setPunchModalDefaultType(type);

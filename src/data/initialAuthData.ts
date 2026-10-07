@@ -4,8 +4,8 @@ export const INITIAL_EMPLOYEE_USERS: EmployeeUser[] = [
   {
     id: 'usr-ceo-1',
     empId: 'DBS-EMP-0001',
-    name: 'Col. Ajay Bakshi (Retd.)',
-    email: 'ajay.bakshi@dbskills.in',
+    name: 'Gopal Mani',
+    email: 'gopal.mani@dbskills.in',
     phone: '+91 98111 00001',
     role: 'CEO',
     photoUrl: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=256&q=80',
