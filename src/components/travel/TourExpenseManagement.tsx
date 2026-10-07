@@ -1153,10 +1153,10 @@ export const TourExpenseManagement: React.FC = () => {
                                   setAuditTrailClaim(claim);
                                   setIsAuditTrailOpen(true);
                                 }}
-                                className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
+                                className="px-2.5 py-1 text-xs font-semibold rounded-xs bg-[#E0F2FE] hover:bg-[#E0F2FE]/80 text-[#0284C7] border border-[#00AEEF]/40 flex items-center gap-1 transition-colors cursor-pointer"
                                 title="View complete timestamped audit trail log (Submitted, SM Verified, GM Sanctioned)"
                               >
-                                <History className="w-3.5 h-3.5 text-indigo-700" />
+                                <History className="w-3.5 h-3.5 text-[#00AEEF]" />
                                 <span>Audit Trail</span>
                               </button>
 
@@ -1259,11 +1259,11 @@ export const TourExpenseManagement: React.FC = () => {
       {/* MODAL 1: APPLY PRE-TOUR SANCTION                         */}
       {/* ========================================================= */}
       {isApplyTourOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-lg overflow-hidden text-slate-800">
-            <div className="bg-gradient-to-r from-dbs-green-dark to-dbs-green text-white px-6 py-4 flex items-center justify-between">
-              <h3 className="text-base font-bold flex items-center gap-2">
-                <Plane className="w-5 h-5 text-emerald-300" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 overflow-y-auto">
+          <div className="bg-white rounded-sm border border-slate-300 shadow-md w-full max-w-lg overflow-hidden text-slate-800 my-4">
+            <div className="bg-[#007A3D] text-white px-5 py-3 flex items-center justify-between border-b border-[#005C2E]">
+              <h3 className="text-sm sm:text-base font-bold flex items-center gap-2">
+                <Plane className="w-4 h-4 text-emerald-200" />
                 Apply for Official Tour Sanction
               </h3>
               <button
@@ -1374,13 +1374,13 @@ export const TourExpenseManagement: React.FC = () => {
       {/* MODAL 2: EXPENSE CLAIM MODAL WITH MANDATORY PROOF UPLOADS */}
       {/* ========================================================= */}
       {isSettleClaimOpen && selectedTourForClaim && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/80 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden text-slate-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-900/60 overflow-y-auto">
+          <div className="bg-white rounded-sm border border-slate-300 shadow-md w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden text-slate-800 my-4">
             {/* Header */}
-            <div className="bg-gradient-to-r from-dbs-green-dark via-dbs-green to-[#005C2E] text-white px-6 py-4 flex items-center justify-between shrink-0">
+            <div className="bg-[#007A3D] text-white px-5 py-3 flex items-center justify-between shrink-0 border-b border-[#005C2E]">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs uppercase text-dbs-growth-light font-bold tracking-wider font-mono">
+                  <span className="text-[10px] uppercase text-emerald-200 font-bold tracking-wider font-mono">
                     Linked Sanction Order: {selectedTourForClaim.tourSanctionNumber}
                   </span>
                   <span className="text-white/40">•</span>
@@ -1774,12 +1774,12 @@ export const TourExpenseManagement: React.FC = () => {
       {/* MODAL 3: INTERACTIVE BILL LIGHTBOX VIEWER                 */}
       {/* ========================================================= */}
       {previewDoc?.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-teal-50 border border-teal-200 flex items-center justify-center text-teal-700">
-                  <Receipt className="w-5 h-5" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 overflow-y-auto">
+          <div className="bg-white rounded-sm max-w-2xl w-full p-5 shadow-md border border-slate-300 space-y-4 my-4">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xs bg-[#E6F4EA] border border-[#007A3D]/30 flex items-center justify-center text-[#007A3D]">
+                  <Receipt className="w-4 h-4" />
                 </div>
                 <div>
                   <h3 className="text-sm font-extrabold text-slate-900 truncate max-w-md">

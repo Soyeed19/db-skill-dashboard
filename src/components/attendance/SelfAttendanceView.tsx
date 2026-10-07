@@ -42,38 +42,36 @@ export const SelfAttendanceView: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Hero Banner: Self-Attendance Punch & Policy */}
-      <div className="bg-gradient-to-r from-dbs-green-dark to-dbs-green text-white rounded-3xl p-6 shadow-md relative overflow-hidden">
-        <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-radial from-emerald-500/20 to-transparent pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-dbs-growth/20 border border-dbs-growth/30 text-emerald-200 text-xs font-semibold">
-              <ShieldCheck className="w-3.5 h-3.5 text-dbs-growth" />
+      <div className="bg-[#007A3D] text-white rounded-sm p-5 border border-[#005C2E]">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
+          <div className="space-y-1.5 max-w-xl">
+            <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-xs bg-[#005C2E] border border-white/20 text-emerald-200 text-xs font-semibold">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-300" />
               Employee Self-Attendance System (Zero Supervisor / Manual Intervention)
             </div>
-            <h2 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
+            <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
               Biometric & Geotagged Staff Attendance Punch
             </h2>
-            <p className="text-xs sm:text-sm text-teal-100/90 leading-relaxed">
+            <p className="text-xs text-emerald-100 leading-relaxed">
               Every staff member records their own daily duty presence independently. Each check-in/out captures live device GPS coordinates and a timestamped front camera selfie with an indelible digital watermark.
             </p>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0 w-full md:w-auto">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 shrink-0 w-full md:w-auto">
             <button
               onClick={() => handleOpenPunch('CHECK_IN')}
-              className="px-5 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs flex items-center justify-center gap-2.5 shadow-lg shadow-emerald-950/40 transition-transform active:scale-95"
+              className="px-4 py-2 rounded-sm bg-white text-[#007A3D] hover:bg-emerald-50 font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer border border-white"
             >
-              <CheckCircle2 className="w-4 h-4" />
+              <CheckCircle2 className="w-4 h-4 text-[#007A3D]" />
               <span>Self Check-In (Duty Start)</span>
             </button>
 
             <button
               onClick={() => handleOpenPunch('CHECK_OUT')}
-              className="px-5 py-3 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center justify-center gap-2.5 shadow-lg shadow-amber-950/40 transition-transform active:scale-95"
+              className="px-4 py-2 rounded-sm bg-[#F15A24] hover:bg-[#C2410C] text-white font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer border border-[#C2410C]"
             >
-              <Clock className="w-4 h-4" />
+              <Clock className="w-4 h-4 text-white" />
               <span>Self Check-Out (Duty End)</span>
             </button>
           </div>
@@ -81,25 +79,25 @@ export const SelfAttendanceView: React.FC = () => {
 
         {/* Current Punch Status Ribbon */}
         {latestPunch && (
-          <div className="mt-5 pt-4 border-t border-teal-700/60 flex flex-wrap items-center justify-between gap-3 text-xs text-teal-100">
+          <div className="mt-4 pt-3 border-t border-white/20 flex flex-wrap items-center justify-between gap-3 text-xs text-emerald-100">
             <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="w-2 h-2 rounded-xs bg-emerald-400" />
               <span>Latest Logged Punch:</span>
               <strong className="text-white font-mono">{latestPunch.type}</strong>
               <span>at {latestPunch.timeFormatted}</span>
             </div>
-            <div className="flex items-center gap-1.5 font-mono text-[11px] text-teal-200">
-              <MapPin className="w-3.5 h-3.5 text-emerald-400" />
+            <div className="flex items-center gap-1.5 font-mono text-[11px] text-emerald-200">
+              <MapPin className="w-3.5 h-3.5 text-emerald-300" />
               <span>GPS: {latestPunch.lat.toFixed(4)}, {latestPunch.lng.toFixed(4)}</span>
               <span>•</span>
-              <span className="text-emerald-300 font-bold">{latestPunch.centerProximityStatus}</span>
+              <span className="text-white font-bold">{latestPunch.centerProximityStatus}</span>
             </div>
           </div>
         )}
       </div>
 
       {/* History Ledger Table */}
-      <div className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
+      <div className="bg-white border border-slate-300 rounded-sm p-4 space-y-3">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
             <span className="text-xs font-bold uppercase tracking-wider text-teal-800">
@@ -133,12 +131,15 @@ export const SelfAttendanceView: React.FC = () => {
                   <td className="py-3 px-4">
                     <div
                       onClick={() => setInspectPhotoUrl(punch.photoWithWatermark)}
-                      className="w-12 h-12 rounded-xl overflow-hidden cursor-pointer border border-slate-300 hover:scale-105 transition-transform relative group shadow-2xs"
+                      className="w-12 h-12 rounded-xs overflow-hidden cursor-pointer border border-slate-300 hover:border-slate-400 transition-all relative group shadow-2xs bg-slate-100"
                     >
                       <img
                         src={punch.photoWithWatermark}
                         alt="Watermark Selfie"
                         className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80';
+                        }}
                       />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
                         <Eye className="w-3.5 h-3.5" />
@@ -215,31 +216,31 @@ export const SelfAttendanceView: React.FC = () => {
 
       {/* Modal: Inspect Full High-Res Watermark Photo */}
       {inspectPhotoUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl overflow-hidden max-w-md w-full shadow-2xl border border-slate-200">
-            <div className="bg-gradient-to-r from-dbs-green-dark to-dbs-green text-white p-4 flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-dbs-growth-light">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 overflow-y-auto">
+          <div className="bg-white rounded-sm overflow-hidden max-w-md w-full shadow-md border border-slate-300 my-4">
+            <div className="bg-[#007A3D] text-white p-3.5 flex items-center justify-between border-b border-[#005C2E]">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-200">
                 Indelible Watermark Proof
               </span>
               <button
                 onClick={() => setInspectPhotoUrl(null)}
-                className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white"
+                className="w-6 h-6 rounded-xs bg-white/10 hover:bg-white/20 flex items-center justify-center text-white cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="p-4 bg-slate-900">
+            <div className="p-3 bg-slate-900">
               <img
                 src={inspectPhotoUrl}
                 alt="Full Watermark Proof"
-                className="w-full aspect-square object-cover rounded-xl border border-slate-700"
+                className="w-full aspect-square object-cover rounded-xs border border-slate-700"
               />
             </div>
-            <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-between items-center text-xs">
-              <span className="text-slate-500">Tamper-proof canvas composite</span>
+            <div className="p-3 bg-slate-50 border-t border-slate-200 flex justify-between items-center text-xs">
+              <span className="text-slate-500 font-mono text-[11px]">Tamper-proof canvas composite</span>
               <button
                 onClick={() => setInspectPhotoUrl(null)}
-                className="px-4 py-1.5 rounded-xl bg-teal-800 text-white font-bold"
+                className="px-3 py-1 rounded-sm bg-[#007A3D] hover:bg-[#005C2E] text-white font-bold cursor-pointer"
               >
                 Close
               </button>

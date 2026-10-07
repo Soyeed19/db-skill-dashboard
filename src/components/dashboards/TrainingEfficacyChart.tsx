@@ -442,15 +442,15 @@ export const TrainingEfficacyChart: React.FC<TrainingEfficacyChartProps> = ({
           </span>
         </div>
 
-        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5">
+        <div className="bg-slate-50 border border-slate-200 rounded-xs p-3.5">
           <span className="text-[10px] uppercase font-bold text-slate-500 block">
             Knowledge Score Gain
           </span>
           <div className="flex items-baseline gap-1.5 mt-1">
-            <span className="text-2xl font-black text-indigo-700 font-mono">
+            <span className="text-2xl font-black text-[#007A3D] font-mono">
               +{panIndiaTotals.knowledgeGain}%
             </span>
-            <span className="text-[10px] font-bold text-indigo-800 bg-indigo-100 px-1.5 py-0.2 rounded-xs">
+            <span className="text-[10px] font-bold text-[#005C2E] bg-[#E6F4EA] border border-[#007A3D]/30 px-1.5 py-0.2 rounded-xs">
               Efficacy Delta
             </span>
           </div>
@@ -659,7 +659,7 @@ export const TrainingEfficacyChart: React.FC<TrainingEfficacyChartProps> = ({
                               <span>Post-Test Score:</span>
                               <strong>{data.postScoreAvg}%</strong>
                             </div>
-                            <div className="flex justify-between items-center text-indigo-300 font-bold pt-1 border-t border-slate-800">
+                            <div className="flex justify-between items-center text-emerald-300 font-bold pt-1 border-t border-slate-800">
                               <span>Efficacy Jump:</span>
                               <strong>+{data.knowledgeGain}%</strong>
                             </div>
@@ -887,7 +887,7 @@ export const TrainingEfficacyChart: React.FC<TrainingEfficacyChartProps> = ({
                       <span className="mx-1 text-slate-300">→</span>
                       <strong className="text-emerald-700">{center.postScoreAvg}%</strong>
                     </td>
-                    <td className="py-3 px-4 font-mono font-bold text-indigo-700">
+                    <td className="py-3 px-4 font-mono font-bold text-[#007A3D]">
                       +{center.knowledgeGain}%
                     </td>
                     <td className="py-3 px-4 text-slate-700 text-xs font-medium">

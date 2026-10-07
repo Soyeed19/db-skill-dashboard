@@ -82,27 +82,27 @@ export const DossierViewerModal: React.FC<DossierViewerModalProps> = ({
   const isApm = currentPersona.role === 'Senior Manager' || currentPersona.role === 'GM';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/80 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden text-slate-800">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-900/60 overflow-y-auto">
+      <div className="bg-white rounded-sm border border-slate-300 shadow-md w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden text-slate-800 my-4">
         {/* Top Bar */}
-        <div className="bg-gradient-to-r from-[#0d5c63] to-teal-800 text-white px-6 py-4 flex items-center justify-between shrink-0">
+        <div className="bg-[#007A3D] text-white px-5 py-3 flex items-center justify-between shrink-0 border-b border-[#005C2E]">
           <div className="flex items-center gap-3">
             <img
               src={candidate.photoUrl}
               alt={candidate.fullName}
-              className="w-11 h-11 rounded-xl object-cover border-2 border-white/30 shadow-xs"
+              className="w-10 h-10 rounded-xs object-cover border border-white/40"
             />
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wider text-emerald-300">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-200">
                   3-Page Official Candidate Dossier
                 </span>
                 <span className="text-white/40">•</span>
-                <span className="text-xs font-mono text-white/80">{candidate.registrationNumber}</span>
+                <span className="text-xs font-mono text-white/90">{candidate.registrationNumber}</span>
               </div>
-              <h3 className="text-lg font-bold flex items-center gap-2">
+              <h3 className="text-base font-bold flex items-center gap-2">
                 {candidate.fullName}
-                <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-white/10 text-white/90">
+                <span className="text-[10px] font-semibold px-2 py-0.2 rounded-xs bg-black/20 text-white border border-white/20">
                   {candidate.status}
                 </span>
               </h3>

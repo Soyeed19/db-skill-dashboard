@@ -105,21 +105,21 @@ export const EditDiscrepancyModal: React.FC<EditDiscrepancyModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-3xl overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 overflow-y-auto">
+      <div className="bg-white rounded-sm shadow-md border border-slate-300 w-full max-w-3xl overflow-hidden my-8">
         {/* Header */}
-        <div className="bg-gradient-to-r from-amber-600 via-amber-700 to-amber-800 text-white p-6 flex items-start justify-between">
+        <div className="bg-[#F15A24] text-white p-4 flex items-start justify-between border-b border-[#C2410C]">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-950/60 text-amber-200 border border-amber-400/30 uppercase tracking-wider flex items-center gap-1.5">
-                <AlertTriangle className="w-3.5 h-3.5 text-amber-300" />
+              <span className="px-2 py-0.5 rounded-xs text-[10px] font-bold bg-[#C2410C] text-white border border-white/20 uppercase tracking-wider flex items-center gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-200" />
                 PO Audit Correction Mode
               </span>
               <span className="font-mono text-xs text-amber-100">
                 {candidate.registrationNumber}
               </span>
             </div>
-            <h2 className="text-xl font-bold tracking-tight">
+            <h2 className="text-base sm:text-lg font-bold tracking-tight">
               Edit & Fix Discrepancy for {candidate.fullName}
             </h2>
             <p className="text-xs text-amber-100">

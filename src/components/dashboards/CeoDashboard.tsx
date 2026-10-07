@@ -667,14 +667,14 @@ export const CeoDashboard: React.FC = () => {
                           {/* Alert Top Bar */}
                           <div className="flex items-start justify-between gap-2 mb-2">
                             <div className="flex items-center gap-2">
-                              <span className={`p-1.5 rounded-xl ${
+                              <span className={`p-1.5 rounded-xs ${
                                 isAudit
                                   ? 'bg-rose-100 text-rose-700'
                                   : isStockout
                                   ? 'bg-orange-100 text-orange-700'
                                   : isDefect
                                   ? 'bg-amber-100 text-amber-700'
-                                  : 'bg-purple-100 text-purple-700'
+                                  : 'bg-slate-100 text-slate-700'
                               }`}>
                                 {isAudit && <FileWarning className="w-4 h-4" />}
                                 {isStockout && <PackageX className="w-4 h-4" />}

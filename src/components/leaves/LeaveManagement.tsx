@@ -442,11 +442,11 @@ export const LeaveManagement: React.FC = () => {
 
       {/* Modal: Apply Leave */}
       {isApplyOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-lg overflow-hidden text-slate-800">
-            <div className="bg-gradient-to-r from-dbs-green-dark to-dbs-green text-white px-6 py-4 flex items-center justify-between">
-              <h3 className="text-base font-bold flex items-center gap-2">
-                <CalendarDays className="w-5 h-5 text-dbs-growth-light" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 overflow-y-auto">
+          <div className="bg-white rounded-sm border border-slate-300 shadow-md w-full max-w-lg overflow-hidden text-slate-800 my-4">
+            <div className="bg-[#007A3D] text-white px-5 py-3 flex items-center justify-between border-b border-[#005C2E]">
+              <h3 className="text-sm sm:text-base font-bold flex items-center gap-2">
+                <CalendarDays className="w-4 h-4 text-emerald-200" />
                 Submit Leave / Comp-Off Application
               </h3>
               <button

@@ -11,12 +11,14 @@ import {
   Building,
   Target,
   FileSpreadsheet,
-  Download
+  Download,
+  UserPlus
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Candidate, CandidateStatus } from '../../types';
 import { DossierViewerModal } from './DossierViewerModal';
 import { WhatsAppSummaryModal } from '../common/WhatsAppSummaryModal';
+import { CandidateRegistrationModal } from './CandidateRegistrationModal';
 import {
   generateCandidateDossierPdf,
   generateTrainingCertificatePdf
@@ -40,6 +42,7 @@ export const CandidateList: React.FC = () => {
   const [isWhatsAppOpen, setIsWhatsAppOpen] = useState(false);
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [isEnrollmentOpen, setIsEnrollmentOpen] = useState(false);
 
   const handleExportToExcel = () => {
     try {
@@ -110,113 +113,123 @@ export const CandidateList: React.FC = () => {
       case 'Pending Scan':
         return 'bg-slate-100 text-slate-700 border-slate-300';
       case 'Pending PO Review':
-        return 'bg-blue-50 text-blue-700 border-blue-200';
+        return 'bg-[#E0F2FE] text-[#0284C7] border-[#00AEEF]/40 font-medium';
       case 'Query Raised':
-        return 'bg-rose-50 text-rose-700 border-rose-200 font-bold';
+        return 'bg-[#FFF7ED] text-[#C2410C] border-[#F15A24]/40 font-bold';
       case 'Green Signal (Video Call)':
-        return 'bg-emerald-50 text-emerald-800 border-emerald-300 font-semibold';
+        return 'bg-[#E6F4EA] text-[#005C2E] border-[#007A3D]/40 font-semibold';
       case 'APM QC Passed':
-        return 'bg-teal-50 text-teal-800 border-teal-300 font-semibold';
+        return 'bg-[#DCFCE7] text-[#15803D] border-[#62B548]/40 font-semibold';
       case 'Certified & Dispatched':
-        return 'bg-emerald-600 text-white border-emerald-700 font-bold shadow-xs';
+        return 'bg-[#007A3D] text-white border-[#005C2E] font-bold';
       default:
-        return 'bg-slate-100 text-slate-700';
+        return 'bg-slate-100 text-slate-700 border-slate-200';
     }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Target Progress Bar Card (OSE & Operations focus) */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-teal-50 rounded-xl border border-teal-200/80 text-teal-800">
-            <Target className="w-6 h-6" />
+      <div className="bg-white border border-slate-300 rounded-sm p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-[#E6F4EA] rounded-xs border border-[#007A3D]/30 text-[#007A3D]">
+            <Target className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-teal-800">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#007A3D]">
                 Daily Enrollment Metric
               </span>
-              <span className="text-slate-400">•</span>
+              <span className="text-slate-300">•</span>
               <span className="text-xs text-slate-500 font-mono">{activeCenter.name}</span>
             </div>
-            <h3 className="text-base font-bold text-slate-900">
+            <h3 className="text-sm font-bold text-slate-900">
               {dailyEnrolled} of {dailyTarget} Candidates Registered Today ({targetPct}%)
             </h3>
           </div>
         </div>
 
         <div className="flex-1 max-w-md">
-          <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden border border-slate-200">
+          <div className="w-full bg-slate-100 rounded-xs h-2.5 overflow-hidden border border-slate-300">
             <div
-              className="bg-gradient-to-r from-teal-700 to-emerald-500 h-full rounded-full transition-all duration-500"
+              className="bg-[#007A3D] h-full rounded-xs transition-all duration-300"
               style={{ width: `${targetPct}%` }}
             />
           </div>
-          <div className="flex justify-between text-[11px] text-slate-500 mt-1.5 font-medium">
+          <div className="flex justify-between text-[10px] text-slate-500 mt-1 font-mono">
             <span>Minimum Batch Target: 25</span>
             <span>Capacity Ceiling: {dailyTarget}</span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setIsEnrollmentOpen(true)}
+            className="px-3 py-1.5 rounded-sm text-xs font-bold bg-[#007A3D] text-white hover:bg-[#005C2E] transition-colors flex items-center gap-1.5 cursor-pointer border border-[#005C2E]"
+            title="Start New Candidate Enrollment"
+          >
+            <UserPlus className="w-4 h-4 text-emerald-200" />
+            <span>+ Enroll Candidate</span>
+          </button>
+
           <button
             onClick={handleExportToExcel}
             disabled={isExporting}
-            className="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-900 border border-emerald-300 hover:bg-emerald-100 transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+            className="px-3 py-1.5 rounded-sm text-xs font-bold bg-white text-slate-800 border border-slate-300 hover:bg-slate-50 transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
             title="Download candidates spreadsheet (.xlsx) for local reporting"
           >
-            <FileSpreadsheet className="w-4 h-4 text-emerald-700" />
+            <FileSpreadsheet className="w-4 h-4 text-[#007A3D]" />
             <span>Export to Excel</span>
-            <span className="bg-emerald-200 text-emerald-950 font-mono text-[10px] px-1.5 py-0.5 rounded font-bold">
+            <span className="bg-slate-100 text-slate-700 font-mono text-[10px] px-1.5 py-0.2 rounded-xs border border-slate-200 font-bold">
               {filteredCandidates.length}
             </span>
           </button>
 
           <button
             onClick={() => setIsWhatsAppOpen(true)}
-            className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 transition-colors flex items-center gap-1.5 shadow-xs"
+            className="px-3 py-1.5 rounded-sm text-xs font-semibold bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 transition-colors flex items-center gap-1.5"
           >
             <Share2 className="w-4 h-4 text-emerald-600" />
-            WhatsApp Batch Summary
+            <span>WhatsApp Summary</span>
           </button>
         </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
         <div className="relative flex-1 max-w-md">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
           <input
             type="text"
             placeholder="Search by candidate name, DL number, Aadhaar, reg ID..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-teal-600 shadow-xs"
+            className="w-full pl-9 pr-3 py-1.5 text-xs bg-white border border-slate-300 rounded-sm focus:outline-[#007A3D]"
           />
         </div>
 
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+        <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
           {statuses.map(s => (
             <button
               key={s.value}
               onClick={() => setStatusFilter(s.value)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all border ${
+              className={`px-2.5 py-1 rounded-sm text-xs font-medium whitespace-nowrap transition-colors border ${
                 statusFilter === s.value
-                  ? 'bg-teal-800 text-white border-teal-800 shadow-xs font-bold'
-                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                  ? 'bg-[#007A3D] text-white border-[#005C2E] font-bold'
+                  : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
               }`}
             >
-              {s.label} <span className="opacity-70 text-[10px] ml-1">({s.count})</span>
+              {s.label} <span className="text-[10px] ml-0.5 opacity-80">({s.count})</span>
             </button>
           ))}
         </div>
       </div>
 
       {/* Candidates Table */}
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
+      <div className="bg-white border border-slate-300 rounded-sm overflow-hidden">
         {/* Table Subheader Bar with Export Shortcut */}
-        <div className="px-5 py-3 border-b border-slate-200 bg-slate-50/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+        <div className="px-3.5 py-2 border-b border-slate-300 bg-slate-50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold text-slate-800">
               Center Roster: {activeCenter.name} ({activeCenter.code})
@@ -230,31 +243,31 @@ export const CandidateList: React.FC = () => {
           <button
             onClick={handleExportToExcel}
             disabled={isExporting || filteredCandidates.length === 0}
-            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-emerald-800 border border-emerald-300 hover:bg-emerald-50 transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer disabled:opacity-50"
+            className="px-2.5 py-1 rounded-sm text-xs font-bold bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50"
             title="Download candidates spreadsheet (.xlsx) for local center reporting"
           >
-            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Export to Excel (.xlsx)</span>
-            <Download className="w-3 h-3 text-emerald-600" />
+            <FileSpreadsheet className="w-3.5 h-3.5 text-[#007A3D]" />
+            <span>Export (.xlsx)</span>
+            <Download className="w-3 h-3 text-slate-500" />
           </button>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                <th className="py-3.5 px-4">Driver Profile</th>
-                <th className="py-3.5 px-4">Gov ID & Contact</th>
-                <th className="py-3.5 px-4">Commercial DL & Class</th>
-                <th className="py-3.5 px-4">1-Day Training</th>
-                <th className="py-3.5 px-4">Audit Status</th>
-                <th className="py-3.5 px-4 text-right">Actions</th>
+              <tr className="bg-slate-50 border-b border-slate-300 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                <th className="py-2.5 px-3">Driver Profile</th>
+                <th className="py-2.5 px-3">Gov ID & Contact</th>
+                <th className="py-2.5 px-3">Commercial DL & Class</th>
+                <th className="py-2.5 px-3">1-Day Training</th>
+                <th className="py-2.5 px-3">Audit Status</th>
+                <th className="py-2.5 px-3 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-xs">
+            <tbody className="divide-y divide-slate-200 text-xs">
               {filteredCandidates.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-400">
+                  <td colSpan={6} className="py-8 text-center text-slate-400">
                     No candidates found matching the selected search and status filter.
                   </td>
                 </tr>
@@ -262,18 +275,18 @@ export const CandidateList: React.FC = () => {
                 filteredCandidates.map(candidate => (
                   <tr
                     key={candidate.id}
-                    className="hover:bg-slate-50/80 transition-colors group"
+                    className="hover:bg-slate-50 transition-colors"
                   >
                     {/* Driver Profile */}
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-3">
+                    <td className="py-2.5 px-3">
+                      <div className="flex items-center gap-2.5">
                         <img
                           src={candidate.photoUrl}
                           alt={candidate.fullName}
-                          className="w-10 h-10 rounded-xl object-cover border border-slate-200 shadow-2xs"
+                          className="w-9 h-9 rounded-xs object-cover border border-slate-300"
                         />
                         <div>
-                          <p className="font-bold text-slate-900 group-hover:text-teal-900 transition-colors">
+                          <p className="font-bold text-slate-900">
                             {candidate.fullName}
                           </p>
                           <p className="text-[11px] text-slate-500">
@@ -287,7 +300,7 @@ export const CandidateList: React.FC = () => {
                     </td>
 
                     {/* Gov ID & Contact */}
-                    <td className="py-3.5 px-4">
+                    <td className="py-2.5 px-3">
                       <div className="space-y-0.5">
                         <p className="font-mono text-slate-800 font-semibold">
                           ID: {candidate.idCardNumber.slice(0, 4)}••••{candidate.idCardNumber.slice(-4)}
@@ -302,16 +315,16 @@ export const CandidateList: React.FC = () => {
                     </td>
 
                     {/* Commercial DL */}
-                    <td className="py-3.5 px-4">
+                    <td className="py-2.5 px-3">
                       <div className="space-y-0.5">
                         <span className="font-mono font-bold text-slate-900 block">
                           {candidate.dlNumber}
                         </span>
                         <div className="flex items-center gap-1.5">
-                          <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-mono text-[10px] font-bold border border-slate-200">
+                          <span className="px-1.5 py-0.2 rounded-xs bg-slate-100 text-slate-700 font-mono text-[10px] font-bold border border-slate-300">
                             {candidate.vehicleClass}
                           </span>
-                          <span className="text-[11px] text-slate-500">
+                          <span className="text-[11px] text-slate-500 font-mono">
                             Exp: {candidate.dlExpiryDate}
                           </span>
                         </div>
@@ -319,15 +332,15 @@ export const CandidateList: React.FC = () => {
                     </td>
 
                     {/* 1-Day Training */}
-                    <td className="py-3.5 px-4">
-                      <div className="space-y-1">
+                    <td className="py-2.5 px-3">
+                      <div className="space-y-0.5">
                         <div className="flex items-center gap-1.5">
                           <span
-                            className={`w-2 h-2 rounded-full ${
+                            className={`w-2 h-2 rounded-xs ${
                               candidate.attendanceStatus === 'Present'
-                                ? 'bg-emerald-500'
+                                ? 'bg-[#007A3D]'
                                 : candidate.attendanceStatus === 'Late'
-                                ? 'bg-amber-500'
+                                ? 'bg-[#F15A24]'
                                 : 'bg-rose-500'
                             }`}
                           />
@@ -335,12 +348,12 @@ export const CandidateList: React.FC = () => {
                             {candidate.attendanceStatus || 'Present'}
                           </span>
                         </div>
-                        <div className="text-[10px] text-slate-500">
+                        <div className="text-[10px] text-slate-500 font-mono">
                           Score: Pre {candidate.preTestScore}% | Post{' '}
-                          <strong className="text-emerald-700">{candidate.postTestScore}%</strong>
+                          <strong className="text-[#007A3D]">{candidate.postTestScore}%</strong>
                         </div>
                         {candidate.kitIssued && (
-                          <span className="text-[10px] text-teal-800 font-medium bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200">
+                          <span className="text-[10px] text-[#005C2E] font-medium bg-[#E6F4EA] px-1 py-0.2 rounded-xs border border-[#007A3D]/30 inline-block">
                             Kit (Size {candidate.tshirtSize})
                           </span>
                         )}
@@ -348,10 +361,10 @@ export const CandidateList: React.FC = () => {
                     </td>
 
                     {/* Audit Status */}
-                    <td className="py-3.5 px-4">
+                    <td className="py-2.5 px-3">
                       <div className="space-y-1">
                         <span
-                          className={`inline-block px-2.5 py-1 rounded-full text-[10px] border ${getStatusBadge(
+                          className={`inline-block px-2 py-0.5 rounded-xs text-[10px] border ${getStatusBadge(
                             candidate.status
                           )}`}
                         >
@@ -363,7 +376,7 @@ export const CandidateList: React.FC = () => {
                           </p>
                         )}
                         {candidate.certificateNumber && (
-                          <p className="text-[10px] font-mono text-emerald-800">
+                          <p className="text-[10px] font-mono text-[#007A3D]">
                             Cert: {candidate.certificateNumber}
                           </p>
                         )}
@@ -371,24 +384,24 @@ export const CandidateList: React.FC = () => {
                     </td>
 
                     {/* Action buttons */}
-                    <td className="py-3.5 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
+                    <td className="py-2.5 px-3 text-right">
+                      <div className="flex items-center justify-end gap-1">
                         <button
                           onClick={() => setSelectedCandidateId(candidate.id)}
-                          className="p-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors border border-slate-200"
+                          className="p-1 rounded-sm bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors border border-slate-300"
                           title="Inspect 3-Page Archival Dossier"
                         >
-                          <Eye className="w-4 h-4" />
+                          <Eye className="w-3.5 h-3.5" />
                         </button>
 
                         <button
                           onClick={() =>
                             generateCandidateDossierPdf(candidate, activeCenter.name, 'DBS-RJ01-2609-B1')
                           }
-                          className="p-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors border border-slate-200"
+                          className="p-1 rounded-sm bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors border border-slate-300"
                           title="Download 3-Page Dossier PDF"
                         >
-                          <FileDown className="w-4 h-4 text-teal-700" />
+                          <FileDown className="w-3.5 h-3.5 text-[#007A3D]" />
                         </button>
 
                         {/* PO Quick Green Signal */}
@@ -396,7 +409,7 @@ export const CandidateList: React.FC = () => {
                           candidate.status === 'Pending PO Review' && (
                             <button
                               onClick={() => grantGreenSignal(candidate.id)}
-                              className="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-500 transition-colors shadow-xs flex items-center gap-1"
+                              className="px-2 py-1 rounded-sm text-xs font-bold bg-[#007A3D] text-white hover:bg-[#005C2E] transition-colors border border-[#005C2E] flex items-center gap-1"
                               title="Grant Green Signal for Video Call"
                             >
                               <ShieldCheck className="w-3.5 h-3.5" />
@@ -409,7 +422,7 @@ export const CandidateList: React.FC = () => {
                           candidate.status === 'Green Signal (Video Call)' && (
                             <button
                               onClick={() => approveApmQc(candidate.id)}
-                              className="px-2.5 py-1 rounded-lg text-xs font-bold bg-teal-800 text-white hover:bg-teal-700 transition-colors shadow-xs flex items-center gap-1"
+                              className="px-2 py-1 rounded-sm text-xs font-bold bg-[#007A3D] text-white hover:bg-[#005C2E] transition-colors border border-[#005C2E] flex items-center gap-1"
                               title="Approve APM Secondary QC"
                             >
                               <CheckCircle className="w-3.5 h-3.5" />
@@ -427,10 +440,10 @@ export const CandidateList: React.FC = () => {
                                 'Vikram Singh Rathore'
                               )
                             }
-                            className="p-1.5 rounded-lg bg-emerald-50 text-emerald-800 hover:bg-emerald-100 transition-colors border border-emerald-300"
+                            className="p-1 rounded-sm bg-[#E6F4EA] text-[#005C2E] hover:bg-[#DCFCE7] transition-colors border border-[#007A3D]/40"
                             title="Print Official Driver Certificate"
                           >
-                            <Award className="w-4 h-4 text-emerald-700" />
+                            <Award className="w-3.5 h-3.5 text-[#007A3D]" />
                           </button>
                         )}
                       </div>
@@ -456,6 +469,12 @@ export const CandidateList: React.FC = () => {
         isOpen={isWhatsAppOpen}
         onClose={() => setIsWhatsAppOpen(false)}
         batchId={todayBatch?.id}
+      />
+
+      {/* Candidate Enrollment Modal */}
+      <CandidateRegistrationModal
+        isOpen={isEnrollmentOpen}
+        onClose={() => setIsEnrollmentOpen(false)}
       />
     </div>
   );

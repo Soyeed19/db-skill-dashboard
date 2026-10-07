@@ -16,6 +16,19 @@
   --color-dbs-growth: #62B548;
   --color-dbs-growth-dark: #15803D;
   --color-dbs-growth-light: #DCFCE7;
+
+  /* Enterprise MIS minimal border radii: crisp, tight, zero oversized bubbles */
+  --radius-3xl: 4px;
+  --radius-2xl: 4px;
+  --radius-xl: 3px;
+  --radius-lg: 3px;
+  --radius-md: 2px;
+  --radius-sm: 2px;
+  --radius-xs: 1px;
+
+  /* Enterprise MIS controlled shadows: crisp borders take precedence over blurry shadows */
+  --shadow-2xl: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
+  --shadow-xl: 0 4px 6px -1px rgba(15, 23, 42, 0.07), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
 }
 
 :root {
@@ -34,4 +47,18 @@
   --dbs-growth-primary: #62B548;
   --dbs-growth-dark: #15803D;
   --dbs-growth-light: #DCFCE7;
+}
+
+/* High-Density Enterprise MIS Global Base Rules */
+body {
+  background-color: #F8FAFC;
+  color: #0F172A;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Tabular numbers for all monospaced elements, counters and data grids */
+.font-mono, td.font-mono, span.font-mono {
+  font-variant-numeric: tabular-nums;
 }

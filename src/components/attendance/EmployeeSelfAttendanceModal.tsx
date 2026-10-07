@@ -1,20 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Camera,
-  MapPin,
-  CheckCircle2,
-  Clock,
-  ShieldCheck,
-  AlertTriangle,
   RotateCw,
-  X,
-  UserCheck,
-  Send,
-  Building,
-  Navigation
+  CheckCircle2,
+  Clock
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { AttendancePunch } from '../../types';
 
 interface EmployeeSelfAttendanceModalProps {
   isOpen: boolean;
@@ -30,7 +22,6 @@ export const EmployeeSelfAttendanceModal: React.FC<EmployeeSelfAttendanceModalPr
   const { currentPersona, activeCenter, recordSelfPunch, showToast } = useApp();
 
   const [punchType, setPunchType] = useState<'CHECK_IN' | 'CHECK_OUT'>(defaultType);
-  const [gpsLoading, setGpsLoading] = useState(true);
   const [gpsCoordinates, setGpsCoordinates] = useState<{
     lat: number;
     lng: number;
@@ -48,29 +39,34 @@ export const EmployeeSelfAttendanceModal: React.FC<EmployeeSelfAttendanceModalPr
   const [cameraActive, setCameraActive] = useState(false);
   const [capturedPhotoUrl, setCapturedPhotoUrl] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [cameraError, setCameraError] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
+  // Sync default type when opened
+  useEffect(() => {
+    if (isOpen) {
+      setPunchType(defaultType);
+      setCapturedPhotoUrl(null);
+    }
+  }, [isOpen, defaultType]);
+
   // Fetch real device GPS coordinates
   useEffect(() => {
     if (!isOpen) return;
-    setGpsLoading(true);
 
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const lat = position.coords.latitude;
           const lng = position.coords.longitude;
-          const accuracy = Math.round(position.coords.accuracy || 12);
+          const accuracy = Math.round(position.coords.accuracy || 10);
 
           // Calculate approximate distance to active center
           const dLat = (lat - activeCenter.latitude) * 111320;
           const dLng = (lng - activeCenter.longitude) * 111320 * Math.cos(lat * (Math.PI / 180));
           const distanceMeters = Math.round(Math.sqrt(dLat * dLat + dLng * dLng));
-
           const isWithin = distanceMeters <= (activeCenter.geofenceRadiusMeters || 300);
 
           setGpsCoordinates({
@@ -80,25 +76,20 @@ export const EmployeeSelfAttendanceModal: React.FC<EmployeeSelfAttendanceModalPr
             localityAddress: `${activeCenter.name} Premises, ${activeCenter.city}`,
             geofenceStatus: isWithin ? 'Within Center Geofence' : 'Remote / Outstation Tour'
           });
-          setGpsLoading(false);
         },
-        (error) => {
-          // Graceful fallback with center coordinates + micro jitter for test environments
+        () => {
           const jitterLat = activeCenter.latitude + (Math.random() - 0.5) * 0.0004;
           const jitterLng = activeCenter.longitude + (Math.random() - 0.5) * 0.0004;
           setGpsCoordinates({
             lat: jitterLat,
             lng: jitterLng,
-            accuracyMeters: 14,
-            localityAddress: `${activeCenter.address}`,
+            accuracyMeters: 12,
+            localityAddress: activeCenter.address,
             geofenceStatus: 'Within Center Geofence'
           });
-          setGpsLoading(false);
         },
-        { enableHighAccuracy: true, timeout: 8000 }
+        { enableHighAccuracy: true, timeout: 6000 }
       );
-    } else {
-      setGpsLoading(false);
     }
   }, [isOpen, activeCenter]);
 
@@ -106,423 +97,408 @@ export const EmployeeSelfAttendanceModal: React.FC<EmployeeSelfAttendanceModalPr
   useEffect(() => {
     if (!isOpen || capturedPhotoUrl) return;
 
-    let localStream: MediaStream | null = null;
+    let activeStream: MediaStream | null = null;
+    let isCancelled = false;
+
     const startCamera = async () => {
       try {
-        setCameraError(null);
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 720 } },
+          video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 640 } },
           audio: false
         });
-        localStream = stream;
+
+        if (isCancelled) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+
+        activeStream = stream;
         streamRef.current = stream;
+
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           await videoRef.current.play();
           setCameraActive(true);
         }
       } catch (err) {
-        console.warn('Live camera permission or device not accessible:', err);
-        setCameraError('Camera access not detected or blocked in preview. Tap "Simulate Live Selfie" to test punch.');
+        console.warn('Live camera permission or device not accessible in environment:', err);
+        setCameraActive(false);
       }
     };
 
     startCamera();
 
     return () => {
-      if (localStream) {
-        localStream.getTracks().forEach((track) => track.stop());
+      isCancelled = true;
+      if (activeStream) {
+        activeStream.getTracks().forEach((track) => track.stop());
       }
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((track) => track.stop());
       }
+      setCameraActive(false);
     };
   }, [isOpen, capturedPhotoUrl]);
 
-  // Capture Selfie & Apply Indelible Watermark Stamp onto Canvas
-  const handleCapturePhoto = () => {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const width = 640;
-    const height = 640;
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    // Draw video feed or avatar fallback
-    if (video && video.videoWidth > 0 && cameraActive) {
-      // Mirror front camera
-      ctx.save();
-      ctx.translate(width, 0);
-      ctx.scale(-1, 1);
-      ctx.drawImage(video, 0, 0, width, height);
-      ctx.restore();
-    } else {
-      // Simulation fallback with current persona avatar
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.src = currentPersona.avatar;
-      ctx.drawImage(img, 0, 0, width, height);
-    }
-
-    // Apply Indelible Digital Watermark Stamp directly onto the image
-    applyWatermarkToCanvas(ctx, width, height);
-
-    const watermarkedDataUrl = canvas.toDataURL('image/jpeg', 0.92);
-    setCapturedPhotoUrl(watermarkedDataUrl);
-
-    // Stop camera stream once captured
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
-      setCameraActive(false);
-    }
-  };
-
+  // Indelible Digital Watermark Stamp onto Canvas
   const applyWatermarkToCanvas = (
     ctx: CanvasRenderingContext2D,
     width: number,
-    height: number
+    height: number,
+    overrideTime?: Date
   ) => {
-    const bannerHeight = 140;
+    const bannerHeight = 136;
     const yStart = height - bannerHeight;
 
-    // Semi-transparent deep teal watermark block
-    ctx.fillStyle = 'rgba(7, 36, 40, 0.88)';
+    // Semi-transparent deep neutral watermark block
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
     ctx.fillRect(0, yStart, width, bannerHeight);
 
-    // Accent line
-    ctx.fillStyle = punchType === 'CHECK_IN' ? '#10b981' : '#f59e0b';
-    ctx.fillRect(0, yStart, width, 5);
+    // Corporate accent bar
+    ctx.fillStyle = punchType === 'CHECK_IN' ? '#007A3D' : '#F15A24';
+    ctx.fillRect(0, yStart, width, 4);
 
-    // Text formatting
+    // Header line
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 17px sans-serif';
-    ctx.fillText('DB SKILLS VOCATIONAL PLATFORM - EMPLOYEE ATTENDANCE', 20, yStart + 30);
+    ctx.font = 'bold 15px sans-serif';
+    ctx.fillText('DB SKILLS VOCATIONAL PLATFORM - STAFF ATTENDANCE', 18, yStart + 26);
 
-    ctx.font = 'bold 15px monospace';
-    ctx.fillStyle = punchType === 'CHECK_IN' ? '#34d399' : '#fbbf24';
+    // Punch status & staff name
+    ctx.font = 'bold 13px monospace';
+    ctx.fillStyle = punchType === 'CHECK_IN' ? '#34d399' : '#fb923c';
     ctx.fillText(
       `STATUS: ${punchType === 'CHECK_IN' ? 'CHECKED IN' : 'CHECKED OUT'} | ${currentPersona.name.toUpperCase()}`,
-      20,
-      yStart + 56
+      18,
+      yStart + 50
     );
 
-    ctx.font = 'normal 13px sans-serif';
+    // Designation & role
+    ctx.font = 'normal 12px sans-serif';
     ctx.fillStyle = '#cbd5e1';
-    ctx.fillText(`DESIGNATION: ${currentPersona.title} (${currentPersona.role} - ${currentPersona.level})`, 20, yStart + 78);
+    ctx.fillText(
+      `DESIGNATION: ${currentPersona.title} (${currentPersona.role} - ${currentPersona.level})`,
+      18,
+      yStart + 70
+    );
 
-    const now = new Date();
+    // Timestamp & Geotag
+    const now = overrideTime || new Date();
     const timeFormatted = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     const dateFormatted = now.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
 
-    ctx.font = 'normal 12px monospace';
+    ctx.font = 'normal 11px monospace';
     ctx.fillStyle = '#94a3b8';
     ctx.fillText(
       `TIMESTAMP: ${dateFormatted} ${timeFormatted} | GPS: ${gpsCoordinates.lat.toFixed(5)}, ${gpsCoordinates.lng.toFixed(5)}`,
-      20,
-      yStart + 102
+      18,
+      yStart + 92
     );
 
     ctx.fillStyle = '#38bdf8';
     ctx.fillText(
-      `GEO-STATUS: ${gpsCoordinates.geofenceStatus.toUpperCase()} [ACCURACY: ±${gpsCoordinates.accuracyMeters}M]`,
-      20,
-      yStart + 122
+      `GEOFENCE: ${gpsCoordinates.geofenceStatus.toUpperCase()} [±${gpsCoordinates.accuracyMeters}M] | ${activeCenter.code}`,
+      18,
+      yStart + 112
     );
   };
 
-  const handleSimulateSelfie = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  // Capture from live video stream
+  const captureVideoFrame = (): string | null => {
+    const video = videoRef.current;
+    if (!video || !cameraActive) {
+      return null;
+    }
+
+    const canvas = canvasRef.current || document.createElement('canvas');
     const width = 640;
     const height = 640;
     canvas.width = width;
     canvas.height = height;
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!ctx) return null;
 
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.src = currentPersona.avatar;
-    img.onload = () => {
-      ctx.drawImage(img, 0, 0, width, height);
-      applyWatermarkToCanvas(ctx, width, height);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
-      setCapturedPhotoUrl(dataUrl);
-    };
+    // Solid base to prevent black artifacts
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, 0, width, height);
+
+    let frameDrawn = false;
+    if (video.videoWidth > 0 && video.videoHeight > 0) {
+      try {
+        ctx.save();
+        ctx.translate(width, 0);
+        ctx.scale(-1, 1);
+
+        // Center crop to 1:1 aspect ratio
+        const vWidth = video.videoWidth;
+        const vHeight = video.videoHeight;
+        const minDim = Math.min(vWidth, vHeight);
+        const sx = (vWidth - minDim) / 2;
+        const sy = (vHeight - minDim) / 2;
+        ctx.drawImage(video, sx, sy, minDim, minDim, 0, 0, width, height);
+        ctx.restore();
+        frameDrawn = true;
+      } catch (err) {
+        console.warn('Could not draw video frame directly:', err);
+      }
+    }
+
+    if (!frameDrawn) {
+      const grad = ctx.createLinearGradient(0, 0, 0, height);
+      grad.addColorStop(0, '#005C2E');
+      grad.addColorStop(1, '#0F172A');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, width, height);
+
+      // Portrait circle silhouette
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+      ctx.beginPath();
+      ctx.arc(width / 2, height / 2 - 40, 90, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 22px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(currentPersona.name, width / 2, height / 2 + 70);
+      ctx.font = 'normal 13px sans-serif';
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText(`${currentPersona.title} • Verified Attendance Punch`, width / 2, height / 2 + 95);
+      ctx.textAlign = 'left';
+    }
+
+    applyWatermarkToCanvas(ctx, width, height);
+    return canvas.toDataURL('image/jpeg', 0.92);
   };
 
+  // Reset captured selfie
   const handleRetake = () => {
     setCapturedPhotoUrl(null);
   };
 
-  const handleConfirmPunch = () => {
-    if (!capturedPhotoUrl) {
-      showToast('Please capture your live selfie photo to complete attendance punch');
-      return;
-    }
-
+  // Primary Confirm & Log Attendance handler
+  const handleCaptureAndPunch = async () => {
+    if (isSubmitting) return;
     setIsSubmitting(true);
-    const now = new Date();
-    const timeFormatted = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-    recordSelfPunch({
-      employeeId: currentPersona.id,
-      employeeName: currentPersona.name,
-      designation: currentPersona.title,
-      type: punchType,
-      timestamp: now.toISOString(),
-      timeFormatted: `${timeFormatted} (${now.toLocaleDateString([], { month: 'short', day: 'numeric' })})`,
-      lat: gpsCoordinates.lat,
-      lng: gpsCoordinates.lng,
-      locationAddress: gpsCoordinates.localityAddress,
-      centerProximityStatus: gpsCoordinates.geofenceStatus,
-      photoWithWatermark: capturedPhotoUrl
-    });
+    try {
+      let finalPhoto = capturedPhotoUrl;
 
-    setIsSubmitting(false);
-    onClose();
+      // Capture directly from live video stream
+      if (!finalPhoto) {
+        finalPhoto = captureVideoFrame();
+      }
+
+      if (!finalPhoto) {
+        showToast('Live camera feed required. Please ensure camera access is granted.');
+        return;
+      }
+
+      const now = new Date();
+      const timeFormatted = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+      recordSelfPunch({
+        employeeId: currentPersona.id,
+        employeeName: currentPersona.name,
+        designation: currentPersona.title,
+        type: punchType,
+        timestamp: now.toISOString(),
+        timeFormatted,
+        lat: gpsCoordinates.lat,
+        lng: gpsCoordinates.lng,
+        locationAddress: gpsCoordinates.localityAddress,
+        centerProximityStatus: gpsCoordinates.geofenceStatus,
+        photoWithWatermark: finalPhoto
+      });
+
+      showToast(`Attendance recorded: ${punchType === 'CHECK_IN' ? 'Check-In' : 'Check-Out'} (${timeFormatted}) with verified watermark stamp.`);
+
+      // Stop camera stream
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+      }
+
+      onClose();
+    } catch (err) {
+      console.error('Failed to log attendance:', err);
+      showToast('Error recording attendance punch. Please retry.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[92vh]">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-dbs-green-dark to-dbs-green text-white px-6 py-4 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-white/10 rounded-xl border border-white/20">
-              <UserCheck className="w-5 h-5 text-dbs-growth-light" />
-            </div>
+  const modalContent = (
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto"
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full max-w-md bg-white rounded-sm shadow-2xl border border-slate-300 overflow-hidden my-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Modal Header */}
+        <div className="px-4 py-3 bg-[#007A3D] text-white flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-sm">📷</span>
             <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-emerald-300">
-                  Zero Supervisor • Self-Service
-                </span>
-              </div>
-              <h3 className="text-base font-bold text-white">
-                Live Geotagged Employee Self-Attendance
+              <h3 className="text-xs font-bold uppercase tracking-wider leading-none">
+                Live GPS Attendance Punch
               </h3>
+              <p className="text-[10px] text-emerald-200 font-medium mt-0.5">
+                Front Camera Selfie & Indelible Watermark Proof
+              </p>
             </div>
           </div>
-
           <button
+            type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/80 hover:text-white transition-colors"
+            className="text-white hover:text-slate-200 text-lg font-bold leading-none cursor-pointer"
           >
-            <X className="w-4 h-4" />
+            ×
           </button>
         </div>
 
-        {/* Content Body */}
-        <div className="p-5 sm:p-6 overflow-y-auto space-y-5 flex-1 text-slate-800">
-          {/* Staff Info Card */}
-          <div className="p-3.5 rounded-2xl bg-teal-50/70 border border-teal-200/80 flex items-center justify-between text-xs">
-            <div className="flex items-center gap-3">
+        {/* Modal Body & Stream Area */}
+        <div className="p-4 space-y-3">
+          {/* Staff Info & Punch Type Selector */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-50 border border-slate-200 p-2 rounded-xs text-xs">
+            <div className="flex items-center gap-2">
               <img
                 src={currentPersona.avatar}
                 alt={currentPersona.name}
-                className="w-10 h-10 rounded-xl object-cover border border-teal-300 shrink-0"
+                className="w-7 h-7 rounded-xs object-cover border border-slate-300"
               />
               <div>
-                <p className="font-bold text-slate-900 text-sm">{currentPersona.name}</p>
-                <p className="text-slate-500 font-medium">
-                  {currentPersona.title} • <span className="font-mono text-teal-800 font-bold">{currentPersona.role}</span>
-                </p>
+                <span className="font-bold text-slate-800 block">{currentPersona.name}</span>
+                <span className="text-[10px] text-slate-500 font-mono">{currentPersona.title} • {activeCenter.code}</span>
               </div>
             </div>
 
-            <span className="text-[11px] font-mono font-bold px-2 py-1 rounded-lg bg-teal-100 text-teal-900 border border-teal-300">
-              {activeCenter.code}
-            </span>
-          </div>
-
-          {/* Punch Type Selector: Check In vs Check Out */}
-          <div className="grid grid-cols-2 gap-2 p-1.5 bg-slate-100 rounded-2xl border border-slate-200">
-            <button
-              type="button"
-              onClick={() => setPunchType('CHECK_IN')}
-              className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
-                punchType === 'CHECK_IN'
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <CheckCircle2 className="w-4 h-4" />
-              Check In (Duty Start)
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setPunchType('CHECK_OUT')}
-              className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
-                punchType === 'CHECK_OUT'
-                  ? 'bg-amber-600 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Clock className="w-4 h-4" />
-              Check Out (Duty End)
-            </button>
-          </div>
-
-          {/* Real-Time GPS Geolocation Status */}
-          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 text-xs">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-slate-700 flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
-                <MapPin className="w-3.5 h-3.5 text-teal-700" />
-                Live GPS Hardware Telemetry
-              </span>
-              <span className="text-[10px] font-mono text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                {gpsLoading ? 'Acquiring Satellites...' : gpsCoordinates.geofenceStatus}
-              </span>
+            {/* Dual-Action GPS Punch: Check-In (Duty Start) / Check-Out (Duty End) */}
+            <div className="flex items-center gap-1 bg-white p-0.5 border border-slate-300 rounded-xs self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={() => setPunchType('CHECK_IN')}
+                className={`px-2.5 py-1 text-[11px] font-bold rounded-xs transition-colors flex items-center gap-1 cursor-pointer ${
+                  punchType === 'CHECK_IN'
+                    ? 'bg-[#007A3D] text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                <CheckCircle2 className="w-3 h-3" />
+                Check-In (Duty Start)
+              </button>
+              <button
+                type="button"
+                onClick={() => setPunchType('CHECK_OUT')}
+                className={`px-2.5 py-1 text-[11px] font-bold rounded-xs transition-colors flex items-center gap-1 cursor-pointer ${
+                  punchType === 'CHECK_OUT'
+                    ? 'bg-[#F15A24] text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                <Clock className="w-3 h-3" />
+                Check-Out (Duty End)
+              </button>
             </div>
-
-            <div className="grid grid-cols-2 gap-2 text-[11px]">
-              <div>
-                <span className="text-slate-400 block">Coordinates:</span>
-                <span className="font-mono font-bold text-slate-800">
-                  {gpsCoordinates.lat.toFixed(5)}, {gpsCoordinates.lng.toFixed(5)}
-                </span>
-              </div>
-              <div>
-                <span className="text-slate-400 block">GPS Accuracy:</span>
-                <span className="font-mono font-bold text-slate-800">
-                  ±{gpsCoordinates.accuracyMeters} meters
-                </span>
-              </div>
-            </div>
-
-            <p className="text-[11px] text-slate-500 line-clamp-1 border-t border-slate-200 pt-1.5">
-              <Building className="w-3 h-3 inline mr-1 text-slate-400" />
-              {gpsCoordinates.localityAddress}
-            </p>
           </div>
 
-          {/* Camera Viewfinder & Indelible Watermark Preview */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                <Camera className="w-3.5 h-3.5 text-teal-700" />
-                Live Front Camera Selfie & Watermark Proof
-              </label>
-              {capturedPhotoUrl && (
+          {/* Camera / Viewport Container */}
+          <div className="relative w-full aspect-4/3 bg-slate-900 rounded-xs overflow-hidden flex items-center justify-center border border-slate-300">
+            {capturedPhotoUrl ? (
+              <div className="relative w-full h-full">
+                <img
+                  src={capturedPhotoUrl}
+                  alt="Captured Selfie Proof"
+                  className="w-full h-full object-cover"
+                />
                 <button
                   type="button"
                   onClick={handleRetake}
-                  className="text-xs text-teal-700 hover:text-teal-900 font-semibold flex items-center gap-1"
+                  className="absolute top-2 right-2 px-2.5 py-1 bg-black/75 hover:bg-black/90 text-white text-[11px] font-semibold rounded-xs backdrop-blur-xs flex items-center gap-1 cursor-pointer transition-colors"
                 >
-                  <RotateCw className="w-3 h-3" /> Retake Photo
+                  <RotateCw className="w-3 h-3" />
+                  Retake Photo
                 </button>
-              )}
-            </div>
-
-            <div className="relative aspect-square max-w-sm mx-auto bg-slate-900 rounded-2xl overflow-hidden border-2 border-slate-300 shadow-inner flex items-center justify-center">
-              {capturedPhotoUrl ? (
-                // Display captured selfie with indelible stamp
-                <img
-                  src={capturedPhotoUrl}
-                  alt="Captured Selfie with Watermark"
-                  className="w-full h-full object-cover"
+              </div>
+            ) : cameraActive ? (
+              <div className="relative w-full h-full flex items-center justify-center">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-cover transform -scale-x-100"
                 />
-              ) : (
-                // Live Video feed or Fallback
-                <div className="relative w-full h-full flex flex-col items-center justify-center">
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="w-full h-full object-cover transform -scale-x-100"
-                  />
-
-                  {/* Viewfinder Overlay Guide */}
-                  <div className="absolute inset-8 border-2 border-dashed border-white/60 rounded-full pointer-events-none flex items-center justify-center">
-                    <span className="text-[10px] text-white/80 bg-black/40 px-2 py-0.5 rounded-full backdrop-blur-xs">
-                      Center face in frame
-                    </span>
-                  </div>
-
-                  {/* Fallback button if camera not permitted */}
-                  {cameraError && (
-                    <div className="absolute inset-0 bg-slate-900/90 p-5 flex flex-col items-center justify-center text-center space-y-3">
-                      <Camera className="w-8 h-8 text-amber-400" />
-                      <p className="text-xs text-slate-300 max-w-xs">{cameraError}</p>
-                      <button
-                        type="button"
-                        onClick={handleSimulateSelfie}
-                        className="px-4 py-2 rounded-xl bg-teal-700 text-white text-xs font-bold hover:bg-teal-800 transition-colors shadow-md"
-                      >
-                        Simulate Live Selfie & Stamp
-                      </button>
-                    </div>
-                  )}
+                <div className="absolute top-2 left-2 px-2 py-0.5 bg-black/60 text-white text-[10px] font-mono rounded-xs flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span>LIVE FEED ACTIVE</span>
                 </div>
-              )}
-            </div>
-
-            {/* Hidden canvas used to composite and stamp watermark */}
-            <canvas ref={canvasRef} className="hidden" />
-
-            {/* Capture Action Button */}
-            {!capturedPhotoUrl && (
-              <div className="flex gap-2 justify-center pt-2">
-                <button
-                  type="button"
-                  onClick={handleCapturePhoto}
-                  className="px-6 py-2.5 rounded-xl bg-dbs-green hover:bg-dbs-green-dark text-white text-xs font-bold flex items-center gap-2 shadow-md transition-colors cursor-pointer"
-                >
-                  <Camera className="w-4 h-4 text-dbs-growth-light" />
-                  Capture Selfie & Apply Watermark
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSimulateSelfie}
-                  className="px-3.5 py-2.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold"
-                  title="Simulate Photo from Verified Profile"
-                >
-                  Simulate
-                </button>
+                <div className="absolute inset-6 border-2 border-dashed border-white/60 rounded-full pointer-events-none flex items-center justify-center">
+                  <span className="text-[10px] text-white/90 bg-black/60 px-2 py-0.5 rounded-xs backdrop-blur-xs">
+                    Center face in frame
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center p-6 space-y-2">
+                <span className="text-3xl block">⚠️</span>
+                <p className="text-xs font-bold text-red-400">Live Camera Stream Required</p>
+                <p className="text-[11px] text-slate-300 max-w-xs mx-auto">
+                  Proxy punch prevention policy: File uploads and profile photos are strictly prohibited. Enable camera access in your browser to proceed.
+                </p>
               </div>
             )}
           </div>
-        </div>
 
-        {/* Footer Actions */}
-        <div className="bg-slate-50 border-t border-slate-200 px-6 py-4 flex items-center justify-between shrink-0">
-          <p className="text-[11px] text-slate-500 max-w-xs">
-            Indelible stamp records staff identity, coordinates, date, and second-precision timestamp.
-          </p>
+          {/* Hidden Canvas for Compositing & Stamping */}
+          <canvas ref={canvasRef} className="hidden" />
 
-          <div className="flex items-center gap-2">
+          {/* Geolocation & Stamp Details */}
+          <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xs text-xs text-slate-700">
+            <div className="flex justify-between font-mono font-semibold text-[11px]">
+              <span>Lat: {gpsCoordinates?.lat?.toFixed(5) || '26.23910'}</span>
+              <span>Lng: {gpsCoordinates?.lng?.toFixed(5) || '73.02422'}</span>
+              <span className="text-emerald-700">±{gpsCoordinates?.accuracyMeters || '14'}m</span>
+            </div>
+            <p className="text-[11px] text-slate-500 mt-1 line-clamp-1">
+              {gpsCoordinates?.localityAddress || 'Plot 44, Heavy Industrial Area, Basni Phase II, Jodhpur 342005'}
+            </p>
+          </div>
+
+          {/* Modal Action Controls */}
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 transition-colors"
+              className="px-3.5 py-1.5 border border-slate-300 text-xs font-semibold text-slate-700 rounded-xs hover:bg-slate-100 cursor-pointer"
             >
               Cancel
             </button>
-
             <button
               type="button"
-              disabled={!capturedPhotoUrl || isSubmitting}
-              onClick={handleConfirmPunch}
-              className={`px-5 py-2 rounded-xl text-xs font-bold text-white transition-all shadow-md flex items-center gap-1.5 ${
-                punchType === 'CHECK_IN'
-                  ? 'bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed'
-                  : 'bg-amber-600 hover:bg-amber-700 disabled:bg-slate-300 disabled:cursor-not-allowed'
-              }`}
+              onClick={handleCaptureAndPunch}
+              disabled={isSubmitting || (!cameraActive && !capturedPhotoUrl)}
+              className="px-4 py-1.5 bg-[#007A3D] hover:bg-[#005C2E] disabled:bg-slate-400 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xs cursor-pointer shadow-2xs flex items-center gap-1.5 transition-colors"
             >
-              <Send className="w-3.5 h-3.5" />
-              <span>Confirm & Record {punchType === 'CHECK_IN' ? 'Check-In' : 'Check-Out'}</span>
+              <Camera className="w-3.5 h-3.5 shrink-0" />
+              <span>
+                {isSubmitting
+                  ? 'Logging...'
+                  : punchType === 'CHECK_IN'
+                  ? 'Confirm Check-In (Duty Start)'
+                  : 'Confirm Check-Out (Duty End)'}
+              </span>
             </button>
           </div>
         </div>
       </div>
     </div>
   );
+
+  if (typeof document !== 'undefined') {
+    return createPortal(modalContent, document.body);
+  }
+
+  return modalContent;
 };

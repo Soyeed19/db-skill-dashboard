@@ -94,20 +94,20 @@ export const ExpenseAuditTrailModal: React.FC<ExpenseAuditTrailModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 overflow-y-auto">
+      <div className="bg-white rounded-sm shadow-md border border-slate-300 w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden my-4">
         {/* Modal Top Header */}
-        <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-teal-500/20 border border-teal-400/40 flex items-center justify-center text-teal-300">
-              <History className="w-5 h-5" />
+        <div className="px-5 py-3.5 bg-slate-900 text-white flex items-center justify-between shrink-0 border-b border-slate-800">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xs bg-[#007A3D]/30 border border-[#007A3D]/50 flex items-center justify-center text-emerald-300">
+              <History className="w-4 h-4" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-extrabold text-sm sm:text-base tracking-tight text-white">
+                <h3 className="font-bold text-sm sm:text-base tracking-tight text-white">
                   Expense Claim Audit Trail & Lifecycle Log
                 </h3>
-                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300">
+                <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.2 rounded-xs bg-[#007A3D]/40 border border-[#007A3D]/60 text-emerald-200">
                   Immutable Record
                 </span>
               </div>

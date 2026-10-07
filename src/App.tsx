@@ -68,17 +68,17 @@ const AppContent: React.FC = () => {
       />
 
       {/* Role Context Notification Bar */}
-      <div className="bg-gradient-to-r from-dbs-green-dark to-dbs-green text-white py-2 px-4 text-xs">
+      <div className="bg-[#007A3D] text-white py-1.5 px-4 text-xs border-b border-[#005C2E]">
         <div className="w-full max-w-[98%] xl:max-w-[1850px] mx-auto px-3 sm:px-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-dbs-growth animate-pulse" />
+            <span className="w-2 h-2 rounded-xs bg-[#62B548]" />
             <span className="font-semibold">Logged in as: {currentPersona.role}</span>
-            <span className="text-emerald-300 font-mono font-bold">[{currentPersona.level}]</span>
+            <span className="text-emerald-200 font-mono font-bold">[{currentPersona.level}]</span>
             <span className="text-white/40">•</span>
-            <span className="text-white/80">{currentPersona.name} ({currentPersona.title}) at {activeCenter.name}</span>
+            <span className="text-white/90">{currentPersona.name} ({currentPersona.title}) at {activeCenter.name}</span>
           </div>
 
-          <div className="flex items-center gap-2 text-[11px] text-teal-200">
+          <div className="flex items-center gap-2 text-[11px] text-emerald-100">
             <span>Daily Batch: <strong className="text-white font-mono">{currentBatch?.batchCode}</strong></span>
             <span>•</span>
             <span>Target: {currentBatch?.enrolledCount}/{currentBatch?.targetCount}</span>
@@ -134,10 +134,10 @@ const AppContent: React.FC = () => {
       </main>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-slate-200 py-6 text-xs text-slate-500 mt-12">
+      <footer className="bg-white border-t border-slate-200 py-4 text-xs text-slate-500 mt-8">
         <div className="w-full max-w-[98%] xl:max-w-[1850px] mx-auto px-3 sm:px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-md bg-dbs-green flex items-center justify-center text-white text-[10px] font-bold">
+            <div className="w-5 h-5 rounded-xs bg-[#007A3D] flex items-center justify-center text-white text-[10px] font-bold">
               DB
             </div>
             <p className="font-semibold text-slate-700">
@@ -169,7 +169,7 @@ const AppContent: React.FC = () => {
 
       {/* Global Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-5 right-5 z-50 bg-slate-900 text-white text-xs font-semibold px-4 py-3 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-2.5 animate-bounce">
+        <div className="fixed bottom-5 right-5 z-50 bg-slate-900 text-white text-xs font-semibold px-3.5 py-2.5 rounded-sm shadow-md border border-slate-700 flex items-center gap-2">
           <Info className="w-4 h-4 text-emerald-400 shrink-0" />
           <span>{toastMessage}</span>
         </div>

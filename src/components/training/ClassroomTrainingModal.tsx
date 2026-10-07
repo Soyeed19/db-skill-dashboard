@@ -213,13 +213,13 @@ export const ClassroomTrainingModal: React.FC<ClassroomTrainingModalProps> = ({
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-md transition-all ${
+      className={`fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/70 overflow-y-auto ${
         isFullscreen ? 'p-0' : ''
       }`}
     >
       <div
-        className={`bg-slate-900 border border-slate-700 text-slate-100 flex flex-col shadow-2xl overflow-hidden transition-all ${
-          isFullscreen ? 'w-screen h-screen rounded-none' : 'w-full max-w-5xl h-[88vh] rounded-2xl'
+        className={`bg-slate-900 border border-slate-700 text-slate-100 flex flex-col shadow-md overflow-hidden ${
+          isFullscreen ? 'w-screen h-screen rounded-none' : 'w-full max-w-5xl h-[88vh] rounded-sm'
         }`}
       >
         {/* Top Control Bar */}

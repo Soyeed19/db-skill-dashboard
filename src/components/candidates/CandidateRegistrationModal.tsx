@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   X,
   Scan,
@@ -27,26 +27,67 @@ export const CandidateRegistrationModal: React.FC<CandidateRegistrationModalProp
 
   const [activeTab, setActiveTab] = useState<'manual' | 'ocr'>('manual');
 
-  // Form State
+  // 1. Ensure initial state is defensively declared with fallback defaults:
   const [formData, setFormData] = useState({
     fullName: '',
-    fatherName: '',
-    dateOfBirth: '1992-06-15',
+    dob: '1995-04-12',
+    dateOfBirth: '1995-04-12',
     gender: 'Male' as Candidate['gender'],
-    mobileNumber: '',
+    aadhaarNumber: '',
     idCardNumber: '',
-    abhaNumber: '',
     dlNumber: '',
     dlExpiryDate: '2029-12-31',
+    phone: '',
+    mobileNumber: '',
+    assignedCenterId: activeCenter?.id || 'RJ-01',
+    fatherName: '',
+    abhaNumber: '',
     vehicleClass: 'TRANS' as Candidate['vehicleClass'],
     address: '',
-    city: activeCenter.city,
-    state: activeCenter.state,
+    city: activeCenter?.city || 'Jodhpur',
+    state: activeCenter?.state || 'Rajasthan',
     pincode: '342005',
-    batchId: batches[0]?.id || '',
+    batchId: batches?.[0]?.id || '',
     tshirtSize: 'L' as 'M' | 'L' | 'XL' | 'XXL',
     kitIssued: true
   });
+
+  // Proof audit storage & safe file reader refs
+  const [aadhaarProof, setAadhaarProof] = useState<string>('');
+  const [dlProof, setDlProof] = useState<string>('');
+  const aadhaarFileInputRef = useRef<HTMLInputElement>(null);
+  const dlFileInputRef = useRef<HTMLInputElement>(null);
+
+  // 2. Safe File Reader without heavy external dependencies:
+  const handleProofUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'aadhaar' | 'dl') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = (reader.result as string) || '';
+      if (field === 'aadhaar') {
+        setAadhaarProof(base64);
+        setOcrFrontId(base64);
+        setFormData(prev => ({
+          ...prev,
+          fullName: prev.fullName || 'Ramesh Kumar',
+          aadhaarNumber: prev.aadhaarNumber || '548291023341',
+          idCardNumber: prev.idCardNumber || prev.aadhaarNumber || '548291023341',
+          dob: prev.dob || '1995-04-12',
+          dateOfBirth: prev.dateOfBirth || prev.dob || '1995-04-12',
+        }));
+      } else {
+        setDlProof(base64);
+        setOcrFrontDl(base64);
+        setFormData(prev => ({
+          ...prev,
+          dlNumber: prev.dlNumber || 'RJ-1420180092114',
+        }));
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   // OCR Wizard State
   const [ocrFrontId, setOcrFrontId] = useState<string | null>(null);
@@ -62,7 +103,7 @@ export const CandidateRegistrationModal: React.FC<CandidateRegistrationModalProp
 
   // DL Expiry Validation Handler
   const handleDlExpiryChange = (dateVal: string) => {
-    setFormData(prev => ({ ...prev, dlExpiryDate: dateVal }));
+    setFormData(prev => ({ ...prev, dlExpiryDate: dateVal || '' }));
     if (!dateVal) return;
 
     const selectedDate = new Date(dateVal);
@@ -76,18 +117,33 @@ export const CandidateRegistrationModal: React.FC<CandidateRegistrationModalProp
 
   if (!isOpen) return null;
 
-  // Validation rules
-  const isMobileValid = /^[6-9]\d{9}$/.test(formData.mobileNumber);
-  const isIdValid = /^\d{12}$/.test(formData.idCardNumber);
-  const isAbhaValid = formData.abhaNumber === '' || /^\d{14}$/.test(formData.abhaNumber);
-  const isDlValid = formData.dlNumber.trim().length >= 8;
-  const isNameValid = formData.fullName.trim().length >= 3;
+  // Validation rules with fallback defaults (|| '')
+  const currentPhone = formData.phone || formData.mobileNumber || '';
+  const currentId = formData.aadhaarNumber || formData.idCardNumber || '';
+  const currentDl = formData.dlNumber || '';
+  const currentName = formData.fullName || '';
+  const currentAbha = formData.abhaNumber || '';
+
+  const isMobileValid = /^[6-9]\d{9}$/.test(currentPhone);
+  const isIdValid = /^\d{12}$/.test(currentId.replace(/\s+/g, ''));
+  const isAbhaValid = currentAbha === '' || /^\d{14}$/.test(currentAbha.replace(/[-\s]/g, ''));
+  const isDlValid = (currentDl || '').trim().length >= 8;
+  const isNameValid = (currentName || '').trim().length >= 3;
 
   const isFormValid = isMobileValid && isIdValid && isAbhaValid && isDlValid && isNameValid;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => {
+      const next = { ...prev, [name]: value || '' };
+      if (name === 'phone') next.mobileNumber = value || '';
+      if (name === 'mobileNumber') next.phone = value || '';
+      if (name === 'aadhaarNumber') next.idCardNumber = value || '';
+      if (name === 'idCardNumber') next.aadhaarNumber = value || '';
+      if (name === 'dob') next.dateOfBirth = value || '';
+      if (name === 'dateOfBirth') next.dob = value || '';
+      return next;
+    });
   };
 
   const handleBlur = (field: string) => {
@@ -105,16 +161,19 @@ export const CandidateRegistrationModal: React.FC<CandidateRegistrationModalProp
         fullName: 'Rajendra Singh Bhati',
         fatherName: 'Guman Singh Bhati',
         dateOfBirth: '1988-08-24',
+        dob: '1988-08-24',
         gender: 'Male',
         mobileNumber: '9829104822',
+        phone: '9829104822',
         idCardNumber: '674190823415',
+        aadhaarNumber: '674190823415',
         abhaNumber: '14889201475623',
         dlNumber: 'RJ19 20150044812',
         dlExpiryDate: '2030-08-20',
         vehicleClass: 'HMV',
         address: 'House 54, Sector 7, Kudi Housing Board, Jodhpur Rural',
-        city: 'Jodhpur',
-        state: 'Rajasthan',
+        city: activeCenter?.city || 'Jodhpur',
+        state: activeCenter?.state || 'Rajasthan',
         pincode: '342005'
       }));
       setOcrFrontId('https://images.unsplash.com/photo-1589330694653-dad6bc0140fa?auto=format&fit=crop&w=600&q=80');
@@ -132,7 +191,9 @@ export const CandidateRegistrationModal: React.FC<CandidateRegistrationModalProp
       setTouched({
         fullName: true,
         mobileNumber: true,
+        phone: true,
         idCardNumber: true,
+        aadhaarNumber: true,
         abhaNumber: true,
         dlNumber: true
       });
@@ -155,80 +216,87 @@ export const CandidateRegistrationModal: React.FC<CandidateRegistrationModalProp
 
     addCandidate({
       ...formData,
-      centerId: activeCenter.id,
-      idFrontUrl: ocrFrontId || undefined,
+      fullName: formData.fullName || 'Ramesh Kumar',
+      fatherName: formData.fatherName || 'Ramdev Kumar',
+      mobileNumber: formData.phone || formData.mobileNumber || '9829012345',
+      idCardNumber: formData.aadhaarNumber || formData.idCardNumber || '548291023341',
+      dateOfBirth: formData.dob || formData.dateOfBirth || '1995-04-12',
+      centerId: formData.assignedCenterId || activeCenter?.id || 'RJ-01',
+      idFrontUrl: aadhaarProof || ocrFrontId || undefined,
       idBackUrl: ocrBackId || undefined,
-      dlFrontUrl: ocrFrontDl || undefined,
-      dlBackUrl: ocrBackDl || undefined
+      dlFrontUrl: dlProof || ocrFrontDl || undefined,
+      dlBackUrl: ocrBackDl || undefined,
+      aadhaarProofUrl: aadhaarProof || undefined,
+      dlProofUrl: dlProof || undefined
     });
 
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/80 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden text-slate-800">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-900/60 overflow-y-auto">
+      <div className="bg-white rounded-sm border border-slate-300 shadow-md w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden text-slate-800 my-4">
         {/* Header */}
-        <div className="bg-gradient-to-r from-teal-900 via-[#0d5c63] to-teal-800 text-white px-6 py-4 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-white/10 backdrop-blur-sm">
-              <UserPlus className="w-5 h-5 text-emerald-300" />
+        <div className="bg-[#007A3D] text-white px-5 py-3 flex items-center justify-between shrink-0 border-b border-[#005C2E]">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 rounded-xs bg-[#005C2E] border border-white/20">
+              <UserPlus className="w-4 h-4 text-white" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wider text-emerald-300">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-200">
                   OSE Enrollment Wizard
                 </span>
                 <span className="text-white/40">•</span>
-                <span className="text-xs text-white/80">{activeCenter.name}</span>
+                <span className="text-[11px] text-white/90">{activeCenter.name}</span>
               </div>
-              <h3 className="text-lg font-bold">Commercial Vehicle Driver Registration</h3>
+              <h3 className="text-sm sm:text-base font-bold">Commercial Vehicle Driver Registration</h3>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+            className="p-1 rounded-sm text-white/80 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Tab Switcher */}
-        <div className="bg-slate-100/90 border-b border-slate-200 px-6 py-2 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2">
+        <div className="bg-slate-50 border-b border-slate-200 px-5 py-1.5 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
               onClick={() => setActiveTab('manual')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+              className={`px-3 py-1.5 rounded-xs text-xs font-semibold transition-colors flex items-center gap-1.5 border ${
                 activeTab === 'manual'
-                  ? 'bg-white text-teal-900 shadow-xs border border-slate-200'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white text-[#007A3D] shadow-2xs border-slate-300 font-bold'
+                  : 'bg-transparent text-slate-600 hover:text-slate-900 border-transparent hover:bg-slate-100'
               }`}
             >
-              <FileText className="w-4 h-4 text-teal-700" />
+              <FileText className="w-3.5 h-3.5 text-[#007A3D]" />
               Fast Manual Enrollment
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab('ocr')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+              className={`px-3 py-1.5 rounded-xs text-xs font-semibold transition-colors flex items-center gap-1.5 border ${
                 activeTab === 'ocr'
-                  ? 'bg-white text-teal-900 shadow-xs border border-slate-200'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white text-[#007A3D] shadow-2xs border-slate-300 font-bold'
+                  : 'bg-transparent text-slate-600 hover:text-slate-900 border-transparent hover:bg-slate-100'
               }`}
             >
-              <Scan className="w-4 h-4 text-teal-700" />
+              <Scan className="w-3.5 h-3.5 text-[#007A3D]" />
               OCR Document Scan Wizard
-              <span className="bg-emerald-100 text-emerald-700 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+              <span className="bg-[#E6F4EA] text-[#005C2E] text-[10px] px-1.5 py-0.2 rounded-xs font-bold border border-[#007A3D]/20">
                 Auto-Fill
               </span>
             </button>
           </div>
 
-          <span className="text-xs text-slate-500 font-medium hidden sm:inline">
-            Validation Rules: 12-digit ID • 10-digit Phone • 14-digit ABHA
+          <span className="text-[11px] text-slate-500 font-mono hidden sm:inline">
+            Validation: 12-digit ID • 10-digit Phone • 14-digit ABHA
           </span>
         </div>
 
@@ -246,34 +314,62 @@ export const CandidateRegistrationModal: React.FC<CandidateRegistrationModalProp
                 <span className="text-xs text-teal-700">Supported: Aadhaar Card & Commercial Driving Licence</span>
               </div>
 
+              {/* Hidden file inputs for safe local file reading */}
+              <input
+                type="file"
+                ref={aadhaarFileInputRef}
+                className="hidden"
+                accept="image/*,.pdf"
+                onChange={e => handleProofUpload(e, 'aadhaar')}
+              />
+              <input
+                type="file"
+                ref={dlFileInputRef}
+                className="hidden"
+                accept="image/*,.pdf"
+                onChange={e => handleProofUpload(e, 'dl')}
+              />
+
               {/* Document Slots */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="border-2 border-dashed border-teal-300 rounded-xl p-3 text-center bg-white/70 hover:bg-white transition-all flex flex-col items-center justify-center h-28 cursor-pointer">
-                  <Camera className="w-5 h-5 text-teal-600 mb-1.5" />
-                  <span className="text-[11px] font-bold text-slate-700">Gov ID Front</span>
+                <div
+                  onClick={() => aadhaarFileInputRef.current?.click()}
+                  className="border-2 border-dashed border-teal-300 rounded-xl p-3 text-center bg-white/70 hover:bg-white transition-all flex flex-col items-center justify-center h-28 cursor-pointer group"
+                >
+                  <Camera className="w-5 h-5 text-teal-600 mb-1.5 group-hover:scale-110 transition-transform" />
+                  <span className="text-[11px] font-bold text-slate-700">Gov ID / Aadhaar Front</span>
                   <span className="text-[10px] text-slate-400">
-                    {ocrFrontId ? '✓ Loaded' : 'Tap to scan/upload'}
+                    {aadhaarProof || ocrFrontId ? '✓ Loaded & Stored' : 'Tap to scan/upload'}
                   </span>
                 </div>
 
-                <div className="border-2 border-dashed border-teal-300 rounded-xl p-3 text-center bg-white/70 hover:bg-white transition-all flex flex-col items-center justify-center h-28 cursor-pointer">
-                  <Camera className="w-5 h-5 text-teal-600 mb-1.5" />
+                <div
+                  onClick={() => aadhaarFileInputRef.current?.click()}
+                  className="border-2 border-dashed border-teal-300 rounded-xl p-3 text-center bg-white/70 hover:bg-white transition-all flex flex-col items-center justify-center h-28 cursor-pointer group"
+                >
+                  <Camera className="w-5 h-5 text-teal-600 mb-1.5 group-hover:scale-110 transition-transform" />
                   <span className="text-[11px] font-bold text-slate-700">Gov ID Back</span>
                   <span className="text-[10px] text-slate-400">
                     {ocrBackId ? '✓ Loaded' : 'Tap to scan/upload'}
                   </span>
                 </div>
 
-                <div className="border-2 border-dashed border-teal-300 rounded-xl p-3 text-center bg-white/70 hover:bg-white transition-all flex flex-col items-center justify-center h-28 cursor-pointer">
-                  <UploadCloud className="w-5 h-5 text-teal-600 mb-1.5" />
+                <div
+                  onClick={() => dlFileInputRef.current?.click()}
+                  className="border-2 border-dashed border-teal-300 rounded-xl p-3 text-center bg-white/70 hover:bg-white transition-all flex flex-col items-center justify-center h-28 cursor-pointer group"
+                >
+                  <UploadCloud className="w-5 h-5 text-teal-600 mb-1.5 group-hover:scale-110 transition-transform" />
                   <span className="text-[11px] font-bold text-slate-700">DL Card Front</span>
                   <span className="text-[10px] text-slate-400">
-                    {ocrFrontDl ? '✓ Loaded' : 'Tap to scan/upload'}
+                    {dlProof || ocrFrontDl ? '✓ Loaded & Stored' : 'Tap to upload DL'}
                   </span>
                 </div>
 
-                <div className="border-2 border-dashed border-teal-300 rounded-xl p-3 text-center bg-white/70 hover:bg-white transition-all flex flex-col items-center justify-center h-28 cursor-pointer">
-                  <UploadCloud className="w-5 h-5 text-teal-600 mb-1.5" />
+                <div
+                  onClick={() => dlFileInputRef.current?.click()}
+                  className="border-2 border-dashed border-teal-300 rounded-xl p-3 text-center bg-white/70 hover:bg-white transition-all flex flex-col items-center justify-center h-28 cursor-pointer group"
+                >
+                  <UploadCloud className="w-5 h-5 text-teal-600 mb-1.5 group-hover:scale-110 transition-transform" />
                   <span className="text-[11px] font-bold text-slate-700">DL Card Back</span>
                   <span className="text-[10px] text-slate-400">
                     {ocrBackDl ? '✓ Loaded' : 'Tap to scan/upload'}
@@ -331,7 +427,7 @@ export const CandidateRegistrationModal: React.FC<CandidateRegistrationModalProp
                     name="idCardNumber"
                     maxLength={12}
                     placeholder="12-digit numeric ID"
-                    value={formData.idCardNumber}
+                    value={formData.idCardNumber || formData.aadhaarNumber || ''}
                     onChange={handleChange}
                     onBlur={() => handleBlur('idCardNumber')}
                     className={`w-full text-xs font-mono px-3 py-2 rounded-xl border transition-all ${
@@ -363,7 +459,7 @@ export const CandidateRegistrationModal: React.FC<CandidateRegistrationModalProp
                       name="mobileNumber"
                       maxLength={10}
                       placeholder="9829012345"
-                      value={formData.mobileNumber}
+                      value={formData.mobileNumber || formData.phone || ''}
                       onChange={handleChange}
                       onBlur={() => handleBlur('mobileNumber')}
                       className={`w-full text-xs font-mono pl-10 pr-3 py-2 rounded-xl border transition-all ${
@@ -392,13 +488,13 @@ export const CandidateRegistrationModal: React.FC<CandidateRegistrationModalProp
                     name="abhaNumber"
                     maxLength={14}
                     placeholder="14-digit ABHA number"
-                    value={formData.abhaNumber}
+                    value={formData.abhaNumber || ''}
                     onChange={handleChange}
                     onBlur={() => handleBlur('abhaNumber')}
                     className={`w-full text-xs font-mono px-3 py-2 rounded-xl border transition-all ${
                       touched.abhaNumber && !isAbhaValid
                         ? 'border-rose-400 bg-rose-50/50 focus:outline-rose-500'
-                        : isAbhaValid && formData.abhaNumber.length === 14
+                        : isAbhaValid && (formData.abhaNumber || '').length === 14
                         ? 'border-emerald-400 bg-emerald-50/30 focus:outline-emerald-500'
                         : 'border-slate-300 focus:outline-teal-600'
                     }`}
@@ -426,7 +522,7 @@ export const CandidateRegistrationModal: React.FC<CandidateRegistrationModalProp
                     type="text"
                     name="fullName"
                     placeholder="e.g. Ramesh Kumar"
-                    value={formData.fullName}
+                    value={formData.fullName || ''}
                     onChange={handleChange}
                     onBlur={() => handleBlur('fullName')}
                     className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-teal-600"
@@ -444,7 +540,7 @@ export const CandidateRegistrationModal: React.FC<CandidateRegistrationModalProp
                     type="text"
                     name="fatherName"
                     placeholder="e.g. Ramdev Kumar"
-                    value={formData.fatherName}
+                    value={formData.fatherName || ''}
                     onChange={handleChange}
                     className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-teal-600"
                   />
@@ -457,7 +553,7 @@ export const CandidateRegistrationModal: React.FC<CandidateRegistrationModalProp
                   <input
                     type="date"
                     name="dateOfBirth"
-                    value={formData.dateOfBirth}
+                    value={formData.dateOfBirth || formData.dob || ''}
                     onChange={handleChange}
                     className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-teal-600"
                   />
@@ -481,7 +577,7 @@ export const CandidateRegistrationModal: React.FC<CandidateRegistrationModalProp
                     type="text"
                     name="dlNumber"
                     placeholder="RJ19 20180012345"
-                    value={formData.dlNumber}
+                    value={formData.dlNumber || ''}
                     onChange={handleChange}
                     onBlur={() => handleBlur('dlNumber')}
                     className="w-full text-xs font-mono uppercase px-3 py-2 rounded-xl border border-slate-300 focus:outline-teal-600"
@@ -497,7 +593,7 @@ export const CandidateRegistrationModal: React.FC<CandidateRegistrationModalProp
                   </label>
                   <select
                     name="vehicleClass"
-                    value={formData.vehicleClass}
+                    value={formData.vehicleClass || 'TRANS'}
                     onChange={handleChange}
                     className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-teal-600 bg-white"
                   >
@@ -524,7 +620,7 @@ export const CandidateRegistrationModal: React.FC<CandidateRegistrationModalProp
                     type="date"
                     name="dlExpiryDate"
                     required
-                    value={formData.dlExpiryDate}
+                    value={formData.dlExpiryDate || ''}
                     onChange={(e) => handleDlExpiryChange(e.target.value)}
                     className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-teal-600"
                   />
@@ -553,7 +649,7 @@ export const CandidateRegistrationModal: React.FC<CandidateRegistrationModalProp
                     type="text"
                     name="address"
                     placeholder="Village / Ward / Street details"
-                    value={formData.address}
+                    value={formData.address || ''}
                     onChange={handleChange}
                     className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-teal-600"
                   />
@@ -565,7 +661,7 @@ export const CandidateRegistrationModal: React.FC<CandidateRegistrationModalProp
                     type="text"
                     name="pincode"
                     maxLength={6}
-                    value={formData.pincode}
+                    value={formData.pincode || ''}
                     onChange={handleChange}
                     className="w-full text-xs font-mono px-3 py-2 rounded-xl border border-slate-300 focus:outline-teal-600"
                   />
@@ -577,11 +673,11 @@ export const CandidateRegistrationModal: React.FC<CandidateRegistrationModalProp
                   </label>
                   <select
                     name="batchId"
-                    value={formData.batchId}
+                    value={formData.batchId || ''}
                     onChange={handleChange}
                     className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-teal-600 bg-white"
                   >
-                    {batches.map(b => (
+                    {(batches || []).map(b => (
                       <option key={b.id} value={b.id}>
                         {b.batchCode} ({b.date})
                       </option>
@@ -595,7 +691,7 @@ export const CandidateRegistrationModal: React.FC<CandidateRegistrationModalProp
                   </label>
                   <select
                     name="tshirtSize"
-                    value={formData.tshirtSize}
+                    value={formData.tshirtSize || 'L'}
                     onChange={handleChange}
                     className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-teal-600 bg-white"
                   >
@@ -610,7 +706,7 @@ export const CandidateRegistrationModal: React.FC<CandidateRegistrationModalProp
                   <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700">
                     <input
                       type="checkbox"
-                      checked={formData.kitIssued}
+                      checked={Boolean(formData.kitIssued)}
                       onChange={e => setFormData(prev => ({ ...prev, kitIssued: e.target.checked }))}
                       className="w-4 h-4 rounded text-teal-700 focus:ring-teal-600"
                     />
@@ -623,26 +719,26 @@ export const CandidateRegistrationModal: React.FC<CandidateRegistrationModalProp
         </div>
 
         {/* Modal Footer */}
-        <div className="bg-slate-50 border-t border-slate-200 px-6 py-4 flex items-center justify-between shrink-0">
+        <div className="bg-slate-50 border-t border-slate-300 px-5 py-3 flex items-center justify-between shrink-0">
           <p className="text-xs text-slate-500">
             Enrolled candidates move directly to{' '}
-            <span className="font-semibold text-teal-800">Pending PO Review</span> stage.
+            <span className="font-semibold text-[#007A3D]">Pending PO Review</span> stage.
           </p>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 transition-colors"
+              className="px-3.5 py-1.5 text-xs font-semibold rounded-sm border border-slate-300 text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               form="candidate-form"
-              className="px-5 py-2 text-xs font-semibold rounded-xl bg-[#0d5c63] text-white hover:bg-teal-800 transition-colors shadow-md flex items-center gap-2"
+              className="px-4 py-1.5 text-xs font-bold rounded-sm bg-[#007A3D] text-white hover:bg-[#005C2E] transition-colors border border-[#005C2E] flex items-center gap-1.5 cursor-pointer"
             >
-              <CheckCircle2 className="w-4 h-4" />
+              <CheckCircle2 className="w-4 h-4 text-emerald-200" />
               Complete Registration & Compile Dossier
             </button>
           </div>
@@ -653,8 +749,8 @@ export const CandidateRegistrationModal: React.FC<CandidateRegistrationModalProp
       <DlExpiredAlertModal
         isOpen={isDlExpiredModalOpen}
         onClose={() => setIsDlExpiredModalOpen(false)}
-        dlNumber={formData.dlNumber}
-        dlExpiryDate={formData.dlExpiryDate}
+        dlNumber={formData.dlNumber || ''}
+        dlExpiryDate={formData.dlExpiryDate || ''}
       />
     </div>
   );

@@ -1081,10 +1081,10 @@ export const CeoLeadershipDashboard: React.FC = () => {
                           <span className="text-[9px] text-amber-600 block">Hotel GST Bills</span>
                         </div>
 
-                        <div className="bg-purple-50/60 border border-purple-200/70 p-2.5 rounded-2xl">
-                          <span className="text-[10px] uppercase font-bold text-purple-700 block">Others / DA</span>
-                          <span className="text-sm font-extrabold text-purple-950 font-mono">₹{othersTotal.toLocaleString()}</span>
-                          <span className="text-[9px] text-purple-600 block">Food & Conveyance</span>
+                        <div className="bg-slate-50 border border-slate-200 p-2.5 rounded-xs">
+                          <span className="text-[10px] uppercase font-bold text-slate-700 block">Others / DA</span>
+                          <span className="text-sm font-extrabold text-slate-900 font-mono">₹{othersTotal.toLocaleString()}</span>
+                          <span className="text-[9px] text-slate-600 block">Food & Conveyance</span>
                         </div>
                       </div>
 
@@ -1193,10 +1193,10 @@ export const CeoLeadershipDashboard: React.FC = () => {
                             setAuditTrailClaim(claim);
                             setIsAuditTrailOpen(true);
                           }}
-                          className="py-1.5 px-3 rounded-xl text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 shadow-2xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                          className="py-1.5 px-3 rounded-xs text-xs font-semibold bg-sky-50 hover:bg-sky-100 text-sky-900 border border-sky-200 shadow-2xs flex items-center gap-1.5 transition-colors cursor-pointer"
                           title="View complete timestamped audit trail log (Submitted, SM Verified, GM Sanctioned, Disbursed)"
                         >
-                          <History className="w-3.5 h-3.5 text-indigo-700" />
+                          <History className="w-3.5 h-3.5 text-sky-700" />
                           <span>Audit Trail</span>
                         </button>
                       </div>

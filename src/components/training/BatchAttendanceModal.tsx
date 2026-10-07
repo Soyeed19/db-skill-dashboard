@@ -118,23 +118,23 @@ export const BatchAttendanceModal: React.FC<BatchAttendanceModalProps> = ({
   const absentCount = Object.values(attendanceMap).filter(v => v === 'Absent').length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/80 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden text-slate-800">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-900/60 overflow-y-auto">
+      <div className="bg-white rounded-sm border border-slate-300 shadow-md w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden text-slate-800 my-4">
         {/* Modal Header */}
-        <div className="bg-gradient-to-r from-dbs-green-dark to-dbs-green text-white px-6 py-4 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-white/10 backdrop-blur-sm">
-              <UserCheck className="w-5 h-5 text-dbs-growth-light" />
+        <div className="bg-[#007A3D] text-white px-5 py-3 flex items-center justify-between shrink-0 border-b border-[#005C2E]">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 rounded-xs bg-[#005C2E] border border-white/20">
+              <UserCheck className="w-4 h-4 text-white" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wider text-emerald-300">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-200">
                   Trainer Classroom Operations
                 </span>
                 <span className="text-white/40">•</span>
-                <span className="text-xs font-mono text-white/80">{currentBatch.batchCode}</span>
+                <span className="text-xs font-mono text-white/90">{currentBatch.batchCode}</span>
               </div>
-              <h3 className="text-lg font-bold">1-Day Batch Attendance Roll-Call & Photo Evidence</h3>
+              <h3 className="text-sm sm:text-base font-bold">1-Day Batch Attendance Roll-Call & Photo Evidence</h3>
             </div>
           </div>
 

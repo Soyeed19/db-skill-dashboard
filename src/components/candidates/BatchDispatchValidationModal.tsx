@@ -40,29 +40,29 @@ export const BatchDispatchValidationModal: React.FC<BatchDispatchValidationModal
   const hasIncomplete = incompleteCandidates.length > 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-7 shadow-2xl border border-slate-200 space-y-5 my-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 overflow-y-auto">
+      <div className="bg-white rounded-sm max-w-2xl w-full p-5 sm:p-6 shadow-md border border-slate-300 space-y-4 my-8">
         {/* Top Header */}
-        <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+        <div className="flex items-start justify-between border-b border-slate-200 pb-3">
           <div className="flex items-center gap-3">
             <div
-              className={`w-11 h-11 rounded-2xl flex items-center justify-center text-white shadow-xs ${
-                hasIncomplete ? 'bg-amber-600' : 'bg-gradient-to-br from-emerald-600 to-teal-800'
+              className={`w-9 h-9 rounded-xs flex items-center justify-center text-white ${
+                hasIncomplete ? 'bg-[#F15A24]' : 'bg-[#007A3D]'
               }`}
             >
               {hasIncomplete ? (
-                <AlertTriangle className="w-6 h-6" />
+                <AlertTriangle className="w-5 h-5" />
               ) : (
-                <Send className="w-6 h-6" />
+                <Send className="w-5 h-5" />
               )}
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <span
-                  className={`text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                  className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded-xs border ${
                     hasIncomplete
-                      ? 'bg-amber-100 text-amber-900 border-amber-300'
-                      : 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                      ? 'bg-[#FFF7ED] text-[#C2410C] border-[#F15A24]/40'
+                      : 'bg-[#E6F4EA] text-[#005C2E] border-[#007A3D]/40'
                   }`}
                 >
                   {hasIncomplete

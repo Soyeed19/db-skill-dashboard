@@ -68,21 +68,21 @@ _Time: ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/80 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden text-slate-800">
-        <div className="bg-gradient-to-r from-emerald-800 to-teal-800 text-white px-6 py-4 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-white/10">
-              <Share2 className="w-5 h-5 text-emerald-300" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-900/60 overflow-y-auto">
+      <div className="bg-white rounded-sm border border-slate-300 shadow-md w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden text-slate-800 my-4">
+        <div className="bg-[#007A3D] text-white px-5 py-3 flex items-center justify-between shrink-0 border-b border-[#005C2E]">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 rounded-xs bg-[#005C2E] border border-white/20">
+              <Share2 className="w-4 h-4 text-white" />
             </div>
             <div>
-              <span className="text-xs font-semibold uppercase tracking-wider text-emerald-300">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-200 block">
                 1-Click WhatsApp Broadcast
               </span>
-              <h3 className="text-lg font-bold">Standardized Daily Batch Summary</h3>
+              <h3 className="text-base font-bold">Standardized Daily Batch Summary</h3>
             </div>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg text-white/70 hover:text-white">
+          <button onClick={onClose} className="p-1 rounded-sm text-white/80 hover:text-white cursor-pointer">
             <X className="w-5 h-5" />
           </button>
         </div>

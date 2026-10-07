@@ -174,24 +174,24 @@ export const CertificatePhotoUploadModal: React.FC<CertificatePhotoUploadModalPr
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-7 shadow-2xl border border-slate-200 space-y-5 my-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 overflow-y-auto">
+      <div className="bg-white rounded-sm max-w-2xl w-full p-5 sm:p-6 shadow-md border border-slate-300 space-y-4 my-8">
         {/* Header */}
-        <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+        <div className="flex items-start justify-between border-b border-slate-200 pb-3">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500 to-teal-700 flex items-center justify-center text-white shadow-xs">
-              <Award className="w-6 h-6" />
+            <div className="w-9 h-9 rounded-xs bg-[#007A3D] flex items-center justify-center text-white">
+              <Award className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#C2410C] bg-[#FFF7ED] px-1.5 py-0.2 rounded-xs border border-[#F15A24]/30">
                   Stage 2: Evening Training Completion
                 </span>
                 <span className="text-xs font-mono font-bold text-slate-500">
                   {candidate.registrationNumber}
                 </span>
               </div>
-              <h2 className="text-lg font-black text-slate-900 mt-0.5">
+              <h2 className="text-base font-bold text-slate-900 mt-0.5">
                 Upload Certificate Proofs - {candidate.fullName}
               </h2>
               <p className="text-xs text-slate-500">
