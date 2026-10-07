@@ -1,0 +1,90 @@
+import { EmployeeUser } from '../types/auth';
+
+export const INITIAL_EMPLOYEE_USERS: EmployeeUser[] = [
+  {
+    id: 'usr-ceo-1',
+    empId: 'DBS-EMP-0001',
+    name: 'Col. Ajay Bakshi (Retd.)',
+    email: 'ajay.bakshi@dbskills.in',
+    phone: '+91 98111 00001',
+    role: 'CEO',
+    photoUrl: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=256&q=80',
+    passwordHash: 'DBS@2026',
+    assignedCenterId: 'ctr-delhi',
+    assignedCenterName: 'National Command HQ',
+    status: 'Active',
+    resetRequested: false
+  },
+  {
+    id: 'usr-gm-1',
+    empId: 'DBS-EMP-0010',
+    name: 'Col. Rajesh Mehta (Retd.)',
+    email: 'rajesh.mehta@dbskills.in',
+    phone: '+91 98100 22334',
+    role: 'GM',
+    photoUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=256&q=80',
+    passwordHash: 'DBS@2026',
+    assignedCenterId: 'ctr-delhi',
+    assignedCenterName: 'Delhi South Driver Institute',
+    status: 'Active',
+    resetRequested: false
+  },
+  {
+    id: 'usr-apm-1',
+    empId: 'DBS-EMP-0420',
+    name: 'Siddharth Nair',
+    email: 'siddharth.nair@dbskills.in',
+    phone: '+91 99201 44552',
+    role: 'Senior Manager',
+    photoUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=256&q=80',
+    passwordHash: 'DBS@2026',
+    assignedCenterId: 'ctr-mumbai',
+    assignedCenterName: 'Mumbai Central Logistics Hub',
+    status: 'Active',
+    resetRequested: false
+  },
+  {
+    id: 'usr-po-1',
+    empId: 'DBS-EMP-0612',
+    name: 'Pooja Verma',
+    email: 'pooja.verma@dbskills.in',
+    phone: '+91 98112 33451',
+    role: 'PO',
+    photoUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=256&q=80',
+    passwordHash: 'DBS@2026',
+    assignedCenterId: 'ctr-jodhpur',
+    assignedCenterName: 'Jodhpur Transport Skill Hub',
+    status: 'Active',
+    resetRequested: true,
+    resetRequestedAt: '2026-10-06 09:30 AM'
+  },
+  {
+    id: 'usr-trainer-1',
+    empId: 'DBS-EMP-0881',
+    name: 'Vikram Singh Rathore',
+    email: 'vikram.rathore@dbskills.in',
+    phone: '+91 94141 88921',
+    role: 'Trainer',
+    photoUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=256&q=80',
+    passwordHash: 'DBS@2026',
+    assignedCenterId: 'ctr-jodhpur',
+    assignedCenterName: 'Jodhpur Transport Skill Hub',
+    status: 'Active',
+    resetRequested: false
+  },
+  {
+    id: 'usr-ose-1',
+    empId: 'DBS-EMP-1042',
+    name: 'Ramesh Sharma',
+    email: 'ramesh.sharma@dbskills.in',
+    phone: '+91 98290 11442',
+    role: 'OSE',
+    photoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80',
+    passwordHash: 'DBS@2026',
+    assignedCenterId: 'ctr-jodhpur',
+    assignedCenterName: 'Jodhpur Transport Skill Hub',
+    status: 'Active',
+    resetRequested: true,
+    resetRequestedAt: '2026-10-06 11:15 AM'
+  }
+];

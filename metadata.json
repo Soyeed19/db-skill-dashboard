@@ -1,0 +1,6 @@
+{
+  "name": "DB Skills Driver Training & Operations Portal",
+  "description": "Enterprise multi-center commercial vehicle driver training, audit verification, consumable inventory, leave management, and tour expense portal for DB Skills.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
