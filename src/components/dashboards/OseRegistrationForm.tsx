@@ -1,12 +1,8 @@
 import React, { useState } from 'react';
 import { ModeBCandidateRegistrationDesk } from './ModeBCandidateRegistrationDesk';
 import { DlExpiredAlertModal } from './DlExpiredAlertModal';
-import { DlOcrAutoScannerModal, DlOcrResult } from './DlOcrAutoScannerModal';
 import { useApp } from '../../context/AppContext';
 import { Center, Batch, UserPersona } from '../../types';
-
-export { DlOcrAutoScannerModal };
-export type { DlOcrResult };
 
 export interface OseRegistrationFormProps {
   activeCenter?: Center;

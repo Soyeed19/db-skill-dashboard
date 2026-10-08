@@ -34,7 +34,8 @@ import {
   Image as ImageIcon,
   KeyRound,
   Copy,
-  Check
+  Check,
+  Clock
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Center, Employee, UserRole, UserLevel, ExpenseClaim, ExpenseItem, AttendancePunch } from '../../types';

@@ -8,6 +8,7 @@ import {
   Sparkles,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
   FileText,
   CreditCard,
   Building2,
@@ -15,6 +16,7 @@ import {
   Phone,
   Truck,
   Users,
+  User,
   Check,
   RefreshCw,
   X,
@@ -42,7 +44,8 @@ import {
   videoFrameToBase64
 } from '../../utils/documentOcrParser';
 import { DlExpiredAlertModal } from './DlExpiredAlertModal';
-import { DlOcrAutoScannerModal, DlOcrResult } from './DlOcrAutoScannerModal';
+import { OcrScannerModal } from '../ocr/OcrScannerModal';
+import { processCardImage, ExtractedCardData } from '../../hooks/useCardOcr';
 
 interface ModeBCandidateRegistrationDeskProps {
   activeCenter: Center;
@@ -59,10 +62,9 @@ export const ModeBCandidateRegistrationDesk: React.FC<ModeBCandidateRegistration
 }) => {
   const { addCandidate, showToast } = useApp();
 
-  // Ingestion Mode Selector
-  const [ingestionMode, setIngestionMode] = useState<
-    'Manual Entry' | 'File Upload' | 'Live Camera Snapshot + Optical Extraction'
-  >('Live Camera Snapshot + Optical Extraction');
+  // Ingestion Mode Selector: Mode A: MANUAL, Mode B: SCAN
+  const [ingestionMode, setIngestionMode] = useState<'MANUAL' | 'SCAN'>('MANUAL');
+  const [dlWarning, setDlWarning] = useState<string>('');
 
   // Candidate Demographics & Transport Form State
   const [fullName, setFullName] = useState('Devendra Singh Solanki');
@@ -123,12 +125,35 @@ export const ModeBCandidateRegistrationDesk: React.FC<ModeBCandidateRegistration
     fields: Record<string, string>;
   } | null>(null);
 
-  // DL OCR Auto-Scanner State
-  const [isDlScannerOpen, setIsDlScannerOpen] = useState(false);
-
   // Success State Post-Submission (Candidate & CandidateEnrollment)
   const [submittedCandidate, setSubmittedCandidate] = useState<Candidate | null>(null);
   const [submittedEnrollment, setSubmittedEnrollment] = useState<CandidateEnrollment | null>(null);
+
+  // DL Expiry & Warning States (Real-time Expiry Engine)
+  const isDlExpired = useMemo(() => {
+    if (!dlExpiryDate) return false;
+    const exp = new Date(dlExpiryDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return exp < today;
+  }, [dlExpiryDate]);
+
+  const isDlExpiringSoon = useMemo(() => {
+    if (!dlExpiryDate) return false;
+    const exp = new Date(dlExpiryDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const thirtyDays = new Date();
+    thirtyDays.setDate(today.getDate() + 30);
+    thirtyDays.setHours(23, 59, 59, 999);
+    return exp >= today && exp <= thirtyDays;
+  }, [dlExpiryDate]);
+
+  const batchEligibilityStatus = useMemo(() => {
+    if (isDlExpired) return 'Blocked - Expired DL';
+    if (isDlExpiringSoon) return 'Eligible (Expiring Soon)';
+    return 'Eligible for Batch Enrollment';
+  }, [isDlExpired, isDlExpiringSoon]);
 
   // Verification Status Calculation: Auto-Verified vs Pending Field PO QC
   const verificationStatus: 'Auto-Verified' | 'Pending Field PO QC' = useMemo(() => {
@@ -145,6 +170,12 @@ export const ModeBCandidateRegistrationDesk: React.FC<ModeBCandidateRegistration
       ? 'Auto-Verified'
       : 'Pending Field PO QC';
   }, [idCardNumber, dlNumber, dlExpiryDate, aadhaarProofUrl, dlProofUrl]);
+
+  // Live Camera OCR Modal state
+  const [cameraOcrModal, setCameraOcrModal] = useState<{
+    isOpen: boolean;
+    docType: 'DL' | 'AADHAAR';
+  } | null>(null);
 
   // Live camera activation
   const startLiveCamera = async () => {
@@ -182,171 +213,135 @@ export const ModeBCandidateRegistrationDesk: React.FC<ModeBCandidateRegistration
     }
   };
 
-  // DL Auto-Scanner OCR Complete Handler
-  const handleDlScanComplete = (result: DlOcrResult) => {
-    setDlNumber(result.dlNumber);
-    setDlProofUrl(result.dlFrontUrl);
-    setDlFrontUrl(result.dlFrontUrl);
-    if (result.vehicleClass) {
-      setVehicleClass(result.vehicleClass);
-    }
-    setDlOcrExtracted(true);
-    handleDlExpiryChange(result.dlExpiryDate);
-  };
-
-  // Perform Live Camera Snapshot + Optical Extraction
-  const handleSnapAndOcr = () => {
-    setIsAadhaarScanning(true);
-    setScanStepMessage('Capturing high-speed sensor frame & rasterizing to Base64...');
-    
-    let capturedBase64 = '';
-    if (videoRef.current) {
-      capturedBase64 = videoFrameToBase64(videoRef.current);
-    }
-    stopLiveCamera();
-
-    setTimeout(() => {
-      setScanStepMessage('Running optical regex engine on demographic lines...');
-      const sampleNames = ['Devendra Singh Solanki', 'Kailash Bishnoi', 'Om Prakash Gurjar', 'Maheshwari Rawat'];
-      const sampleFathers = ['Shri Narpat Singh Solanki', 'Shri Babulal Bishnoi', 'Shri Ramswaroop Gurjar', 'Shri Harchand Rawat'];
-      const sampleMothers = ['Smt. Prem Kanwar', 'Smt. Shanti Devi', 'Smt. Geeta Bai', 'Smt. Kamla Devi'];
-      const randomIdx = Math.floor(Math.random() * sampleNames.length);
-
-      const generatedAadhaar = `${Math.floor(1000 + Math.random() * 9000)} ${Math.floor(1000 + Math.random() * 9000)} ${Math.floor(1000 + Math.random() * 9000)}`;
-      const generatedDl = `RJ19 ${2014 + Math.floor(Math.random() * 10)}00${Math.floor(10000 + Math.random() * 90000)}`;
-
-      const pickedName = sampleNames[randomIdx];
-      setFullName(pickedName);
-      setFatherName(sampleFathers[randomIdx]);
-      setMotherName(sampleMothers[randomIdx]);
-      setIdCardNumber(generatedAadhaar);
-      setAddress('House 82, Gali No. 4, Pratap Nagar, Jodhpur');
-      setMobileNumber(`9414${Math.floor(100000 + Math.random() * 900000)}`);
-      setDlNumber(generatedDl);
-      handleDlExpiryChange('2032-05-20');
-
-      // Generate permanent Base64 proofs for audit storage
-      const finalAadhaarProof = capturedBase64 || generateSampleAadhaarBase64(pickedName, generatedAadhaar, dateOfBirth, gender);
-      const finalDlProof = generateSampleDlBase64(pickedName, generatedDl, '2032-05-20', vehicleClass);
-      
-      setAadhaarProofUrl(finalAadhaarProof);
-      setIdFrontUrl(finalAadhaarProof);
-      setDlProofUrl(finalDlProof);
-      setDlFrontUrl(finalDlProof);
-
-      setAadhaarOcrExtracted(true);
+  // Callback from Live Camera OCR Scanner Modal (Real Tesseract.js extraction)
+  const handleCameraOcrComplete = (extracted: ExtractedCardData, imageBase64: string) => {
+    if (cameraOcrModal?.docType === 'DL') {
+      setDlProofUrl(imageBase64);
+      setDlFrontUrl(imageBase64);
+      // STRICT OCR EXTRACTION SCOPE: Extract ONLY DL Number and DL Expiry Date
+      if (extracted.dlNumber) setDlNumber(extracted.dlNumber);
+      const expiry = extracted.dlExpiryDate || extracted.expiryDate;
+      if (expiry) {
+        setDlExpiryDate(expiry);
+        handleDlExpiryChange(expiry);
+      }
       setDlOcrExtracted(true);
-      setIsAadhaarScanning(false);
-      setScanStepMessage('');
-      setOcrSuccess(true);
-      showToast('Optical Extraction Complete: Demographics auto-populated & Base64 audit proofs stored!');
-    }, 1100);
+      if (extracted.warning) {
+        setDlWarning(extracted.warning);
+      } else if (extracted.isExpired || extracted.isDlExpired) {
+        setIsDlExpiredModalOpen(true);
+        setDlWarning(`Driving Licence is EXPIRED (${expiry}). Candidate cannot be scheduled for active batch dispatch.`);
+        showToast(`⚠️ DL EXPIRED (${expiry}). Candidate batch enrollment is blocked!`);
+      } else if (extracted.isExpiringSoon) {
+        setDlWarning(`Driving Licence expires within 30 days (${expiry}). Renewal required soon.`);
+        showToast(`⚠️ DL EXPIRING SOON (${expiry}). Licence expires within 30 days.`);
+      } else {
+        setDlWarning('');
+        showToast(`✓ DL Camera OCR Parsed: DL ${extracted.dlNumber || ''} & Expiry ${expiry || ''} captured!`);
+      }
+    } else if (cameraOcrModal?.docType === 'AADHAAR') {
+      setAadhaarProofUrl(imageBase64);
+      setIdFrontUrl(imageBase64);
+      // STRICT OCR EXTRACTION SCOPE: Extract ONLY 12-digit Aadhaar Number
+      if (extracted.aadhaarNumber) setIdCardNumber(extracted.aadhaarNumber);
+      setAadhaarOcrExtracted(true);
+      showToast(`✓ Aadhaar Camera OCR Parsed: UID ${extracted.aadhaarNumber || ''} captured!`);
+    }
   };
 
-  // Handle File Upload Ingestion (Aadhaar)
+  // Handle Candidate Passport Photograph Upload (Slot 1)
+  const handleFileUploadPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      try {
+        const base64Url = await fileToBase64(file);
+        setPhotoUrl(base64Url);
+        showToast('Passport photograph attached successfully');
+      } catch {
+        showToast('Error uploading photo');
+      }
+    }
+  };
+
+  // Handle File Upload Ingestion (Aadhaar - Slot 2)
   const handleFileUploadAadhaar = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       try {
-        setIsAadhaarScanning(true);
-        setScanStepMessage('Encoding document to permanent Base64 Data URL...');
         const base64Url = await fileToBase64(file);
         setAadhaarProofUrl(base64Url);
         setIdFrontUrl(base64Url);
 
-        setScanStepMessage('Applying regex parser on 12-digit UID & date patterns...');
-        setTimeout(() => {
-          const sampleText = `भारत सरकार GOVERNMENT OF INDIA\nUnique Identification Authority of India\nName: Devendra Singh Solanki\nDOB: 12/05/1994\nGender: Male\n7845 1290 3421\nAddress: House 82, Gali No. 4, Pratap Nagar, Jodhpur`;
-          const result = parseAadhaarOcr(sampleText);
+        if (ingestionMode === 'SCAN') {
+          setIsAadhaarScanning(true);
+          setScanStepMessage('Executing real Tesseract.js optical recognition on Aadhaar...');
+          const result = await processCardImage(base64Url, 'AADHAAR', (pct, status) => {
+            setScanStepMessage(`Aadhaar OCR: ${status} (${pct}%)`);
+          });
 
-          setFullName(result.fullName);
-          setDateOfBirth(result.dob);
-          setGender(result.gender);
-          setIdCardNumber(result.aadhaarNumber);
-          setAddress('House 82, Gali No. 4, Pratap Nagar, Jodhpur');
-          setMobileNumber('9414289012');
+          // STRICT OCR EXTRACTION SCOPE: Extract ONLY 12-digit Aadhaar Number
+          if (result.data.aadhaarNumber) setIdCardNumber(result.data.aadhaarNumber);
+
           setAadhaarOcrExtracted(true);
           setIsAadhaarScanning(false);
           setScanStepMessage('');
-          setOcrSuccess(true);
-          showToast('Aadhaar Document OCR Parsed: Full name, DOB, gender & 12-digit UID extracted!');
-        }, 900);
-      } catch (err) {
+          showToast('✓ Aadhaar Document attached: 12-digit UID extracted via OCR!');
+        } else {
+          showToast('✓ Aadhaar Document attached (Manual Entry mode: no OCR parsing)');
+        }
+      } catch {
         setIsAadhaarScanning(false);
         showToast('Error reading file. Please select a valid document image.');
       }
     }
   };
 
-  // Handle File Upload Ingestion (Driving Licence)
+  // Handle File Upload Ingestion (Driving Licence - Slot 3)
   const handleFileUploadDl = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       try {
-        setIsDlScanning(true);
-        setScanStepMessage('Encoding Driving Licence image to Base64...');
         const base64Url = await fileToBase64(file);
         setDlProofUrl(base64Url);
         setDlFrontUrl(base64Url);
 
-        setTimeout(() => {
-          const sampleDlText = `UNION OF INDIA DRIVING LICENCE\nDL NO: RJ19 20170044192\nName: Devendra Singh Solanki\nValid Upto: 20/05/2032\nClass: TRANS (Transport Commercial)`;
-          const result = parseDlOcr(sampleDlText);
-          setDlNumber(result.dlNumber);
-          setDlExpiryDate(result.dlExpiryDate);
-          setVehicleClass(result.vehicleClass);
+        if (ingestionMode === 'SCAN') {
+          setIsDlScanning(true);
+          setScanStepMessage('Executing real Tesseract.js optical recognition on DL...');
+          const result = await processCardImage(base64Url, 'DL', (pct, status) => {
+            setScanStepMessage(`DL OCR: ${status} (${pct}%)`);
+          });
+
+          // STRICT OCR EXTRACTION SCOPE: Extract ONLY DL Number and DL Expiry Date
+          if (result.data.dlNumber) setDlNumber(result.data.dlNumber);
+          if (result.data.expiryDate) {
+            setDlExpiryDate(result.data.expiryDate);
+            handleDlExpiryChange(result.data.expiryDate);
+          }
+
           setDlOcrExtracted(true);
           setIsDlScanning(false);
-          handleDlExpiryChange(result.dlExpiryDate);
-          showToast('Driving Licence OCR Parsed: DL number, expiry date & transport class extracted!');
-        }, 900);
+          setScanStepMessage('');
+
+          if (result.data.isExpired) {
+            setIsDlExpiredModalOpen(true);
+            setDlWarning(`Driving Licence is EXPIRED (${result.data.expiryDate}). Candidate cannot be scheduled for active batch dispatch.`);
+            showToast(`⚠️ Driving Licence is EXPIRED (${result.data.expiryDate}). Enrollment Blocked!`);
+          } else if (result.data.isExpiringSoon) {
+            setDlWarning(`Driving Licence expires within 30 days (${result.data.expiryDate}). Renewal required soon.`);
+            showToast(`⚠️ Driving Licence EXPIRING SOON (${result.data.expiryDate}). Renewal required.`);
+          } else {
+            setDlWarning('');
+            showToast('✓ Driving Licence attached: DL number & expiry date extracted via OCR!');
+          }
+        } else {
+          showToast('✓ Driving Licence attached (Manual Entry mode: no OCR parsing)');
+        }
       } catch {
         setIsDlScanning(false);
         showToast('Error reading Driving Licence file.');
       }
     }
-  };
-
-  // One-Click Demo Sample Proof Loaders
-  const handleLoadSampleAadhaar = () => {
-    setIsAadhaarScanning(true);
-    setScanStepMessage('Loading sample Aadhaar scan & executing OCR regex parser...');
-    setTimeout(() => {
-      const base64 = generateSampleAadhaarBase64('Devendra Singh Solanki', '7845 1290 3421', '1994-05-12', 'Male');
-      setAadhaarProofUrl(base64);
-      setIdFrontUrl(base64);
-      const parsed = parseAadhaarOcr('Name: Devendra Singh Solanki DOB: 12/05/1994 Gender: Male 7845 1290 3421');
-      setFullName(parsed.fullName);
-      setDateOfBirth(parsed.dob);
-      setGender(parsed.gender);
-      setIdCardNumber(parsed.aadhaarNumber);
-      setFatherName('Shri Narpat Singh Solanki');
-      setMotherName('Smt. Prem Kanwar');
-      setAddress('House 82, Gali No. 4, Pratap Nagar, Jodhpur');
-      setMobileNumber('9414289012');
-      setAadhaarOcrExtracted(true);
-      setIsAadhaarScanning(false);
-      setScanStepMessage('');
-      setOcrSuccess(true);
-      showToast('Sample Aadhaar Loaded: Client-side OCR auto-filled credentials & stored Base64 audit proof!');
-    }, 600);
-  };
-
-  const handleLoadSampleDl = () => {
-    setIsDlScanning(true);
-    setTimeout(() => {
-      const base64 = generateSampleDlBase64(fullName || 'Devendra Singh Solanki', 'RJ19 20170044192', '2032-05-20', 'TRANS');
-      setDlProofUrl(base64);
-      setDlFrontUrl(base64);
-      const result = parseDlOcr('DL NO: RJ19 20170044192 Valid Upto: 20/05/2032 Class: TRANS');
-      setDlNumber(result.dlNumber);
-      setDlExpiryDate(result.dlExpiryDate);
-      setVehicleClass(result.vehicleClass);
-      setDlOcrExtracted(true);
-      setIsDlScanning(false);
-      handleDlExpiryChange(result.dlExpiryDate);
-      showToast('Sample DL Loaded: Client-side OCR auto-filled DL number & stored Base64 audit proof!');
-    }, 600);
   };
 
   // Form Reset for Next Driver
@@ -445,7 +440,7 @@ export const ModeBCandidateRegistrationDesk: React.FC<ModeBCandidateRegistration
       familyIncome,
       religion,
       casteCategory,
-      aadhaarIngestionMethod: ingestionMode,
+      aadhaarIngestionMethod: ingestionMode === 'MANUAL' ? 'Manual Entry' : 'Live Camera Snapshot + Optical Extraction',
       mobileNumber: cleanMobile,
       idCardNumber: cleanAadhaar,
       abhaNumber,
@@ -722,347 +717,230 @@ export const ModeBCandidateRegistrationDesk: React.FC<ModeBCandidateRegistration
 
           <form onSubmit={handleRegisterSubmit} className="p-4 sm:p-6 space-y-6">
             {/* ==================================================== */}
-            {/* SECTION 1: 3-WAY IDENTITY INGESTION                  */}
-            {/* ==================================================== */}
-            <div className="p-4 rounded-sm bg-slate-50 border border-slate-300 space-y-3">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-                <div>
-                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-xs bg-[#007A3D]" />
-                    Section 1: 3-Way Identity Ingestion Architecture
-                  </h3>
-                  <p className="text-xs text-slate-600 mt-0.5">
-                    Select an identity ingestion channel to verify credentials and auto-fill mandatory candidate demographics:
-                  </p>
-                </div>
-                {ocrSuccess && (
-                  <span className="text-xs font-bold text-[#005C2E] bg-[#E6F4EA] px-2 py-0.5 rounded-xs border border-[#007A3D]/30 flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-[#007A3D]" />
-                    Optical Extraction Applied
+            {/* Mode Selector */}
+            <div className="p-4 bg-white border border-slate-200 rounded-xs mb-4">
+              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">
+                Candidate Ingestion Mode
+              </h3>
+              <div className="grid grid-cols-2 gap-3 max-w-md">
+                <button
+                  type="button"
+                  onClick={() => setIngestionMode('MANUAL')}
+                  className={`px-3 py-2 text-xs font-semibold rounded-xs border text-left cursor-pointer transition-colors ${
+                    ingestionMode === 'MANUAL'
+                      ? 'border-[#007A3D] bg-emerald-50 text-[#007A3D] font-bold'
+                      : 'border-slate-300 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  📝 1. Manual Entry
+                  <span className="block text-[10px] text-slate-500 font-normal">
+                    Direct input with validation; no OCR parsing.
                   </span>
-                )}
-              </div>
-
-              {/* 3 Channels */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {/* 1. Manual Entry */}
-                <button
-                  type="button"
-                  onClick={() => setIngestionMode('Manual Entry')}
-                  className={`p-3.5 rounded-xl border text-left transition-all ${
-                    ingestionMode === 'Manual Entry'
-                      ? 'border-teal-700 bg-white ring-2 ring-teal-600/30 shadow-xs'
-                      : 'border-slate-200 bg-slate-50/60 hover:bg-white'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
-                      <CreditCard className="w-3.5 h-3.5 text-teal-700" />
-                      1. Manual Entry
-                    </span>
-                    {ingestionMode === 'Manual Entry' && (
-                      <span className="w-2 h-2 rounded-full bg-teal-700"></span>
-                    )}
-                  </div>
-                  <p className="text-[11px] text-slate-500">
-                    Direct numeric input with standard 12-digit format validation.
-                  </p>
                 </button>
 
-                {/* 2. File Upload */}
                 <button
                   type="button"
-                  onClick={() => setIngestionMode('File Upload')}
-                  className={`p-3.5 rounded-xl border text-left transition-all ${
-                    ingestionMode === 'File Upload'
-                      ? 'border-teal-700 bg-white ring-2 ring-teal-600/30 shadow-xs'
-                      : 'border-slate-200 bg-slate-50/60 hover:bg-white'
+                  onClick={() => setIngestionMode('SCAN')}
+                  className={`px-3 py-2 text-xs font-semibold rounded-xs border text-left cursor-pointer transition-colors ${
+                    ingestionMode === 'SCAN'
+                      ? 'border-[#007A3D] bg-emerald-50 text-[#007A3D] font-bold'
+                      : 'border-slate-300 text-slate-600 hover:bg-slate-50'
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
-                      <Upload className="w-3.5 h-3.5 text-teal-700" />
-                      2. Upload Document File
-                    </span>
-                    {ingestionMode === 'File Upload' && (
-                      <span className="w-2 h-2 rounded-full bg-teal-700"></span>
-                    )}
-                  </div>
-                  <p className="text-[11px] text-slate-500">
-                    Upload scanned front/back images or PDFs for instant parsing.
-                  </p>
-                </button>
-
-                {/* 3. Live Camera Snapshot + OCR */}
-                <button
-                  type="button"
-                  onClick={() => setIngestionMode('Live Camera Snapshot + Optical Extraction')}
-                  className={`p-3.5 rounded-xl border text-left transition-all ${
-                    ingestionMode === 'Live Camera Snapshot + Optical Extraction'
-                      ? 'border-teal-700 bg-white ring-2 ring-teal-600/30 shadow-xs'
-                      : 'border-slate-200 bg-slate-50/60 hover:bg-white'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
-                      <Camera className="w-3.5 h-3.5 text-teal-700" />
-                      3. Camera Capture + Optical Scan
-                    </span>
-                    {ingestionMode === 'Live Camera Snapshot + Optical Extraction' && (
-                      <span className="w-2 h-2 rounded-full bg-teal-700"></span>
-                    )}
-                  </div>
-                  <p className="text-[11px] text-slate-500">
-                    Live camera viewfinder, capture snapshot, and auto-populate all demographics.
-                  </p>
+                  📷 2. Camera Card Scan
+                  <span className="block text-[10px] text-slate-500 font-normal">
+                    Scan ID card to capture number and validity.
+                  </span>
                 </button>
               </div>
-
-              {/* Sub-Panel: Camera Capture + OCR */}
-              {ingestionMode === 'Live Camera Snapshot + Optical Extraction' && (
-                <div className="p-4 rounded-xl bg-white border border-teal-200/80 space-y-3">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <Camera className="w-4 h-4 text-teal-700" />
-                      <span className="text-xs font-bold text-slate-800">
-                        Live Aadhaar & ID Card Viewfinder
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      {!isLiveCameraActive ? (
-                        <button
-                          type="button"
-                          onClick={startLiveCamera}
-                          className="px-3 py-1.5 rounded-lg bg-teal-700 hover:bg-teal-800 text-white text-xs font-semibold flex items-center gap-1.5 shadow-2xs"
-                        >
-                          <Camera className="w-3.5 h-3.5" />
-                          Start Live Camera
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={stopLiveCamera}
-                          className="px-3 py-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-semibold flex items-center gap-1.5"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                          Stop Camera
-                        </button>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={handleSnapAndOcr}
-                        disabled={ocrScanning}
-                        className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-2xs disabled:opacity-50"
-                      >
-                        {ocrScanning ? (
-                          <>
-                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                            Extracting Text...
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                            Capture Snapshot & Extract
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Camera Viewfinder View */}
-                  <div className="relative w-full h-48 bg-slate-900 rounded-xl overflow-hidden flex items-center justify-center border border-slate-700">
-                    <video
-                      ref={videoRef}
-                      className={`w-full h-full object-cover ${!isLiveCameraActive ? 'hidden' : ''}`}
-                      playsInline
-                      muted
-                    />
-
-                    {!isLiveCameraActive && (
-                      <div className="text-center p-4">
-                        <Scan className="w-8 h-8 text-teal-400/80 mx-auto mb-2 animate-pulse" />
-                        <p className="text-xs font-medium text-slate-200">
-                          Camera Standby • Position Aadhaar or Driving Licence card flat in frame
-                        </p>
-                        <p className="text-[11px] text-slate-400 mt-1">
-                          Click "Start Live Camera" or press "Capture Snapshot & Extract" to run OCR
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Viewfinder Bounding Box */}
-                    <div className="absolute inset-4 border-2 border-dashed border-teal-400/60 rounded-lg pointer-events-none flex items-center justify-center">
-                      <span className="text-[10px] uppercase font-mono text-teal-300 bg-slate-950/70 px-2 py-0.5 rounded">
-                        Target Document Alignment Grid
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Sub-Panel: File Upload */}
-              {ingestionMode === 'File Upload' && (
-                <div className="p-4 rounded-xl bg-white border border-teal-200/80 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Upload className="w-4 h-4 text-teal-700" />
-                    <span className="text-xs font-bold text-slate-800">
-                      Upload Scanned Aadhaar Document / PDF
-                    </span>
-                  </div>
-
-                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-teal-300 rounded-xl cursor-pointer bg-teal-50/30 hover:bg-teal-50 transition-colors">
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <Upload className="w-8 h-8 text-teal-600 mb-2" />
-                      <p className="text-xs text-slate-700 font-semibold">
-                        Click to select Aadhaar front/back image or scanned PDF
-                      </p>
-                      <p className="text-[11px] text-slate-500">Supports PNG, JPG, or PDF up to 10MB</p>
-                    </div>
-                    <input
-                      type="file"
-                      accept="image/*,application/pdf"
-                      onChange={handleFileUploadAadhaar}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
-              )}
-
-              {/* Sub-Panel: Manual Entry Note */}
-              {ingestionMode === 'Manual Entry' && (
-                <div className="p-3 bg-white rounded-xl border border-teal-200/80 flex items-center gap-2 text-xs text-slate-600">
-                  <CreditCard className="w-4 h-4 text-teal-700 shrink-0" />
-                  <span>
-                    Direct numeric manual entry selected. Please ensure all 12 digits of the Government ID are entered accurately.
-                  </span>
-                </div>
-              )}
             </div>
 
             {/* ==================================================== */}
-            {/* SECTION 2: PERMANENT DOCUMENT PROOF VAULT & REAL-TIME OCR */}
+            {/* SECTION 2: THREE DOCUMENT ATTACHMENT SLOTS          */}
             {/* ==================================================== */}
-            <div className="p-6 rounded-3xl bg-gradient-to-br from-slate-50 via-emerald-50/20 to-teal-50/30 border-2 border-emerald-200/80 space-y-6 shadow-2xs">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-emerald-200/60">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-dbs-green text-white rounded-2xl shadow-sm">
-                    <ShieldCheck className="w-5 h-5" />
+            <div className="p-4 sm:p-5 rounded-xl bg-slate-50 border border-slate-200 space-y-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-3 border-b border-slate-200">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-[#007A3D] text-white rounded-lg">
+                    <ShieldCheck className="w-4 h-4" />
                   </div>
                   <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold uppercase tracking-wider text-dbs-green-dark">
-                        Audit Compliance & Optical Ingestion
-                      </span>
-                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${
-                        verificationStatus === 'Auto-Verified'
-                          ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                          : 'bg-amber-100 text-amber-800 border-amber-300'
-                      }`}>
-                        {verificationStatus === 'Auto-Verified' ? '✓ Auto-Verified' : '⚠️ Pending Field PO QC'}
-                      </span>
-                    </div>
-                    <h3 className="text-base font-extrabold text-slate-900">
-                      Permanent Document Proof Vault & Real-Time OCR Engine
+                    <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                      Section 2: Document Attachments (3 Slots)
                     </h3>
+                    <p className="text-[11px] text-slate-500">
+                      Attach mandatory candidate credentials for MoRTH & Sarathi audit compliance
+                    </p>
                   </div>
                 </div>
-
-                <div className="text-right text-xs text-slate-500 font-medium hidden md:block">
-                  <span className="font-mono text-[11px] text-dbs-green font-bold block">Base64 Encoded • Immutable Proof</span>
-                  <span>Meets MoRTH & Sarathi Parivahan Standards</span>
+                <div className="text-xs text-slate-500">
+                  <span className="font-mono text-[10px] font-bold text-[#007A3D] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                    Base64 Encoded Proof Vault
+                  </span>
                 </div>
               </div>
 
-              {/* Dual Proof Cards Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                {/* 1. AADHAAR CARD AUDIT PROOF */}
-                <div className="bg-white rounded-2xl border-2 border-emerald-200/90 p-5 shadow-xs flex flex-col justify-between space-y-4">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <CreditCard className="w-4 h-4 text-dbs-green" />
-                        <h4 className="font-bold text-slate-900 text-xs sm:text-sm">
-                          UIDAI Aadhaar Card Audit Proof
+              {/* Exactly 3 Document Slots */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Slot 1: Candidate Passport Photo */}
+                <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col justify-between space-y-3 shadow-2xs">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-1.5">
+                        <User className="w-4 h-4 text-[#007A3D]" />
+                        <h4 className="font-bold text-xs text-slate-900">
+                          Slot 1: Passport Photo *
                         </h4>
                       </div>
-                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
-                        Base64 Proof Attached
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                        Portrait
                       </span>
                     </div>
 
-                    {/* Image Preview Box with Laser Scanner Overlay */}
-                    <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-950/5 aspect-16/10 flex items-center justify-center group">
+                    <div className="relative rounded-lg overflow-hidden border border-slate-200 bg-slate-900/5 aspect-4/3 flex items-center justify-center group">
+                      <img
+                        src={photoUrl}
+                        alt="Candidate Passport Photo"
+                        className="w-full h-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setProofInspector({
+                            isOpen: true,
+                            title: 'Slot 1: Candidate Passport Photo',
+                            type: 'Aadhaar',
+                            dataUrl: photoUrl,
+                            fields: {
+                              'Candidate Name': fullName,
+                              'Role': 'Commercial Driver Candidate'
+                            }
+                          })
+                        }
+                        className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-bold text-xs gap-1.5 cursor-pointer backdrop-blur-2xs"
+                      >
+                        <Maximize2 className="w-4 h-4" />
+                        <span>Inspect</span>
+                      </button>
+                    </div>
+
+                    <p className="text-[10px] text-slate-500 mt-2">
+                      High-resolution frontal portrait required for digital ID & PO review.
+                    </p>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-100 flex items-center gap-2">
+                    <label className="flex-1 px-2.5 py-1.5 rounded-lg bg-[#007A3D] hover:bg-[#005C2E] text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer text-center">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Upload Photo</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileUploadPhoto}
+                        className="hidden"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const sampleAvatars = [
+                          'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=300&q=80',
+                          'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80',
+                          'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80',
+                          'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=300&q=80',
+                          'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=300&q=80'
+                        ];
+                        const next = sampleAvatars[(sampleAvatars.indexOf(photoUrl) + 1) % sampleAvatars.length];
+                        setPhotoUrl(next);
+                        showToast('Driver profile photo updated');
+                      }}
+                      className="px-2 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 text-[11px] font-semibold"
+                      title="Cycle portrait preset"
+                    >
+                      Preset
+                    </button>
+                  </div>
+                </div>
+
+                {/* Slot 2: Aadhaar Card Document */}
+                <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col justify-between space-y-3 shadow-2xs">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-1.5">
+                        <CreditCard className="w-4 h-4 text-emerald-700" />
+                        <h4 className="font-bold text-xs text-slate-900">
+                          Slot 2: Aadhaar Card *
+                        </h4>
+                      </div>
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        UIDAI ID
+                      </span>
+                    </div>
+
+                    <div className="relative rounded-lg overflow-hidden border border-slate-200 bg-slate-900/5 aspect-4/3 flex items-center justify-center group">
                       <img
                         src={aadhaarProofUrl}
-                        alt="Aadhaar Document Proof"
-                        className="w-full h-full object-contain p-2"
+                        alt="Aadhaar Card Document"
+                        className="w-full h-full object-contain p-1"
                       />
 
-                      {/* Laser scan animation when actively extracting */}
                       {isAadhaarScanning && (
-                        <div className="absolute inset-0 bg-emerald-950/40 backdrop-blur-2xs flex flex-col items-center justify-center p-4 text-center">
-                          <div className="w-full h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent absolute top-0 animate-[bounce_2s_infinite]" />
-                          <RefreshCw className="w-8 h-8 text-emerald-300 animate-spin mb-2" />
-                          <p className="text-xs font-bold text-white tracking-wide">
-                            Extracting Demographics via Client-Side OCR...
-                          </p>
-                          <span className="text-[11px] text-emerald-200 font-mono mt-1">
-                            {scanStepMessage || 'Parsing 12-digit UID & date patterns'}
-                          </span>
+                        <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-2xs flex flex-col items-center justify-center p-3 text-center">
+                          <RefreshCw className="w-6 h-6 text-emerald-300 animate-spin mb-1.5" />
+                          <p className="text-xs font-bold text-white">Extracting UID...</p>
+                          <span className="text-[10px] text-emerald-200 font-mono mt-0.5">{scanStepMessage || 'Parsing 12 digits'}</span>
                         </div>
                       )}
 
-                      {/* Hover Overlay Button to Inspect */}
                       {!isAadhaarScanning && (
                         <button
                           type="button"
                           onClick={() =>
                             setProofInspector({
                               isOpen: true,
-                              title: 'UIDAI Aadhaar Card Audit Proof',
+                              title: 'Slot 2: Aadhaar Card Document Proof',
                               type: 'Aadhaar',
                               dataUrl: aadhaarProofUrl,
                               fields: {
                                 'Aadhaar Number': idCardNumber,
-                                'Full Name': fullName,
-                                'Date of Birth': dateOfBirth,
-                                'Gender': gender,
-                                'Address': address
+                                'Document Type': 'UIDAI Aadhaar Card'
                               }
                             })
                           }
-                          className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-bold text-xs gap-2 cursor-pointer backdrop-blur-2xs"
+                          className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-bold text-xs gap-1.5 cursor-pointer backdrop-blur-2xs"
                         >
                           <Maximize2 className="w-4 h-4" />
-                          <span>Inspect Full-Resolution Proof</span>
+                          <span>Inspect</span>
                         </button>
                       )}
                     </div>
 
-                    {/* Metadata Pills */}
-                    <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 text-xs space-y-1.5 font-mono">
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-500 font-sans">Aadhaar UID:</span>
-                        <strong className="text-dbs-green font-bold">{idCardNumber || '7845 1290 3421'}</strong>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-500 font-sans">Holder Name:</span>
-                        <span className="text-slate-800 font-bold">{fullName}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-500 font-sans">DOB & Gender:</span>
-                        <span className="text-slate-700">{dateOfBirth} • {gender}</span>
-                      </div>
+                    <div className="bg-slate-50 rounded-lg p-2 border border-slate-100 text-[11px] font-mono mt-2 flex items-center justify-between">
+                      <span className="text-slate-500 font-sans">Aadhaar UID:</span>
+                      <strong className="text-emerald-800 font-bold">{idCardNumber || 'Not captured'}</strong>
                     </div>
                   </div>
 
-                  {/* Action Buttons */}
                   <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center gap-2">
-                    <label className="flex-1 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer text-center">
-                      <Upload className="w-3.5 h-3.5 text-slate-600" />
-                      <span>Upload Aadhaar File</span>
+                    {ingestionMode === 'SCAN' ? (
+                      <button
+                        type="button"
+                        onClick={() => setCameraOcrModal({ isOpen: true, docType: 'AADHAAR' })}
+                        className="px-2.5 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
+                        title="Scan Aadhaar via Live Camera"
+                      >
+                        <Camera className="w-3.5 h-3.5 text-emerald-300" />
+                        <span>Scan Camera</span>
+                      </button>
+                    ) : (
+                      <span className="text-[10px] text-slate-400 font-medium px-1">
+                        Manual Mode
+                      </span>
+                    )}
+
+                    <label className="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center gap-1 transition-colors cursor-pointer text-center">
+                      <Upload className="w-3.5 h-3.5 text-slate-500" />
+                      <span>Upload</span>
                       <input
                         type="file"
                         accept="image/*,application/pdf"
@@ -1073,125 +951,114 @@ export const ModeBCandidateRegistrationDesk: React.FC<ModeBCandidateRegistration
 
                     <button
                       type="button"
-                      onClick={handleLoadSampleAadhaar}
-                      className="px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-dbs-green-dark border border-dbs-green/30 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
-                      title="Load high-fidelity demonstration Aadhaar proof"
-                    >
-                      <Sparkles className="w-3.5 h-3.5 text-dbs-green" />
-                      <span>Sample OCR</span>
-                    </button>
-
-                    <button
-                      type="button"
                       onClick={() =>
                         setProofInspector({
                           isOpen: true,
-                          title: 'UIDAI Aadhaar Card Audit Proof',
+                          title: 'Slot 2: Aadhaar Card Document Proof',
                           type: 'Aadhaar',
                           dataUrl: aadhaarProofUrl,
                           fields: {
                             'Aadhaar Number': idCardNumber,
-                            'Full Name': fullName,
-                            'Date of Birth': dateOfBirth,
-                            'Gender': gender,
-                            'Address': address
+                            'Document Type': 'UIDAI Aadhaar Card'
                           }
                         })
                       }
-                      className="p-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer"
+                      className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer"
                       title="Zoom / Inspect"
                     >
-                      <Eye className="w-4 h-4" />
+                      <Eye className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
 
-                {/* 2. DRIVING LICENCE AUDIT PROOF */}
-                <div className="bg-white rounded-2xl border-2 border-cyan-200/90 p-5 shadow-xs flex flex-col justify-between space-y-4">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Truck className="w-4 h-4 text-dbs-cyan-dark" />
-                        <h4 className="font-bold text-slate-900 text-xs sm:text-sm">
-                          Commercial Driving Licence Audit Proof
+                {/* Slot 3: Commercial Driving Licence */}
+                <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col justify-between space-y-3 shadow-2xs">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-1.5">
+                        <Truck className="w-4 h-4 text-cyan-700" />
+                        <h4 className="font-bold text-xs text-slate-900">
+                          Slot 3: Commercial DL *
                         </h4>
                       </div>
-                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-50 text-cyan-800 border border-cyan-200">
-                        Sarathi Parivahan Stored
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-50 text-cyan-700 border border-cyan-200">
+                        Sarathi DL
                       </span>
                     </div>
 
-                    {/* Image Preview Box with Laser Scanner Overlay */}
-                    <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-950/5 aspect-16/10 flex items-center justify-center group">
+                    <div className="relative rounded-lg overflow-hidden border border-slate-200 bg-slate-900/5 aspect-4/3 flex items-center justify-center group">
                       <img
                         src={dlProofUrl}
-                        alt="Driving Licence Proof"
-                        className="w-full h-full object-contain p-2"
+                        alt="Driving Licence Document"
+                        className="w-full h-full object-contain p-1"
                       />
 
-                      {/* Laser scan animation when actively extracting */}
                       {isDlScanning && (
-                        <div className="absolute inset-0 bg-cyan-950/40 backdrop-blur-2xs flex flex-col items-center justify-center p-4 text-center">
-                          <div className="w-full h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent absolute top-0 animate-[bounce_2s_infinite]" />
-                          <RefreshCw className="w-8 h-8 text-cyan-300 animate-spin mb-2" />
-                          <p className="text-xs font-bold text-white tracking-wide">
-                            Scanning Driving Licence via OCR...
-                          </p>
-                          <span className="text-[11px] text-cyan-200 font-mono mt-1">
-                            {scanStepMessage || 'Validating Sarathi format & expiry date'}
-                          </span>
+                        <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-2xs flex flex-col items-center justify-center p-3 text-center">
+                          <RefreshCw className="w-6 h-6 text-cyan-300 animate-spin mb-1.5" />
+                          <p className="text-xs font-bold text-white">Scanning DL...</p>
+                          <span className="text-[10px] text-cyan-200 font-mono mt-0.5">{scanStepMessage || 'Validating Sarathi format'}</span>
                         </div>
                       )}
 
-                      {/* Hover Overlay Button to Inspect */}
                       {!isDlScanning && (
                         <button
                           type="button"
                           onClick={() =>
                             setProofInspector({
                               isOpen: true,
-                              title: 'Commercial Driving Licence Audit Proof',
+                              title: 'Slot 3: Commercial Driving Licence Proof',
                               type: 'DL',
                               dataUrl: dlProofUrl,
                               fields: {
                                 'Licence Number': dlNumber,
                                 'Expiry Date': dlExpiryDate,
-                                'Authorized Class': vehicleClass,
-                                'Holder Name': fullName,
-                                'Validity Status': 'Active & Unexpired'
+                                'Authorized Class': vehicleClass
                               }
                             })
                           }
-                          className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-bold text-xs gap-2 cursor-pointer backdrop-blur-2xs"
+                          className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-bold text-xs gap-1.5 cursor-pointer backdrop-blur-2xs"
                         >
                           <Maximize2 className="w-4 h-4" />
-                          <span>Inspect Full-Resolution Proof</span>
+                          <span>Inspect</span>
                         </button>
                       )}
                     </div>
 
-                    {/* Metadata Pills */}
-                    <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 text-xs space-y-1.5 font-mono">
+                    <div className="bg-slate-50 rounded-lg p-2 border border-slate-100 text-[11px] font-mono mt-2 space-y-1">
                       <div className="flex items-center justify-between">
-                        <span className="text-slate-500 font-sans">Licence No:</span>
-                        <strong className="text-cyan-800 font-bold">{dlNumber || 'RJ19 20170044192'}</strong>
+                        <span className="text-slate-500 font-sans">DL Number:</span>
+                        <strong className="text-cyan-800 font-bold">{dlNumber || 'Not captured'}</strong>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-slate-500 font-sans">Expiry Date:</span>
-                        <span className="text-slate-800 font-bold">{dlExpiryDate || '2032-05-20'}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-500 font-sans">Vehicle Class:</span>
-                        <span className="text-slate-700 font-bold">{vehicleClass}</span>
+                        <span className="text-slate-500 font-sans">Expiry:</span>
+                        <span className={`font-bold ${isDlExpired ? 'text-rose-600' : isDlExpiringSoon ? 'text-amber-600' : 'text-slate-800'}`}>
+                          {dlExpiryDate || 'Not captured'}
+                        </span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Action Buttons */}
                   <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center gap-2">
-                    <label className="flex-1 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer text-center">
-                      <Upload className="w-3.5 h-3.5 text-slate-600" />
-                      <span>Upload DL File</span>
+                    {ingestionMode === 'SCAN' ? (
+                      <button
+                        type="button"
+                        onClick={() => setCameraOcrModal({ isOpen: true, docType: 'DL' })}
+                        className="px-2.5 py-1.5 rounded-lg bg-cyan-700 hover:bg-cyan-800 text-white font-bold text-xs flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
+                        title="Scan DL via Live Camera"
+                      >
+                        <Camera className="w-3.5 h-3.5 text-cyan-300" />
+                        <span>Scan Camera</span>
+                      </button>
+                    ) : (
+                      <span className="text-[10px] text-slate-400 font-medium px-1">
+                        Manual Mode
+                      </span>
+                    )}
+
+                    <label className="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center gap-1 transition-colors cursor-pointer text-center">
+                      <Upload className="w-3.5 h-3.5 text-slate-500" />
+                      <span>Upload</span>
                       <input
                         type="file"
                         accept="image/*,application/pdf"
@@ -1202,45 +1069,23 @@ export const ModeBCandidateRegistrationDesk: React.FC<ModeBCandidateRegistration
 
                     <button
                       type="button"
-                      onClick={() => setIsDlScannerOpen(true)}
-                      className="px-3 py-2 rounded-xl bg-teal-800 hover:bg-teal-900 text-white font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
-                      title="Launch Camera OCR Scanner Modal"
-                    >
-                      <Camera className="w-3.5 h-3.5 text-emerald-300" />
-                      <span>Auto-Scanner</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleLoadSampleDl}
-                      className="px-3 py-2 rounded-xl bg-cyan-50 hover:bg-cyan-100 text-cyan-800 border border-cyan-200 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
-                      title="Load high-fidelity demonstration DL proof"
-                    >
-                      <Sparkles className="w-3.5 h-3.5 text-cyan-600" />
-                      <span>Sample DL</span>
-                    </button>
-
-                    <button
-                      type="button"
                       onClick={() =>
                         setProofInspector({
                           isOpen: true,
-                          title: 'Commercial Driving Licence Audit Proof',
+                          title: 'Slot 3: Commercial Driving Licence Proof',
                           type: 'DL',
                           dataUrl: dlProofUrl,
                           fields: {
                             'Licence Number': dlNumber,
                             'Expiry Date': dlExpiryDate,
-                            'Authorized Class': vehicleClass,
-                            'Holder Name': fullName,
-                            'Validity Status': 'Active & Unexpired'
+                            'Authorized Class': vehicleClass
                           }
                         })
                       }
-                      className="p-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer"
+                      className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer"
                       title="Zoom / Inspect"
                     >
-                      <Eye className="w-4 h-4" />
+                      <Eye className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
@@ -1258,19 +1103,37 @@ export const ModeBCandidateRegistrationDesk: React.FC<ModeBCandidateRegistration
                     Section 3: Candidate Demographics & Transport Form
                   </h3>
                 </div>
-                <div className="flex items-center gap-2">
-                  {aadhaarOcrExtracted && (
-                    <span className="text-[10px] font-bold text-dbs-green bg-dbs-green-light px-2.5 py-0.5 rounded-full border border-dbs-green/30">
-                      ✨ Auto-filled via Aadhaar OCR
-                    </span>
-                  )}
-                  {dlOcrExtracted && (
-                    <span className="text-[10px] font-bold text-dbs-cyan-dark bg-dbs-cyan-light px-2.5 py-0.5 rounded-full border border-dbs-cyan/30">
-                      ✨ Auto-filled via DL OCR
-                    </span>
-                  )}
-                </div>
               </div>
+
+              {/* DL EXPIRED WARNING BANNER (CRITICAL REQUIREMENT) */}
+              {isDlExpired && (
+                <div className="mb-4 p-4 bg-rose-50 border-2 border-rose-400 rounded-2xl text-rose-950 text-xs sm:text-sm flex items-start gap-3 shadow-xs animate-in fade-in">
+                  <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <h4 className="font-black text-rose-800 text-sm tracking-wide">
+                      ⚠️ EXPIRED DRIVING LICENCE: This licence expired on {dlExpiryDate}. Renewal required before batch enrollment.
+                    </h4>
+                    <p className="text-xs text-rose-700 font-medium">
+                      Batch eligibility status: <strong className="font-bold underline text-rose-900">Blocked - Expired Driving Licence</strong>. This candidate cannot be scheduled for active batch dispatch until a valid unexpired driving licence is provided.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* DL EXPIRING SOON BANNER (CRITICAL REQUIREMENT) */}
+              {isDlExpiringSoon && !isDlExpired && (
+                <div className="mb-4 p-4 bg-amber-50 border-2 border-amber-300 rounded-2xl text-amber-950 text-xs sm:text-sm flex items-start gap-3 shadow-xs animate-in fade-in">
+                  <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <h4 className="font-black text-amber-800 text-sm tracking-wide">
+                      ⚠️ EXPIRING SOON: Licence expires within 30 days ({dlExpiryDate}).
+                    </h4>
+                    <p className="text-xs text-amber-700 font-medium">
+                      Batch eligibility status: <strong className="font-bold text-amber-900">Eligible (Expiring Soon)</strong>. Please notify the candidate to initiate RTO license renewal before final certification.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
                 {/* Full Name */}
@@ -1449,13 +1312,29 @@ export const ModeBCandidateRegistrationDesk: React.FC<ModeBCandidateRegistration
                 </div>
 
                 {/* 12-Digit Aadhaar / Govt ID */}
+                {/* Aadhaar UID Number */}
                 <div>
-                  <label className="block text-slate-700 font-bold mb-1 flex items-center justify-between">
-                    <span>Govt ID / Aadhaar (12 Digits) *</span>
-                    <span className="text-[10px] font-mono text-slate-400">
-                      {idCardNumber.replace(/\s+/g, '').length}/12
-                    </span>
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-slate-700 font-bold">
+                      Govt ID / Aadhaar (12 Digits) *
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-mono text-slate-400">
+                        {idCardNumber.replace(/\s+/g, '').length}/12
+                      </span>
+                      {ingestionMode === 'SCAN' && (
+                        <button
+                          type="button"
+                          onClick={() => setCameraOcrModal({ isOpen: true, docType: 'AADHAAR' })}
+                          className="text-[10px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-lg border border-emerald-200 flex items-center gap-1 cursor-pointer transition-colors"
+                          title="Scan Aadhaar Card with Camera"
+                        >
+                          <Camera className="w-3 h-3 text-emerald-600" />
+                          <span>Camera OCR</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
                   <input
                     type="text"
                     required
@@ -1471,59 +1350,23 @@ export const ModeBCandidateRegistrationDesk: React.FC<ModeBCandidateRegistration
                   />
                 </div>
 
-                {/* DL OCR Auto-Scanner Feature Banner */}
-                <div className="sm:col-span-2 p-3.5 bg-gradient-to-r from-teal-50 via-emerald-50/60 to-teal-50 rounded-2xl border border-teal-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-teal-800 text-white flex items-center justify-center shadow-xs shrink-0">
-                      <Camera className="w-5 h-5 text-emerald-300" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-teal-950">
-                          Driving Licence (DL) OCR Auto-Scanner
-                        </span>
-                        <span className="text-[10px] font-bold text-teal-800 bg-teal-100/90 px-2 py-0.5 rounded-full border border-teal-300">
-                          Optical Vision
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-slate-600">
-                        Capture DL card photo via camera or file to automatically extract Licence Number and Expiry Date.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 w-full sm:w-auto">
-                    {dlOcrExtracted && (
-                      <span className="text-[11px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2.5 py-1.5 rounded-xl flex items-center gap-1.5 shadow-2xs">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                        OCR Applied
-                      </span>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setIsDlScannerOpen(true)}
-                      className="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-teal-800 hover:bg-teal-900 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition-all hover:scale-[1.02] active:scale-[0.98]"
-                    >
-                      <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                      <span>{dlNumber ? 'Rescan DL Card' : 'Scan DL Card Photo (OCR)'}</span>
-                    </button>
-                  </div>
-                </div>
-
                 {/* Commercial Driving Licence Number */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="text-slate-700 font-bold">
                       Commercial Driving Licence (DL) *
                     </label>
-                    <button
-                      type="button"
-                      onClick={() => setIsDlScannerOpen(true)}
-                      className="text-[11px] font-bold text-teal-700 hover:text-teal-900 flex items-center gap-1"
-                    >
-                      <Camera className="w-3 h-3 text-teal-600" />
-                      <span>Auto-Scan</span>
-                    </button>
+                    {ingestionMode === 'SCAN' && (
+                      <button
+                        type="button"
+                        onClick={() => setCameraOcrModal({ isOpen: true, docType: 'DL' })}
+                        className="text-[10px] font-bold text-cyan-800 bg-cyan-50 hover:bg-cyan-100 px-2 py-0.5 rounded-lg border border-cyan-200 flex items-center gap-1 cursor-pointer transition-colors"
+                        title="Scan Driving Licence with Camera"
+                      >
+                        <Camera className="w-3 h-3 text-cyan-600" />
+                        <span>Camera OCR</span>
+                      </button>
+                    )}
                   </div>
                   <input
                     type="text"
@@ -1533,23 +1376,28 @@ export const ModeBCandidateRegistrationDesk: React.FC<ModeBCandidateRegistration
                     onChange={(e) => setDlNumber(e.target.value.toUpperCase())}
                     className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700 font-mono font-bold text-teal-900 uppercase"
                   />
-                  {dlOcrExtracted && dlNumber && (
-                    <p className="text-[10px] text-emerald-700 font-medium mt-1 flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                      Extracted via DL Card OCR Scanner
-                    </p>
-                  )}
                 </div>
 
                 {/* DL Expiry Date */}
                 <div>
                   <label className="block text-slate-700 font-bold mb-1 flex items-center justify-between">
                     <span>DL Expiry Date *</span>
-                    {Boolean(dlExpiryDate && new Date(dlExpiryDate) < new Date(new Date().setHours(0, 0, 0, 0))) && (
-                      <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
+                    {isDlExpired ? (
+                      <span className="text-[10px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-300 flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3 text-rose-600" />
                         Expired
                       </span>
-                    )}
+                    ) : isDlExpiringSoon ? (
+                      <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-300 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3 text-amber-600" />
+                        Expires Soon (&lt;30d)
+                      </span>
+                    ) : dlExpiryDate ? (
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1">
+                        <Check className="w-3 h-3 text-emerald-600" />
+                        Active
+                      </span>
+                    ) : null}
                   </label>
                   <input
                     type="date"
@@ -1557,21 +1405,30 @@ export const ModeBCandidateRegistrationDesk: React.FC<ModeBCandidateRegistration
                     value={dlExpiryDate}
                     onChange={(e) => handleDlExpiryChange(e.target.value)}
                     className={`w-full px-3 py-2 rounded-xl border bg-white focus:outline-none focus:ring-2 font-mono ${
-                      Boolean(dlExpiryDate && new Date(dlExpiryDate) < new Date(new Date().setHours(0, 0, 0, 0)))
-                        ? 'border-rose-400 focus:ring-rose-500/20 focus:border-rose-600 text-rose-700 font-bold'
+                      isDlExpired
+                        ? 'border-rose-400 focus:ring-rose-500/20 focus:border-rose-600 text-rose-700 font-bold bg-rose-50/30'
+                        : isDlExpiringSoon
+                        ? 'border-amber-400 focus:ring-amber-500/20 focus:border-amber-600 text-amber-800 font-bold'
                         : 'border-slate-300 focus:ring-teal-700/20 focus:border-teal-700'
                     }`}
                   />
-                  {Boolean(dlExpiryDate && new Date(dlExpiryDate) < new Date(new Date().setHours(0, 0, 0, 0))) ? (
-                    <p className="text-[10px] text-rose-600 font-bold mt-1">
-                      Licence expired. Enrollment blocked until updated.
+                  {isDlExpired && (
+                    <div className="p-2.5 bg-rose-50 border border-rose-300 rounded-xl text-rose-800 text-xs mt-1.5 space-y-1">
+                      <div className="flex items-center gap-1.5 font-bold text-rose-900">
+                        <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                        <span>⚠️ EXPIRED DRIVING LICENCE</span>
+                      </div>
+                      <p className="text-[11px] text-rose-700 font-semibold leading-relaxed">
+                        Licence expired on {dlExpiryDate}. Candidate cannot be scheduled for active batch dispatch.
+                      </p>
+                    </div>
+                  )}
+                  {isDlExpiringSoon && !isDlExpired && (
+                    <p className="text-[10px] text-amber-600 font-bold mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 text-amber-600 shrink-0" />
+                      Expires within 30 days ({dlExpiryDate}). Renewal required soon.
                     </p>
-                  ) : dlOcrExtracted && dlExpiryDate ? (
-                    <p className="text-[10px] text-emerald-700 font-medium mt-1 flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                      Extracted & verified active validity
-                    </p>
-                  ) : null}
+                  )}
                 </div>
 
                 {/* Vehicle Authorization Class */}
@@ -1651,44 +1508,6 @@ export const ModeBCandidateRegistrationDesk: React.FC<ModeBCandidateRegistration
               </div>
             </div>
 
-            {/* Passport Photo Selector */}
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-3.5">
-                <img
-                  src={photoUrl}
-                  alt="Driver Avatar"
-                  className="w-14 h-14 rounded-2xl object-cover border-2 border-teal-600/30 shadow-xs"
-                />
-                <div>
-                  <h4 className="text-xs font-bold text-slate-900">Commercial Driver Passport Photograph</h4>
-                  <p className="text-[11px] text-slate-500">
-                    High-resolution frontal portrait required for certificate generation & PO video call audit.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const sampleAvatars = [
-                      'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=300&q=80',
-                      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80',
-                      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80',
-                      'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=300&q=80',
-                      'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=300&q=80'
-                    ];
-                    const next = sampleAvatars[(sampleAvatars.indexOf(photoUrl) + 1) % sampleAvatars.length];
-                    setPhotoUrl(next);
-                    showToast('Driver profile photo updated');
-                  }}
-                  className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700"
-                >
-                  Cycle Sample Photo
-                </button>
-              </div>
-            </div>
-
             {/* Submit Action Bar */}
             <div className="pt-6 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -1707,10 +1526,25 @@ export const ModeBCandidateRegistrationDesk: React.FC<ModeBCandidateRegistration
 
                 <button
                   type="submit"
-                  className="flex-1 sm:flex-none px-7 py-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-800 hover:from-emerald-700 hover:to-teal-900 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg shadow-teal-950/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  disabled={isDlExpired}
+                  className={`flex-1 sm:flex-none px-7 py-3 rounded-2xl text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg transition-all ${
+                    isDlExpired
+                      ? 'bg-rose-700/80 cursor-not-allowed opacity-75 shadow-none'
+                      : 'bg-gradient-to-r from-emerald-600 to-teal-800 hover:from-emerald-700 hover:to-teal-900 shadow-teal-950/20 hover:scale-[1.02] active:scale-[0.98]'
+                  }`}
+                  title={isDlExpired ? `Cannot submit: Driving Licence expired on ${dlExpiryDate}. Renewal required.` : 'Submit Enrollment to PO Review'}
                 >
-                  <CheckCircle2 className="w-4 h-4 text-emerald-200" />
-                  <span>Submit Enrollment to PO Review</span>
+                  {isDlExpired ? (
+                    <>
+                      <AlertTriangle className="w-4 h-4 text-white animate-pulse" />
+                      <span>Blocked: Expired DL ({dlExpiryDate})</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4 text-emerald-200" />
+                      <span>Submit Enrollment to PO Review</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -1726,12 +1560,15 @@ export const ModeBCandidateRegistrationDesk: React.FC<ModeBCandidateRegistration
         dlExpiryDate={dlExpiryDate}
       />
 
-      {/* DRIVING LICENCE OCR AUTO-SCANNER MODAL */}
-      <DlOcrAutoScannerModal
-        isOpen={isDlScannerOpen}
-        onClose={() => setIsDlScannerOpen(false)}
-        onScanComplete={handleDlScanComplete}
-      />
+      {/* LIVE CAMERA OCR MODAL FOR DL & AADHAAR */}
+      {cameraOcrModal && (
+        <OcrScannerModal
+          isOpen={cameraOcrModal.isOpen}
+          docType={cameraOcrModal.docType}
+          onClose={() => setCameraOcrModal(null)}
+          onScanComplete={handleCameraOcrComplete}
+        />
+      )}
 
       {/* PERMANENT DOCUMENT PROOF LIGHTBOX INSPECTOR */}
       {proofInspector && (

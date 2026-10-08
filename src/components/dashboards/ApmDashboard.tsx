@@ -40,7 +40,8 @@ import {
   Wrench,
   Copy,
   Share2,
-  Lock
+  Lock,
+  ZoomIn
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Candidate, Center, Employee, ExpenseClaim, ExpenseItem, LeaveRecord, DeploymentRecord, TravelMode, CenterIssueTicket, AttendancePunch } from '../../types';

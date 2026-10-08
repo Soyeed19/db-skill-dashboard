@@ -383,28 +383,6 @@ export const TrainerDashboard: React.FC = () => {
           {/* Quick Header Self-Service CTA */}
           <div className="flex flex-wrap items-center gap-2.5 shrink-0">
             <button
-              onClick={() => {
-                setPunchModalType('CHECK_IN');
-                setIsSelfPunchModalOpen(true);
-              }}
-              className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs flex items-center gap-2 shadow-xs transition-transform active:scale-95"
-            >
-              <Camera className="w-3.5 h-3.5" />
-              <span>Self Check-In</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setPunchModalType('CHECK_OUT');
-                setIsSelfPunchModalOpen(true);
-              }}
-              className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center gap-2 shadow-xs transition-transform active:scale-95"
-            >
-              <Clock className="w-3.5 h-3.5" />
-              <span>Self Check-Out</span>
-            </button>
-
-            <button
               onClick={() => setIsSlideDeckModalOpen(true)}
               className="px-4 py-2.5 rounded-xl bg-white text-teal-900 hover:bg-teal-50 font-bold text-xs flex items-center gap-2 shadow-xs transition-all"
             >

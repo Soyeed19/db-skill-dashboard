@@ -39,8 +39,8 @@ export const AttendancePunchModal: React.FC<AttendancePunchModalProps> = ({
     localityAddress: string;
     geofenceStatus: 'Within Center Geofence' | 'Remote / Outstation Tour' | 'Approved Field';
   }>({
-    lat: activeCenter.lat || 26.2389,
-    lng: activeCenter.lng || 73.0243,
+    lat: activeCenter.latitude || 26.2389,
+    lng: activeCenter.longitude || 73.0243,
     accuracyMeters: 8,
     localityAddress: activeCenter.address,
     geofenceStatus: 'Within Center Geofence'
@@ -71,8 +71,8 @@ export const AttendancePunchModal: React.FC<AttendancePunchModalProps> = ({
           const accuracy = Math.round(pos.coords.accuracy || 10);
 
           // Calculate approximate distance to active center
-          const dLat = (lat - activeCenter.lat) * 111000;
-          const dLng = (lng - activeCenter.lng) * 111000;
+          const dLat = (lat - activeCenter.latitude) * 111000;
+          const dLng = (lng - activeCenter.longitude) * 111000;
           const dist = Math.sqrt(dLat * dLat + dLng * dLng);
 
           const isWithin = dist <= (activeCenter.geofenceRadiusMeters || 350);
@@ -88,8 +88,8 @@ export const AttendancePunchModal: React.FC<AttendancePunchModalProps> = ({
         (err) => {
           console.warn('Geolocation acquisition warning, using calibrated center GPS:', err.message);
           setGpsCoordinates({
-            lat: activeCenter.lat,
-            lng: activeCenter.lng,
+            lat: activeCenter.latitude,
+            lng: activeCenter.longitude,
             accuracyMeters: 12,
             localityAddress: activeCenter.address,
             geofenceStatus: 'Within Center Geofence'
