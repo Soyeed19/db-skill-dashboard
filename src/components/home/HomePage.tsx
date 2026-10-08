@@ -119,8 +119,12 @@ export const HomePage: React.FC = () => {
             </div>
 
             <h1 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
-              Enterprise Driver Training, Verification & Multi-Center Governance
+              Welcome to Integrated DB Skills & Livelihood Portal
             </h1>
+
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xs bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs sm:text-sm font-bold tracking-wide">
+              <span>Safer Roads | Generate Livelihood | Change Lives</span>
+            </div>
 
             <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-2xl">
               Centralized operational command managing pan-India commercial vehicle driver qualification. Integrated 3-way biometric ingestion, geotagged classroom audits, real-time consumable inventories, and hierarchical financial sanctions.
