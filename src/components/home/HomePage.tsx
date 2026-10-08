@@ -82,12 +82,9 @@ export const HomePage: React.FC = () => {
                 <span className="font-extrabold text-slate-900 text-base tracking-tight">
                   DB SKILLS
                 </span>
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-xs bg-[#E6F4EA] text-[#005C2E] border border-[#007A3D]/30">
-                  NATIONAL ENTERPRISE
-                </span>
               </div>
               <p className="text-[11px] text-slate-500 font-medium hidden sm:block">
-                Commercial Driver Training & Verification Infrastructure
+                Safer Roads | Generate Livelihood | Change Lives
               </p>
             </div>
           </div>

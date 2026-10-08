@@ -193,16 +193,13 @@ export const Navbar: React.FC<NavbarProps> = ({
             <DbSkillsLogo className="h-10 w-auto" />
 
             <div>
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold text-slate-900 tracking-tight text-base sm:text-lg">
+              <div className="flex items-center">
+                <span className="font-extrabold text-slate-900 tracking-tight text-base sm:text-lg leading-tight">
                   DB SKILLS
                 </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-dbs-green-light text-dbs-green-dark border border-dbs-green/30">
-                  ENTERPRISE
-                </span>
               </div>
-              <p className="text-[11px] text-slate-500 font-medium hidden sm:block">
-                Commercial Driver Training & Verification
+              <p className="text-[11px] text-slate-500 font-medium hidden sm:block leading-tight mt-0.5">
+                Safer Roads | Generate Livelihood | Change Lives
               </p>
             </div>
           </div>

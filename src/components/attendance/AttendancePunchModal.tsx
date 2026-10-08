@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { AttendancePunch } from '../../types';
+import { safeLocalStorageSet } from '../../utils/safeStorage';
 
 export interface AttendancePunchModalProps {
   isOpen: boolean;
@@ -265,8 +266,8 @@ export const AttendancePunchModal: React.FC<AttendancePunchModalProps> = ({
       yStart + 122
     );
 
-    // Export as JPEG base64
-    return canvas.toDataURL('image/jpeg', 0.92);
+    // Export as JPEG base64 (quota-safe compressed)
+    return canvas.toDataURL('image/jpeg', 0.70);
   };
 
   // Perform Confirmation and Persist into Global Shared Logs Store
@@ -315,9 +316,9 @@ export const AttendancePunchModal: React.FC<AttendancePunchModalProps> = ({
         }
       }
 
-      const updatedLogs = [newPunchRecord, ...existingLogs.filter((p) => p.id !== newPunchRecord.id)];
-      localStorage.setItem('dbs_attendance_logs', JSON.stringify(updatedLogs));
-      localStorage.setItem('dbs_attendance_punches', JSON.stringify(updatedLogs));
+      const updatedLogs = [newPunchRecord, ...existingLogs.filter((p) => p.id !== newPunchRecord.id)].slice(0, 30);
+      safeLocalStorageSet('dbs_attendance_logs', JSON.stringify(updatedLogs));
+      safeLocalStorageSet('dbs_attendance_punches', JSON.stringify(updatedLogs));
 
       // Broadcast storage event within window
       window.dispatchEvent(new Event('dbs_attendance_logs_updated'));

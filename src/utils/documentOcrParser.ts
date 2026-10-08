@@ -23,25 +23,83 @@ export interface DlOcrData {
   extractedFields: string[];
 }
 
-// Convert any browser File (image/pdf) to a permanent Base64 Data URL
-export const fileToBase64 = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = (error) => reject(error);
+// Compress image data URL to lightweight dimension and quality for storage safety
+export const compressImageDataUrl = (
+  dataUrl: string,
+  maxWidth = 640,
+  maxHeight = 640,
+  quality = 0.68
+): Promise<string> => {
+  return new Promise((resolve) => {
+    if (!dataUrl.startsWith('data:image/') || dataUrl.startsWith('data:image/svg+xml') || dataUrl.length < 25000) {
+      resolve(dataUrl);
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > maxWidth || height > maxHeight) {
+        if (width > height) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        } else {
+          width = Math.round((width * maxHeight) / height);
+          height = maxHeight;
+        }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      } else {
+        resolve(dataUrl);
+      }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
   });
 };
 
-// Snapshot HTML5 Video frame to permanent Base64 Data URL
+// Convert any browser File (image/pdf) to a compact, quota-safe Base64 Data URL
+export const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const raw = reader.result as string;
+      if (file.type.startsWith('image/')) {
+        try {
+          const compressed = await compressImageDataUrl(raw, 640, 640, 0.68);
+          resolve(compressed);
+        } catch {
+          resolve(raw);
+        }
+      } else {
+        resolve(raw);
+      }
+    };
+    reader.onerror = (error) => reject(error);
+    reader.readAsDataURL(file);
+  });
+};
+
+// Snapshot HTML5 Video frame to compact Base64 Data URL (quota safe)
 export const videoFrameToBase64 = (video: HTMLVideoElement): string => {
   const canvas = document.createElement('canvas');
-  canvas.width = video.videoWidth || 1280;
-  canvas.height = video.videoHeight || 720;
+  const sourceWidth = video.videoWidth || 640;
+  const sourceHeight = video.videoHeight || 360;
+  const maxWidth = 640;
+  const targetWidth = Math.min(sourceWidth, maxWidth);
+  const targetHeight = Math.round((sourceHeight * targetWidth) / sourceWidth);
+
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
   const ctx = canvas.getContext('2d');
   if (ctx) {
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL('image/jpeg', 0.88);
+    ctx.drawImage(video, 0, 0, targetWidth, targetHeight);
+    return canvas.toDataURL('image/jpeg', 0.72);
   }
   return '';
 };

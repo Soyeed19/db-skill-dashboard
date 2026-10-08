@@ -43,6 +43,7 @@ import {
   fileToBase64,
   videoFrameToBase64
 } from '../../utils/documentOcrParser';
+import { safeLocalStorageSet } from '../../utils/safeStorage';
 import { DlExpiredAlertModal } from './DlExpiredAlertModal';
 import { OcrScannerModal } from '../ocr/OcrScannerModal';
 import { processCardImage, ExtractedCardData } from '../../hooks/useCardOcr';
@@ -418,13 +419,14 @@ export const ModeBCandidateRegistrationDesk: React.FC<ModeBCandidateRegistration
       verificationStatus
     };
 
-    // 2. Persist in LocalStorage permanent ledger
+    // 2. Persist in LocalStorage permanent ledger (quota protected)
     try {
       const existingStr = localStorage.getItem('dbs_candidate_enrollments');
       const existingList: CandidateEnrollment[] = existingStr ? JSON.parse(existingStr) : [];
-      localStorage.setItem('dbs_candidate_enrollments', JSON.stringify([enrollmentRecord, ...existingList]));
+      const updatedList = [enrollmentRecord, ...existingList].slice(0, 20);
+      safeLocalStorageSet('dbs_candidate_enrollments', JSON.stringify(updatedList));
     } catch (err) {
-      console.error('Failed to save enrollment to localStorage', err);
+      console.warn('Failed to save enrollment to localStorage', err);
     }
 
     // 3. Register in AppContext Candidate Pipeline

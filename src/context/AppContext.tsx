@@ -35,6 +35,11 @@ import {
   INITIAL_MAINTENANCE_TICKETS
 } from '../data/initialData';
 import { INITIAL_EMPLOYEE_USERS } from '../data/initialAuthData';
+import {
+  safeLocalStorageSet,
+  safeSaveCandidates,
+  sanitizeCandidateListForStorage
+} from '../utils/safeStorage';
 
 interface AppContextType {
   // Auth & Personas & Centers
@@ -239,8 +244,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const loginAsPersona = (persona: UserPersona) => {
     setCurrentPersona(persona);
     setIsLoggedIn(true);
-    localStorage.setItem('dbs_logged_in', 'true');
-    localStorage.setItem('dbs_persona', JSON.stringify(persona));
+    safeLocalStorageSet('dbs_logged_in', 'true');
+    safeLocalStorageSet('dbs_persona', JSON.stringify(persona));
     if (persona.centerId) {
       setSelectedCenterId(persona.centerId);
     }
@@ -257,7 +262,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   useEffect(() => {
-    localStorage.setItem('dbs_employee_users', JSON.stringify(employeeUsers));
+    safeLocalStorageSet('dbs_employee_users', JSON.stringify(employeeUsers));
   }, [employeeUsers]);
 
   const loginWithCredentials = (credential: string, password: string): { success: boolean; message: string } => {
@@ -369,7 +374,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   useEffect(() => {
-    localStorage.setItem('dbs_centers', JSON.stringify(centers));
+    safeLocalStorageSet('dbs_centers', JSON.stringify(centers));
   }, [centers]);
 
   const [selectedCenterId, setSelectedCenterId] = useState<string>(() => {
@@ -378,7 +383,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Keep center aligned when persona changes if not 'all'
   useEffect(() => {
-    localStorage.setItem('dbs_persona', JSON.stringify(currentPersona));
+    safeLocalStorageSet('dbs_persona', JSON.stringify(currentPersona));
     if (currentPersona.centerId && selectedCenterId !== 'all') {
       setSelectedCenterId(currentPersona.centerId);
     }
@@ -426,7 +431,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
         return emp;
       });
-      localStorage.setItem('dbs_employees', JSON.stringify(updated));
+      safeLocalStorageSet('dbs_employees', JSON.stringify(updated));
       return updated;
     });
     showToast(`Staff mobilization: Employee reassigned to ${targetCenter.name} (${targetCenter.code}) effective ${effectiveDate}.`);
@@ -441,15 +446,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Candidates
   const [candidates, setCandidates] = useState<Candidate[]>(() => {
-    const saved = localStorage.getItem('dbs_candidates');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { console.error(e); }
+    try {
+      const saved = localStorage.getItem('dbs_candidates');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return sanitizeCandidateListForStorage(parsed);
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to parse dbs_candidates from storage:', e);
     }
     return INITIAL_CANDIDATES;
   });
 
   useEffect(() => {
-    localStorage.setItem('dbs_candidates', JSON.stringify(candidates));
+    safeSaveCandidates(candidates);
   }, [candidates]);
 
   // Batches
@@ -462,7 +474,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   useEffect(() => {
-    localStorage.setItem('dbs_batches', JSON.stringify(batches));
+    safeLocalStorageSet('dbs_batches', JSON.stringify(batches));
   }, [batches]);
 
   // Consumables
@@ -475,7 +487,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   useEffect(() => {
-    localStorage.setItem('dbs_consumables', JSON.stringify(consumables));
+    safeLocalStorageSet('dbs_consumables', JSON.stringify(consumables));
   }, [consumables]);
 
   // Transactions
@@ -488,7 +500,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   useEffect(() => {
-    localStorage.setItem('dbs_transactions', JSON.stringify(transactions));
+    safeLocalStorageSet('dbs_transactions', JSON.stringify(transactions));
   }, [transactions]);
 
   // Employees
@@ -501,7 +513,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   useEffect(() => {
-    localStorage.setItem('dbs_employees', JSON.stringify(employees));
+    safeLocalStorageSet('dbs_employees', JSON.stringify(employees));
   }, [employees]);
 
   // Leaves
@@ -514,7 +526,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   useEffect(() => {
-    localStorage.setItem('dbs_leaves', JSON.stringify(leaves));
+    safeLocalStorageSet('dbs_leaves', JSON.stringify(leaves));
   }, [leaves]);
 
   // Tours
@@ -527,10 +539,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   useEffect(() => {
-    localStorage.setItem('dbs_tours', JSON.stringify(tours));
+    safeLocalStorageSet('dbs_tours', JSON.stringify(tours));
   }, [tours]);
-
-
 
   // Expense Claims
   const [expenseClaims, setExpenseClaims] = useState<ExpenseClaim[]>(() => {
@@ -550,8 +560,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   useEffect(() => {
-    localStorage.setItem('dbs_expenses', JSON.stringify(expenseClaims));
-    localStorage.setItem('dbs_expense_claims', JSON.stringify(expenseClaims));
+    safeLocalStorageSet('dbs_expense_claims', JSON.stringify(expenseClaims));
   }, [expenseClaims]);
 
   // --- CANDIDATE METHODS ---
@@ -1076,8 +1085,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   useEffect(() => {
-    localStorage.setItem('dbs_attendance_logs', JSON.stringify(attendancePunches));
-    localStorage.setItem('dbs_attendance_punches', JSON.stringify(attendancePunches));
+    safeLocalStorageSet('dbs_attendance_logs', JSON.stringify(attendancePunches));
+    safeLocalStorageSet('dbs_attendance_punches', JSON.stringify(attendancePunches));
   }, [attendancePunches]);
 
   useEffect(() => {
@@ -1112,7 +1121,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   useEffect(() => {
-    localStorage.setItem('dbs_maintenance_tickets', JSON.stringify(maintenanceTickets));
+    safeLocalStorageSet('dbs_maintenance_tickets', JSON.stringify(maintenanceTickets));
   }, [maintenanceTickets]);
 
   const onboardEmployee = (employeeData: Omit<Employee, 'id' | 'empCode' | 'tenureMonths' | 'casualLeaveBalance' | 'compOffBalance'>): Employee => {
@@ -1126,7 +1135,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
     setEmployees(prev => {
       const updated = [newEmp, ...prev];
-      localStorage.setItem('dbs_employees', JSON.stringify(updated));
+      safeLocalStorageSet('dbs_employees', JSON.stringify(updated));
       return updated;
     });
     showToast(`Employee ${newEmp.name} (${newEmp.empCode}) onboarded successfully!`);
@@ -1139,9 +1148,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: `pnch-${Date.now()}`
     };
     setAttendancePunches(prev => {
-      const updated = [newPunch, ...prev.filter(p => p.id !== newPunch.id)];
-      localStorage.setItem('dbs_attendance_logs', JSON.stringify(updated));
-      localStorage.setItem('dbs_attendance_punches', JSON.stringify(updated));
+      const updated = [newPunch, ...prev.filter(p => p.id !== newPunch.id)].slice(0, 40);
+      safeLocalStorageSet('dbs_attendance_logs', JSON.stringify(updated));
+      safeLocalStorageSet('dbs_attendance_punches', JSON.stringify(updated));
       return updated;
     });
     setEmployees(prev =>
@@ -1250,8 +1259,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setExpenseClaims(prev => {
       const updated = [newClaim, ...prev];
-      localStorage.setItem('dbs_expense_claims', JSON.stringify(updated));
-      localStorage.setItem('dbs_expenses', JSON.stringify(updated));
+      safeLocalStorageSet('dbs_expense_claims', JSON.stringify(updated));
       return updated;
     });
 
@@ -1298,8 +1306,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
         return c;
       });
-      localStorage.setItem('dbs_expense_claims', JSON.stringify(updated));
-      localStorage.setItem('dbs_expenses', JSON.stringify(updated));
+      safeLocalStorageSet('dbs_expense_claims', JSON.stringify(updated));
       return updated;
     });
 
@@ -1341,8 +1348,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
         return c;
       });
-      localStorage.setItem('dbs_expense_claims', JSON.stringify(updated));
-      localStorage.setItem('dbs_expenses', JSON.stringify(updated));
+      safeLocalStorageSet('dbs_expense_claims', JSON.stringify(updated));
       return updated;
     });
     showToast(`Expense claim sanctioned for ₹${approvedTotal.toLocaleString()} by General Manager! Ready for Bank Disbursement.`);
@@ -1384,8 +1390,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
         return c;
       });
-      localStorage.setItem('dbs_expense_claims', JSON.stringify(updated));
-      localStorage.setItem('dbs_expenses', JSON.stringify(updated));
+      safeLocalStorageSet('dbs_expense_claims', JSON.stringify(updated));
       return updated;
     });
     showToast(isSm ? 'Claim returned by Senior Manager with verification remarks.' : 'Claim returned by General Manager for correction.');
@@ -1484,8 +1489,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
         return c;
       });
-      localStorage.setItem('dbs_expense_claims', JSON.stringify(updated));
-      localStorage.setItem('dbs_expenses', JSON.stringify(updated));
+      safeLocalStorageSet('dbs_expense_claims', JSON.stringify(updated));
       return updated;
     });
     showToast(`Claim disbursed via bank transfer (Ref: ${bankRef}) post-GM approval!`);
