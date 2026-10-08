@@ -18,12 +18,14 @@ import {
   Clock,
   Lock,
   UserPlus,
-  Compass
+  Compass,
+  Plus
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { UserRole } from '../../types';
 import { EmployeeSelfAttendanceModal } from '../attendance/EmployeeSelfAttendanceModal';
 import { DbSkillsLogo } from '../common/DbSkillsLogo';
+import { CreateHubModal, isAuthorizedForHubCreation } from '../CreateHubModal';
 
 interface NavbarProps {
   currentTab: string;
@@ -147,6 +149,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     activeCenter,
     setActiveCenter,
     centers,
+    addCenter,
     logoutToLanding,
     loginAsPersona
   } = useApp();
@@ -154,6 +157,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [isPersonaMenuOpen, setIsPersonaMenuOpen] = useState(false);
   const [isCenterMenuOpen, setIsCenterMenuOpen] = useState(false);
   const [isSelfPunchModalOpen, setIsSelfPunchModalOpen] = useState(false);
+  const [isCreateHubOpen, setIsCreateHubOpen] = useState(false);
+
+  // Strict RBAC: Hub creation authorized for GM Operations, Operations Head, Admin / CEO only
+  const isHubCreationAllowed = isAuthorizedForHubCreation(currentPersona.role);
 
   // Strict Center Scoping check: OSE & Trainer can ONLY see their assigned center
   const isOse = currentPersona.role === 'OSE';
@@ -282,6 +289,21 @@ export const Navbar: React.FC<NavbarProps> = ({
                         )}
                       </button>
                     ))}
+                    {isHubCreationAllowed && (
+                      <div className="p-2 border-t border-slate-200 bg-slate-50">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsCreateHubOpen(true);
+                            setIsCenterMenuOpen(false);
+                          }}
+                          className="w-full py-1.5 px-2 bg-[#007A3D] hover:bg-[#005C2E] text-white rounded-xs text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Create New Training Hub</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -414,6 +436,36 @@ export const Navbar: React.FC<NavbarProps> = ({
       isOpen={isSelfPunchModalOpen}
       onClose={() => setIsSelfPunchModalOpen(false)}
     />
+
+    {/* Strictly Restricted Create Training Hub Modal (GM Operations & Executive Admin only) */}
+    {isHubCreationAllowed && (
+      <CreateHubModal
+        isOpen={isCreateHubOpen}
+        onClose={() => setIsCreateHubOpen(false)}
+        userRole={currentPersona.role}
+        onHubCreated={(hubData) => {
+          const newHub = addCenter({
+            code: hubData.code || hubData.centerCode,
+            name: hubData.name || hubData.centerName,
+            city: hubData.city,
+            state: hubData.state,
+            address: hubData.address || `${hubData.city}, ${hubData.state}`,
+            latitude: Number(hubData.latitude) || 26.9124,
+            longitude: Number(hubData.longitude) || 75.7873,
+            geofenceRadiusMeters: Number(hubData.geofenceRadiusMeters) || 150,
+            poName: hubData.inChargeName || 'Designated PO',
+            apmName: 'Designated Manager',
+            contactNumber: hubData.contactNumber,
+            email: hubData.email,
+            capacity: Number(hubData.capacity) || 40,
+            inChargeName: hubData.inChargeName,
+            status: 'ACTIVE',
+            createdAt: hubData.createdAt || new Date().toISOString()
+          });
+          setActiveCenter(newHub);
+        }}
+      />
+    )}
   </>
 );
 };

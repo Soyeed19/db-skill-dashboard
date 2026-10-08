@@ -44,12 +44,12 @@ app.get('*', (_req, res) => {
 const targetPort = parseInt(process.env.PORT || '8080', 10);
 const fallbackPort = parseInt(process.env.DEFAULT_APP_PORT || '3000', 10);
 
-function startServer(port) {
+function startServer(port: number) {
   const server = app.listen(port, '0.0.0.0', () => {
     console.log(`Server successfully listening on http://0.0.0.0:${port}`);
   });
 
-  server.on('error', (err) => {
+  server.on('error', (err: any) => {
     if (err.code === 'EADDRINUSE') {
       console.warn(`Port ${port} is currently in use.`);
       if (port !== fallbackPort) {

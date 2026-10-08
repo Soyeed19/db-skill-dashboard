@@ -28,11 +28,13 @@ import {
   AlertOctagon,
   BellRing,
   PackageX,
-  FileWarning
+  FileWarning,
+  Plus
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Center } from '../../types';
 import { exportNationalMasterAuditDossier, NationalLeagueItem } from '../../utils/excelExporter';
+import { CreateHubModal, isAuthorizedForHubCreation } from '../CreateHubModal';
 
 export const CeoDashboard: React.FC = () => {
   const {
@@ -46,8 +48,13 @@ export const CeoDashboard: React.FC = () => {
     attendancePunches,
     setActiveCenter,
     setSelectedCenterId,
+    currentPersona,
+    addCenter,
     showToast
   } = useApp();
+
+  const [isCreateHubOpen, setIsCreateHubOpen] = useState(false);
+  const isHubCreationAllowed = isAuthorizedForHubCreation(currentPersona?.role);
 
   // Filter State
   const [selectedState, setSelectedState] = useState<string>('All States');
@@ -508,6 +515,17 @@ export const CeoDashboard: React.FC = () => {
 
         {/* Right: Primary Master Action Button: Export .xlsx */}
         <div className="flex items-center gap-2 shrink-0">
+          {isHubCreationAllowed && (
+            <button
+              type="button"
+              onClick={() => setIsCreateHubOpen(true)}
+              className="px-3.5 py-2.5 rounded-xl bg-[#007A3D] hover:bg-[#005C2E] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer"
+              title="Create New Training Hub"
+            >
+              <Plus className="w-4 h-4 text-emerald-200" />
+              <span>+ Create Hub</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={handleExportDossier}
@@ -1241,6 +1259,37 @@ export const CeoDashboard: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Strictly Restricted Create Training Hub Modal (Executive Admin & GM only) */}
+      {isHubCreationAllowed && (
+        <CreateHubModal
+          isOpen={isCreateHubOpen}
+          onClose={() => setIsCreateHubOpen(false)}
+          userRole={currentPersona?.role || 'CEO'}
+          onHubCreated={(hubData) => {
+            const newHub = addCenter({
+              code: hubData.code || hubData.centerCode,
+              name: hubData.name || hubData.centerName,
+              city: hubData.city,
+              state: hubData.state,
+              address: hubData.address || `${hubData.city}, ${hubData.state}`,
+              latitude: Number(hubData.latitude) || 26.9124,
+              longitude: Number(hubData.longitude) || 75.7873,
+              geofenceRadiusMeters: Number(hubData.geofenceRadiusMeters) || 150,
+              poName: hubData.inChargeName || 'Designated PO',
+              apmName: 'Designated Manager',
+              contactNumber: hubData.contactNumber,
+              email: hubData.email,
+              capacity: Number(hubData.capacity) || 40,
+              inChargeName: hubData.inChargeName,
+              status: 'ACTIVE',
+              createdAt: hubData.createdAt || new Date().toISOString()
+            });
+            setActiveCenter(newHub);
+            setSelectedCenterId(newHub.id);
+          }}
+        />
       )}
     </div>
   );

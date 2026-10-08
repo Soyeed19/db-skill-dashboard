@@ -35,7 +35,8 @@ import {
   KeyRound,
   Copy,
   Check,
-  Clock
+  Clock,
+  Plus
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Center, Employee, UserRole, UserLevel, ExpenseClaim, ExpenseItem, AttendancePunch } from '../../types';
@@ -43,6 +44,7 @@ import { DossierViewerModal } from '../candidates/DossierViewerModal';
 import { generateExpenseClaimPdf } from '../../utils/pdfGenerator';
 import { ExpenseAuditTrailModal } from '../travel/ExpenseAuditTrailModal';
 import { TrainingEfficacyChart } from './TrainingEfficacyChart';
+import { CreateHubModal, isAuthorizedForHubCreation } from '../CreateHubModal';
 
 export const CeoLeadershipDashboard: React.FC = () => {
   const {
@@ -58,6 +60,8 @@ export const CeoLeadershipDashboard: React.FC = () => {
     selectedCenterId,
     setSelectedCenterId,
     activeCenter,
+    currentPersona,
+    addCenter,
     onboardEmployee,
     approveExpenseClaim,
     rejectExpenseClaim,
@@ -66,6 +70,9 @@ export const CeoLeadershipDashboard: React.FC = () => {
     attendanceLogs,
     showToast
   } = useApp();
+
+  const [isCreateHubOpen, setIsCreateHubOpen] = useState(false);
+  const isHubCreationAllowed = isAuthorizedForHubCreation(currentPersona?.role);
 
   // Active Tab: Pan-India Overview vs Training Efficacy vs Employee Management vs Attendance vs Expense Sanctions
   const [activeTab, setActiveTab] = useState<'drilldown' | 'efficacy' | 'employees' | 'attendance_audit' | 'expenses'>('drilldown');
@@ -411,9 +418,22 @@ export const CeoLeadershipDashboard: React.FC = () => {
                   Select Training Center for Deep Operational Drilldown
                 </h3>
               </div>
-              <span className="text-xs text-slate-500">
-                Click any center below to inspect real-time inventory ledger and candidate enrollment records
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="hidden sm:inline text-xs text-slate-500">
+                  Click any center below to inspect real-time inventory ledger and candidate enrollment records
+                </span>
+                {isHubCreationAllowed && (
+                  <button
+                    type="button"
+                    onClick={() => setIsCreateHubOpen(true)}
+                    className="px-3.5 py-1.5 bg-[#007A3D] hover:bg-[#005C2E] text-white text-xs font-bold rounded-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                    title="Create New Training Hub"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Create Training Hub</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -2129,6 +2149,37 @@ export const CeoLeadershipDashboard: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Strictly Restricted Create Training Hub Modal (GM Operations & Executive Admin only) */}
+      {isHubCreationAllowed && (
+        <CreateHubModal
+          isOpen={isCreateHubOpen}
+          onClose={() => setIsCreateHubOpen(false)}
+          userRole={currentPersona?.role || 'GM'}
+          onHubCreated={(hubData) => {
+            const newHub = addCenter({
+              code: hubData.code || hubData.centerCode,
+              name: hubData.name || hubData.centerName,
+              city: hubData.city,
+              state: hubData.state,
+              address: hubData.address || `${hubData.city}, ${hubData.state}`,
+              latitude: Number(hubData.latitude) || 26.9124,
+              longitude: Number(hubData.longitude) || 75.7873,
+              geofenceRadiusMeters: Number(hubData.geofenceRadiusMeters) || 150,
+              poName: hubData.inChargeName || 'Designated PO',
+              apmName: 'Designated Manager',
+              contactNumber: hubData.contactNumber,
+              email: hubData.email,
+              capacity: Number(hubData.capacity) || 40,
+              inChargeName: hubData.inChargeName,
+              status: 'ACTIVE',
+              createdAt: hubData.createdAt || new Date().toISOString()
+            });
+            setDrilldownCenterId(newHub.id);
+            setSelectedCenterId(newHub.id);
+          }}
+        />
       )}
     </div>
   );

@@ -430,6 +430,12 @@ export interface Center {
   apmName: string;
   region?: string;
   zone?: string;
+  contactNumber?: string;
+  email?: string;
+  capacity?: number;
+  inChargeName?: string;
+  status?: string;
+  createdAt?: string;
 }
 
 export type MaintenanceStatus =

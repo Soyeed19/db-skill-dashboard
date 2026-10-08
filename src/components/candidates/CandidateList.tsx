@@ -11,14 +11,12 @@ import {
   Building,
   Target,
   FileSpreadsheet,
-  Download,
-  UserPlus
+  Download
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Candidate, CandidateStatus } from '../../types';
 import { DossierViewerModal } from './DossierViewerModal';
 import { WhatsAppSummaryModal } from '../common/WhatsAppSummaryModal';
-import { CandidateRegistrationModal } from './CandidateRegistrationModal';
 import {
   generateCandidateDossierPdf,
   generateTrainingCertificatePdf
@@ -42,7 +40,6 @@ export const CandidateList: React.FC = () => {
   const [isWhatsAppOpen, setIsWhatsAppOpen] = useState(false);
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
-  const [isEnrollmentOpen, setIsEnrollmentOpen] = useState(false);
 
   const handleExportToExcel = () => {
     try {
@@ -163,16 +160,6 @@ export const CandidateList: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setIsEnrollmentOpen(true)}
-            className="px-3 py-1.5 rounded-sm text-xs font-bold bg-[#007A3D] text-white hover:bg-[#005C2E] transition-colors flex items-center gap-1.5 cursor-pointer border border-[#005C2E]"
-            title="Start New Candidate Enrollment"
-          >
-            <UserPlus className="w-4 h-4 text-emerald-200" />
-            <span>+ Enroll Candidate</span>
-          </button>
-
           <button
             onClick={handleExportToExcel}
             disabled={isExporting}
@@ -469,12 +456,6 @@ export const CandidateList: React.FC = () => {
         isOpen={isWhatsAppOpen}
         onClose={() => setIsWhatsAppOpen(false)}
         batchId={todayBatch?.id}
-      />
-
-      {/* Candidate Enrollment Modal */}
-      <CandidateRegistrationModal
-        isOpen={isEnrollmentOpen}
-        onClose={() => setIsEnrollmentOpen(false)}
       />
     </div>
   );
