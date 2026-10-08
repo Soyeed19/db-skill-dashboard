@@ -21,22 +21,6 @@ export const CeoVisionSection: React.FC = () => {
               <span className="text-sm font-bold text-slate-900">— Gopal Mani</span>
               <span className="block text-xs text-[#007A3D] font-semibold">Founder, DBSL</span>
             </div>
-
-            {/* 3 Core Commitments */}
-            <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="bg-slate-50 border border-slate-200 p-3 rounded-xs text-center">
-                <span className="block text-xs font-bold text-slate-800">Safer Roads</span>
-                <span className="text-[10px] text-slate-500 font-medium">Protecting Human Lives</span>
-              </div>
-              <div className="bg-slate-50 border border-slate-200 p-3 rounded-xs text-center">
-                <span className="block text-xs font-bold text-slate-800">Generate Livelihood</span>
-                <span className="text-[10px] text-slate-500 font-medium">Certified Driver Induction</span>
-              </div>
-              <div className="bg-slate-50 border border-slate-200 p-3 rounded-xs text-center">
-                <span className="block text-xs font-bold text-slate-800">Change Lives</span>
-                <span className="text-[10px] text-slate-500 font-medium">Socio-Economic Elevation</span>
-              </div>
-            </div>
           </div>
 
           {/* Right Column: Founder Portrait Card */}

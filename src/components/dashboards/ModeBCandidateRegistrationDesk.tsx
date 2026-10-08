@@ -67,41 +67,37 @@ export const ModeBCandidateRegistrationDesk: React.FC<ModeBCandidateRegistration
   const [ingestionMode, setIngestionMode] = useState<'MANUAL' | 'SCAN'>('MANUAL');
   const [dlWarning, setDlWarning] = useState<string>('');
 
-  // Candidate Demographics & Transport Form State
-  const [fullName, setFullName] = useState('Devendra Singh Solanki');
-  const [fatherName, setFatherName] = useState('Shri Narpat Singh Solanki');
-  const [motherName, setMotherName] = useState('Smt. Prem Kanwar');
-  const [dateOfBirth, setDateOfBirth] = useState('1994-05-12');
+  // Candidate Demographics & Transport Form State (Strictly initialized to empty string values)
+  const [fullName, setFullName] = useState('');
+  const [fatherName, setFatherName] = useState('');
+  const [motherName, setMotherName] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
   const [gender, setGender] = useState<'Male' | 'Female' | 'Other'>('Male');
-  const [maritalStatus, setMaritalStatus] = useState<'Single' | 'Married' | 'Widowed' | 'Divorced'>('Married');
-  const [familyIncome, setFamilyIncome] = useState('₹1,50,000 - ₹2,50,000 / year');
-  const [religion, setReligion] = useState('Hindu');
-  const [casteCategory, setCasteCategory] = useState<'General' | 'OBC' | 'SC' | 'ST' | 'EWS'>('OBC');
+  const [maritalStatus, setMaritalStatus] = useState<'Single' | 'Married' | 'Widowed' | 'Divorced'>('Single');
+  const [familyIncome, setFamilyIncome] = useState('');
+  const [religion, setReligion] = useState('');
+  const [casteCategory, setCasteCategory] = useState<'General' | 'OBC' | 'SC' | 'ST' | 'EWS'>('General');
 
   // Contact & Address
-  const [address, setAddress] = useState('House 82, Gali No. 4, Pratap Nagar, Jodhpur');
-  const [city, setCity] = useState(activeCenter?.city || 'Jodhpur');
-  const [state, setState] = useState(activeCenter?.state || 'Rajasthan');
-  const [pincode, setPincode] = useState('342005');
-  const [mobileNumber, setMobileNumber] = useState('9414289012');
+  const [address, setAddress] = useState('');
+  const [city, setCity] = useState(activeCenter?.city || '');
+  const [state, setState] = useState(activeCenter?.state || '');
+  const [pincode, setPincode] = useState('');
+  const [mobileNumber, setMobileNumber] = useState('');
 
   // Government & Commercial Driving Identifiers
-  const [idCardNumber, setIdCardNumber] = useState('7845 1290 3421');
-  const [abhaNumber, setAbhaNumber] = useState('91-8842-1920-5512');
-  const [dlNumber, setDlNumber] = useState('RJ19 20170044192');
+  const [idCardNumber, setIdCardNumber] = useState('');
+  const [abhaNumber, setAbhaNumber] = useState('');
+  const [dlNumber, setDlNumber] = useState('');
   const [isDlExpiredModalOpen, setIsDlExpiredModalOpen] = useState(false);
-  const [dlExpiryDate, setDlExpiryDate] = useState('2032-05-20');
+  const [dlExpiryDate, setDlExpiryDate] = useState('');
   const [vehicleClass, setVehicleClass] = useState<Candidate['vehicleClass']>('TRANS');
 
   // Permanent Document Proofs (Stored as Base64 Data URLs for Audit)
-  const [aadhaarProofUrl, setAadhaarProofUrl] = useState<string>(() =>
-    generateSampleAadhaarBase64('Devendra Singh Solanki', '7845 1290 3421', '1994-05-12', 'Male')
-  );
-  const [dlProofUrl, setDlProofUrl] = useState<string>(() =>
-    generateSampleDlBase64('Devendra Singh Solanki', 'RJ19 20170044192', '2032-05-20', 'TRANS')
-  );
-  const [aadhaarOcrExtracted, setAadhaarOcrExtracted] = useState<boolean>(true);
-  const [dlOcrExtracted, setDlOcrExtracted] = useState<boolean>(true);
+  const [aadhaarProofUrl, setAadhaarProofUrl] = useState<string>('');
+  const [dlProofUrl, setDlProofUrl] = useState<string>('');
+  const [aadhaarOcrExtracted, setAadhaarOcrExtracted] = useState<boolean>(false);
+  const [dlOcrExtracted, setDlOcrExtracted] = useState<boolean>(false);
   const [isAadhaarScanning, setIsAadhaarScanning] = useState<boolean>(false);
   const [isDlScanning, setIsDlScanning] = useState<boolean>(false);
   const [scanStepMessage, setScanStepMessage] = useState<string>('');

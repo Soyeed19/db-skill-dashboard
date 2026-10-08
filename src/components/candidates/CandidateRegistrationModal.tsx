@@ -19,6 +19,33 @@ interface CandidateRegistrationModalProps {
   onClose: () => void;
 }
 
+// PRESERVE ALL KEYS, ONLY ENSURE INITIAL VALUES ARE EMPTY
+export const initialFormState = {
+  fullName: '',
+  fatherName: '',
+  mobileNumber: '',
+  phone: '',
+  dateOfBirth: '',
+  dob: '',
+  aadhaarNumber: '',
+  idCardNumber: '',
+  drivingLicenseNumber: '',
+  dlNumber: '',
+  licenseExpiryDate: '',
+  dlExpiryDate: '',
+  address: '',
+  city: '',
+  state: '',
+  pincode: '',
+  assignedCenterId: '',
+  abhaNumber: '',
+  vehicleClass: 'TRANS' as Candidate['vehicleClass'],
+  gender: 'Male' as Candidate['gender'],
+  batchId: '',
+  tshirtSize: 'L' as 'M' | 'L' | 'XL' | 'XXL',
+  kitIssued: true
+};
+
 export const CandidateRegistrationModal: React.FC<CandidateRegistrationModalProps> = ({
   isOpen,
   onClose
@@ -27,30 +54,30 @@ export const CandidateRegistrationModal: React.FC<CandidateRegistrationModalProp
 
   const [activeTab, setActiveTab] = useState<'manual' | 'ocr'>('manual');
 
-  // 1. Ensure initial state is defensively declared with fallback defaults:
   const [formData, setFormData] = useState({
-    fullName: '',
-    dob: '1995-04-12',
-    dateOfBirth: '1995-04-12',
-    gender: 'Male' as Candidate['gender'],
-    aadhaarNumber: '',
-    idCardNumber: '',
-    dlNumber: '',
-    dlExpiryDate: '2029-12-31',
-    phone: '',
-    mobileNumber: '',
-    assignedCenterId: activeCenter?.id || 'RJ-01',
-    fatherName: '',
-    abhaNumber: '',
-    vehicleClass: 'TRANS' as Candidate['vehicleClass'],
-    address: '',
-    city: activeCenter?.city || 'Jodhpur',
-    state: activeCenter?.state || 'Rajasthan',
-    pincode: '342005',
-    batchId: batches?.[0]?.id || '',
-    tshirtSize: 'L' as 'M' | 'L' | 'XL' | 'XXL',
-    kitIssued: true
+    ...initialFormState,
+    assignedCenterId: activeCenter?.id || '',
+    batchId: batches?.[0]?.id || ''
   });
+
+  // Ensure modal opening triggers a clean reset:
+  React.useEffect(() => {
+    if (isOpen) {
+      setFormData({
+        ...initialFormState,
+        assignedCenterId: activeCenter?.id || '',
+        batchId: batches?.[0]?.id || ''
+      });
+      setTouched({});
+      setAadhaarProof('');
+      setDlProof('');
+      setOcrFrontId(null);
+      setOcrBackId(null);
+      setOcrFrontDl(null);
+      setOcrBackDl(null);
+      setOcrExtracted(false);
+    }
+  }, [isOpen, activeCenter?.id, batches]);
 
   // Proof audit storage & safe file reader refs
   const [aadhaarProof, setAadhaarProof] = useState<string>('');
@@ -216,12 +243,12 @@ export const CandidateRegistrationModal: React.FC<CandidateRegistrationModalProp
 
     addCandidate({
       ...formData,
-      fullName: formData.fullName || 'Ramesh Kumar',
-      fatherName: formData.fatherName || 'Ramdev Kumar',
-      mobileNumber: formData.phone || formData.mobileNumber || '9829012345',
-      idCardNumber: formData.aadhaarNumber || formData.idCardNumber || '548291023341',
-      dateOfBirth: formData.dob || formData.dateOfBirth || '1995-04-12',
-      centerId: formData.assignedCenterId || activeCenter?.id || 'RJ-01',
+      fullName: formData.fullName.trim(),
+      fatherName: formData.fatherName.trim(),
+      mobileNumber: (formData.phone || formData.mobileNumber).trim(),
+      idCardNumber: (formData.aadhaarNumber || formData.idCardNumber).trim(),
+      dateOfBirth: formData.dob || formData.dateOfBirth,
+      centerId: formData.assignedCenterId || activeCenter?.id || '',
       idFrontUrl: aadhaarProof || ocrFrontId || undefined,
       idBackUrl: ocrBackId || undefined,
       dlFrontUrl: dlProof || ocrFrontDl || undefined,
