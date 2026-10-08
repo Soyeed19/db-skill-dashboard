@@ -249,7 +249,7 @@ export const WelcomeGateway: React.FC = () => {
       {/* Footer */}
       <footer className="border-t border-slate-800/80 py-5 text-center text-xs text-slate-500 bg-slate-950/40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>DB Skills Enterprise Commercial Vehicle Driver Training Infrastructure</span>
+          <span>DB Skills & Livelihood Commercial Vehicle Driver Training Infrastructure</span>
           <span className="font-mono text-slate-600">Aero-Green Design System • Version 4.2 RBAC</span>
         </div>
       </footer>

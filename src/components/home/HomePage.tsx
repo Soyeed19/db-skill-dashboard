@@ -24,6 +24,7 @@ import {
 import { useApp } from '../../context/AppContext';
 import { DbSkillsLogo } from '../common/DbSkillsLogo';
 import { LoginModal } from '../auth/LoginModal';
+import { CeoVisionSection } from '../CeoVisionSection';
 
 export const HomePage: React.FC = () => {
   const { centers, personas, loginAsPersona } = useApp();
@@ -176,11 +177,14 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* 4. AUTHORIZED ROLE WORKSPACES (PERSONA PORTAL CARDS) */}
+      {/* 4. FOUNDER VISION & LEADERSHIP COMMITMENT */}
+      <CeoVisionSection />
+
+      {/* 5. AUTHORIZED ROLE WORKSPACES (PERSONA PORTAL CARDS) */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 w-full space-y-6">
         <div className="border-b border-slate-200 pb-3">
           <span className="text-[11px] font-bold uppercase tracking-wider text-[#007A3D] block">
-            Enterprise RBAC Architecture
+            Operational RBAC Architecture
           </span>
           <h2 className="text-xl font-bold text-slate-900 tracking-tight mt-0.5">
             Select Your Organizational Gateway
@@ -271,7 +275,7 @@ export const HomePage: React.FC = () => {
               Technology & Compliance Standards
             </span>
             <h2 className="text-xl font-bold text-slate-900 tracking-tight mt-0.5">
-              Enterprise Pillars of Verification
+              Core Pillars of Verification
             </h2>
           </div>
 
@@ -302,7 +306,7 @@ export const HomePage: React.FC = () => {
           <div className="flex items-center gap-3">
             <DbSkillsLogo className="h-9 w-auto" />
             <div>
-              <p className="font-bold text-white text-sm">DB Skills Enterprise Portal</p>
+              <p className="font-bold text-white text-sm">DB Skills & Livelihood Portal</p>
               <p className="text-[11px] text-slate-400">National Commercial Road Safety & Transport Skilling</p>
             </div>
           </div>
