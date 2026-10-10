@@ -145,7 +145,7 @@ export const BatchDispatchValidationModal: React.FC<BatchDispatchValidationModal
                   >
                     <div className="flex items-center gap-3">
                       <img
-                        src={c.photoUrl}
+                        src={c.photoUrl || 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=256&q=80'}
                         alt={c.fullName}
                         className="w-9 h-9 rounded-xl object-cover border border-slate-200 shrink-0"
                       />

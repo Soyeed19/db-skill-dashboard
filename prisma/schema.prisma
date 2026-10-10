@@ -1,0 +1,52 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Candidate {
+  id              String   @id @default(uuid())
+  regId           String   @unique
+  fullName        String
+  fatherName      String?
+  dob             String?
+  aadhaarNumber   String
+  drivingLicense  String
+  dlExpiry        String?
+  centerId        String
+  status          String   @default("PENDING_PO_REVIEW")
+  phone           String?
+  city            String?
+  photoUrl        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Batch {
+  id          String   @id @default(uuid())
+  batchNumber String   @unique
+  centerId    String
+  status      String   @default("OPEN")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AttendancePunch {
+  id          String   @id @default(uuid())
+  candidateId String
+  centerId    String
+  punchType   String
+  timestamp   DateTime @default(now())
+  status      String   @default("VERIFIED")
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  action      String
+  userRole    String
+  details     String?
+  createdAt   DateTime @default(now())
+}

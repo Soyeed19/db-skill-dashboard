@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   ShieldCheck,
   CheckCircle2,
@@ -33,10 +33,13 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Candidate, AuditQuery, Center, CenterIssueTicket, AttendancePunch } from '../../types';
+import { AuditInspectionWorkspace } from './AuditInspectionWorkspace';
+import { PoAuditDesk } from './PoAuditDesk';
 
 export const PoDashboard: React.FC = () => {
   const {
     candidates,
+    updateCandidate,
     activeCenter,
     centers,
     currentPersona,
@@ -67,7 +70,7 @@ export const PoDashboard: React.FC = () => {
   // Status Filter
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'QUERIES' | 'GREEN_SIGNAL'>('PENDING');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
+  const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
 
   // Split-View Document Scans Tab
   type DocScanTab = 'id_front' | 'id_back' | 'dl_front' | 'dl_back' | 'photo' | 'driver_holding_id';
@@ -128,24 +131,37 @@ export const PoDashboard: React.FC = () => {
     setRejectTicketReason("");
   };
 
-    // Filter candidates relevant to PO review queue
+  // Filter candidates relevant to PO review queue
   const poCandidates = useMemo(() => {
     return candidates.filter(c => {
       // Center scoping filter
       if (filterCenterId !== 'all' && c.centerId !== filterCenterId) return false;
 
       // Status filter
-      if (statusFilter === 'PENDING' && c.status !== 'Pending PO Review') return false;
+      if (
+        statusFilter === 'PENDING' &&
+        c.status !== 'Pending PO Review' &&
+        (c.status as any) !== 'PENDING_PO_REVIEW'
+      ) {
+        return false;
+      }
       if (statusFilter === 'QUERIES' && c.status !== 'Query Raised') return false;
-      if (statusFilter === 'GREEN_SIGNAL' && c.status !== 'Green Signal (Video Call)') return false;
+      if (
+        statusFilter === 'GREEN_SIGNAL' &&
+        c.status !== 'Green Signal (Video Call)' &&
+        (c.status as any) !== 'PENDING_SM_REVIEW' &&
+        (c.status as any) !== 'Approved by PO'
+      ) {
+        return false;
+      }
 
       // Search query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const matchName = c.fullName.toLowerCase().includes(q);
-        const matchReg = c.registrationNumber.toLowerCase().includes(q);
-        const matchDl = c.dlNumber.toLowerCase().includes(q);
-        const matchAadhaar = c.idCardNumber.includes(q);
+        const matchName = c.fullName?.toLowerCase().includes(q);
+        const matchReg = c.registrationNumber?.toLowerCase().includes(q);
+        const matchDl = c.dlNumber?.toLowerCase().includes(q);
+        const matchAadhaar = c.idCardNumber?.includes(q);
         if (!matchName && !matchReg && !matchDl && !matchAadhaar) return false;
       }
 
@@ -153,19 +169,40 @@ export const PoDashboard: React.FC = () => {
     });
   }, [candidates, filterCenterId, statusFilter, searchQuery]);
 
-  // Current active candidate in split-view
-  const activeCandidate = useMemo(() => {
-    if (selectedCandidateId) {
-      const found = candidates.find(c => c.id === selectedCandidateId);
-      if (found) return found;
+  // Synchronize selection: If queue is empty or selected candidate is no longer in queue, reset or pick first
+  useEffect(() => {
+    if (poCandidates.length === 0) {
+      if (selectedCandidate !== null) {
+        setSelectedCandidate(null);
+      }
+    } else if (!selectedCandidate || !poCandidates.some(c => c.id === selectedCandidate.id)) {
+      setSelectedCandidate(poCandidates[0]);
     }
-    return poCandidates[0] || candidates[0] || null;
-  }, [selectedCandidateId, candidates, poCandidates]);
+  }, [poCandidates, selectedCandidate]);
 
   // Counters for Metric Badges
-  const pendingCount = candidates.filter(c => c.status === 'Pending PO Review').length;
+  const isSeniorManager =
+    currentPersona?.role === 'Senior Manager' ||
+    (currentPersona as any)?.role === 'SENIOR_MANAGER' ||
+    (currentPersona as any)?.role === 'APM';
+
+  const pendingCount = candidates.filter(c => {
+    if (isSeniorManager) {
+      return (
+        c.status === 'PENDING_SM_REVIEW' ||
+        c.status === 'Green Signal (Video Call)' ||
+        (c.status as any) === 'Approved by PO'
+      );
+    }
+    return c.status === 'Pending PO Review' || (c.status as any) === 'PENDING_PO_REVIEW';
+  }).length;
   const queriesCount = candidates.filter(c => c.status === 'Query Raised').length;
-  const greenSignalCount = candidates.filter(c => c.status === 'Green Signal (Video Call)').length;
+  const greenSignalCount = candidates.filter(
+    c =>
+      c.status === 'Green Signal (Video Call)' ||
+      (c.status as any) === 'PENDING_SM_REVIEW' ||
+      (c.status as any) === 'Approved by PO'
+  ).length;
   const totalInQueue = candidates.length;
 
   // Image zoom controls
@@ -177,11 +214,41 @@ export const PoDashboard: React.FC = () => {
   };
   const handleRotate = () => setRotation(prev => (prev + 90) % 360);
 
-  // Trigger Approve / Green Signal
-  const handleApproveGreenSignal = () => {
-    if (!activeCandidate) return;
-    grantGreenSignal(activeCandidate.id);
+  // Trigger Approve / Green Signal with Handover to Senior Manager
+  const handleApproveGreenSignal = (candidateId?: string) => {
+    const targetId = candidateId || selectedCandidate?.id;
+    if (!targetId) return;
+
+    const timestamp = new Date().toISOString();
+    const currentUser = currentPersona || { name: 'Program Officer', role: 'PO' };
+
+    // 1. Candidate status update
+    updateCandidate(targetId, {
+      status: 'PENDING_SM_REVIEW',
+      poApprovedAt: timestamp,
+      poReviewer: currentUser.name,
+      poApprovedBy: currentUser.name,
+      poApprovalTimestamp: timestamp,
+      currentStage: 'PENDING_SM_REVIEW',
+      greenSignalBy: `${currentUser.name} (${currentUser.role || 'PO'})`,
+      greenSignalAt: new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }),
+      isLocked: true
+    });
+
+    // 2. Queue filter
+    const updatedQueue = poCandidates.filter(item => item.id !== targetId);
+
+    // 3. Selection reset logic
+    if (updatedQueue.length > 0) {
+      setSelectedCandidate(updatedQueue[0]);
+    } else {
+      setSelectedCandidate(null); // Prevents stale data leak
+    }
+
+    showToast('Candidate approved by PO and forwarded to Senior Manager for final QC approval.');
   };
+
+  const activeCandidate = selectedCandidate;
 
   // Trigger Raise Query with validation
   const handleOpenQueryModal = () => {
@@ -278,552 +345,7 @@ export const PoDashboard: React.FC = () => {
       </div>
 
       {poWorkspaceMode === 'candidates' ? (
-        <>
-          {/* Top Banner: PO Audit Desk */}
-      <div className="bg-gradient-to-r from-dbs-green-dark via-dbs-green to-slate-900 text-white rounded-3xl p-6 shadow-md relative overflow-hidden">
-        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="space-y-1.5">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-dbs-growth/20 border border-dbs-growth/30 text-emerald-200 text-xs font-semibold">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              Program Officer (PO - Level 3) Compliance & Audit Desk
-            </div>
-            <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
-              Real-Time Candidate Verification Split-View
-            </h1>
-            <p className="text-xs sm:text-sm text-teal-100/90 max-w-2xl">
-              Inspect candidate enrollment forms side-by-side against uploaded ID cards and Driving Licence scans. Grant the official <strong>Green Signal</strong> to route records to the APM queue or <strong>Raise Queries</strong> back to the OSE.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl px-4 py-2 border border-white/15 text-xs text-white">
-              <span className="text-white/60 block text-[10px] font-bold uppercase tracking-wider">Assigned Auditor</span>
-              <span className="font-extrabold">{currentPersona.name}</span>
-              <span className="text-emerald-300 font-mono text-[11px] block">{currentPersona.title}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Audit Queue Metrics Ribbon */}
-        <div className="mt-5 pt-4 border-t border-teal-700/60 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-          <button
-            type="button"
-            onClick={() => setStatusFilter('PENDING')}
-            className={`p-3 rounded-2xl border text-left transition-all ${
-              statusFilter === 'PENDING'
-                ? 'bg-amber-500/20 border-amber-400 text-white ring-2 ring-amber-400/40'
-                : 'bg-white/5 border-white/10 text-teal-100 hover:bg-white/10'
-            }`}
-          >
-            <span className="text-[10px] uppercase font-bold tracking-wider text-amber-300 block">Pending PO Review</span>
-            <span className="text-xl font-extrabold">{pendingCount}</span>
-            <span className="text-[10px] block opacity-80">Awaiting side-by-side audit</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setStatusFilter('QUERIES')}
-            className={`p-3 rounded-2xl border text-left transition-all ${
-              statusFilter === 'QUERIES'
-                ? 'bg-rose-500/20 border-rose-400 text-white ring-2 ring-rose-400/40'
-                : 'bg-white/5 border-white/10 text-teal-100 hover:bg-white/10'
-            }`}
-          >
-            <span className="text-[10px] uppercase font-bold tracking-wider text-rose-300 block">Queries Raised</span>
-            <span className="text-xl font-extrabold">{queriesCount}</span>
-            <span className="text-[10px] block opacity-80">Routed back to OSE</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setStatusFilter('GREEN_SIGNAL')}
-            className={`p-3 rounded-2xl border text-left transition-all ${
-              statusFilter === 'GREEN_SIGNAL'
-                ? 'bg-emerald-500/20 border-emerald-400 text-white ring-2 ring-emerald-400/40'
-                : 'bg-white/5 border-white/10 text-teal-100 hover:bg-white/10'
-            }`}
-          >
-            <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-300 block">Green Signal Passed</span>
-            <span className="text-xl font-extrabold">{greenSignalCount}</span>
-            <span className="text-[10px] block opacity-80">Advanced to APM Queue</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setStatusFilter('ALL')}
-            className={`p-3 rounded-2xl border text-left transition-all ${
-              statusFilter === 'ALL'
-                ? 'bg-teal-500/20 border-teal-400 text-white ring-2 ring-teal-400/40'
-                : 'bg-white/5 border-white/10 text-teal-100 hover:bg-white/10'
-            }`}
-          >
-            <span className="text-[10px] uppercase font-bold tracking-wider text-teal-200 block">Total In Registry</span>
-            <span className="text-xl font-extrabold">{totalInQueue}</span>
-            <span className="text-[10px] block opacity-80">Across regional hubs</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Main Split-View Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column: Candidate Queue List (4 Cols) */}
-        <div className="lg:col-span-4 space-y-3">
-          <div className="bg-white border border-slate-200 rounded-3xl p-4 shadow-xs space-y-3">
-            {/* Search and Center Scoping Filter */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Verification Queue ({poCandidates.length})
-                </span>
-                <span className="text-[10px] font-mono font-bold text-teal-800 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">
-                  PO Live Audit
-                </span>
-              </div>
-
-              {/* Search input */}
-              <div className="relative">
-                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search Name, Reg #, DL, Aadhaar..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20"
-                />
-              </div>
-
-              {/* Regional Center Filter */}
-              <div className="flex items-center gap-1.5 text-xs">
-                <Building className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                <select
-                  value={filterCenterId}
-                  onChange={(e) => setFilterCenterId(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1 text-xs text-slate-700 font-medium focus:outline-none"
-                >
-                  <option value="all">All Regional Centers</option>
-                  {centers.map(c => (
-                    <option key={c.id} value={c.id}>{c.name} ({c.code})</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Candidate Cards List */}
-            <div className="space-y-2 max-h-[640px] overflow-y-auto pr-1">
-              {poCandidates.length === 0 ? (
-                <div className="p-8 text-center text-slate-400 text-xs">
-                  <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2 opacity-60" />
-                  No candidates found in this queue state.
-                </div>
-              ) : (
-                poCandidates.map(c => {
-                  const isSelected = activeCandidate?.id === c.id;
-                  const hasOpenQueries = c.queries.some(q => q.status === 'Open');
-
-                  return (
-                    <div
-                      key={c.id}
-                      onClick={() => {
-                        setSelectedCandidateId(c.id);
-                        handleResetZoom();
-                      }}
-                      className={`p-3 rounded-2xl border transition-all cursor-pointer text-xs ${
-                        isSelected
-                          ? 'bg-teal-50/80 border-teal-500 shadow-sm ring-2 ring-teal-500/20'
-                          : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/50'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2.5">
-                          <img
-                            src={c.photoUrl}
-                            alt={c.fullName}
-                            className="w-10 h-10 rounded-xl object-cover border border-slate-200 shrink-0"
-                          />
-                          <div>
-                            <h4 className="font-extrabold text-slate-900 leading-tight">{c.fullName}</h4>
-                            <span className="font-mono text-[10px] text-slate-500">{c.registrationNumber}</span>
-                            <div className="flex items-center gap-1.5 text-[10px] text-slate-600 mt-0.5">
-                              <span className="font-bold text-teal-900">{c.vehicleClass}</span>
-                              <span>•</span>
-                              <span>DL: {c.dlNumber}</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap ${
-                            c.status === 'Pending PO Review'
-                              ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                              : c.status === 'Query Raised'
-                              ? 'bg-rose-100 text-rose-900 border border-rose-300'
-                              : c.status === 'Green Signal (Video Call)'
-                              ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                              : 'bg-slate-100 text-slate-700'
-                          }`}
-                        >
-                          {c.status}
-                        </span>
-                      </div>
-
-                      {hasOpenQueries && (
-                        <div className="mt-2 pt-1.5 border-t border-rose-100 flex items-center gap-1.5 text-[10px] text-rose-700 font-semibold">
-                          <AlertTriangle className="w-3 h-3 text-rose-600 shrink-0" />
-                          <span>{c.queries.filter(q => q.status === 'Open').length} Open Query: {c.queries[0]?.field}</span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Right Columns: Side-by-Side Split View Verification Workbench (8 Cols) */}
-        <div className="lg:col-span-8 space-y-4">
-          {activeCandidate ? (
-            <div className="space-y-4">
-              {/* Active Candidate Action Header */}
-              <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold uppercase tracking-wider text-teal-800">
-                      Audit Inspection Workspace
-                    </span>
-                    <span className="text-slate-300">•</span>
-                    <span className="font-mono text-xs text-slate-500">{activeCandidate.registrationNumber}</span>
-                  </div>
-                  <h2 className="text-lg font-extrabold text-slate-900 mt-0.5">
-                    {activeCandidate.fullName} (S/O {activeCandidate.fatherName})
-                  </h2>
-                  <p className="text-xs text-slate-500">
-                    Ingestion Method: <strong className="text-teal-900">{activeCandidate.aadhaarIngestionMethod || '3-Way Ingestion'}</strong>
-                  </p>
-                </div>
-
-                {/* Primary Action Controls: Approve Green Signal vs Raise Query */}
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleOpenQueryModal}
-                    className="px-4 py-2.5 rounded-xl text-xs font-bold bg-rose-50 text-rose-800 border border-rose-300 hover:bg-rose-100 flex items-center gap-1.5 shadow-2xs transition-colors"
-                  >
-                    <AlertTriangle className="w-4 h-4 text-rose-600" />
-                    <span>Raise Query</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleApproveGreenSignal}
-                    disabled={activeCandidate.status === 'Green Signal (Video Call)' || activeCandidate.status === 'APM QC Passed'}
-                    className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all ${
-                      activeCandidate.status === 'Green Signal (Video Call)' || activeCandidate.status === 'APM QC Passed'
-                        ? 'bg-emerald-100 text-emerald-900 border border-emerald-300 cursor-not-allowed'
-                        : 'bg-emerald-600 hover:bg-emerald-700 text-white active:scale-95'
-                    }`}
-                  >
-                    <CheckCircle2 className="w-4 h-4 text-emerald-200" />
-                    <span>
-                      {activeCandidate.status === 'Green Signal (Video Call)'
-                        ? 'Green Signal Active'
-                        : 'Approve / Green Signal'}
-                    </span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Side-by-Side Comparison Container */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Left Side: Structured Form Data */}
-                <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-xs space-y-4">
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                    <div className="flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-teal-700" />
-                      <h3 className="font-extrabold text-slate-900 text-sm">
-                        1. Form Enrollment Data
-                      </h3>
-                    </div>
-                    <span className="text-[10px] font-mono bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full font-bold">
-                      {activeCandidate.vehicleClass}
-                    </span>
-                  </div>
-
-                  <div className="space-y-3 text-xs">
-                    <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 space-y-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                        Personal & Demographics
-                      </span>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <span className="text-slate-500 block text-[11px]">Candidate Full Name:</span>
-                          <span className="font-bold text-slate-900">{activeCandidate.fullName}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-500 block text-[11px]">Father's Name:</span>
-                          <span className="font-bold text-slate-900">{activeCandidate.fatherName}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-500 block text-[11px]">Mother's Name:</span>
-                          <span className="font-bold text-slate-900">{activeCandidate.motherName || 'Verified'}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-500 block text-[11px]">Date of Birth (DOB):</span>
-                          <span className="font-bold font-mono text-slate-900">{activeCandidate.dateOfBirth}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-500 block text-[11px]">Gender & Status:</span>
-                          <span className="font-bold text-slate-900">{activeCandidate.gender} • {activeCandidate.maritalStatus || 'Married'}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-500 block text-[11px]">Religion & Caste:</span>
-                          <span className="font-bold text-slate-900">{activeCandidate.religion || 'Hindu'} ({activeCandidate.casteCategory || 'OBC'})</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-teal-50/50 p-3 rounded-2xl border border-teal-100 space-y-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-teal-800 block">
-                        Government Identity & Driving Licence
-                      </span>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <span className="text-slate-500 block text-[11px]">Govt ID / Aadhaar:</span>
-                          <span className="font-mono font-bold text-teal-950">{activeCandidate.idCardNumber}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-500 block text-[11px]">ABHA Health ID:</span>
-                          <span className="font-mono font-bold text-teal-950">{activeCandidate.abhaNumber}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-500 block text-[11px]">Driving Licence No:</span>
-                          <span className="font-mono font-bold text-emerald-900">{activeCandidate.dlNumber}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-500 block text-[11px]">DL Expiry Date:</span>
-                          <span className="font-mono font-bold text-slate-900">{activeCandidate.dlExpiryDate}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 space-y-1">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                        Contact & Permanent Residential Address
-                      </span>
-                      <p className="text-slate-700 leading-snug">{activeCandidate.address}, {activeCandidate.city}, {activeCandidate.state} - {activeCandidate.pincode}</p>
-                      <div className="flex items-center gap-1.5 text-slate-600 pt-1 font-mono">
-                        <Phone className="w-3 h-3 text-teal-700" />
-                        <span>{activeCandidate.mobileNumber}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Audit Queries Log on this candidate */}
-                  {activeCandidate.queries && activeCandidate.queries.length > 0 && (
-                    <div className="pt-2 border-t border-slate-100 space-y-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                        Audit Remarks & Queries History
-                      </span>
-                      <div className="space-y-1.5">
-                        {activeCandidate.queries.map(q => (
-                          <div
-                            key={q.id}
-                            className={`p-2 rounded-xl text-[11px] border ${
-                              q.status === 'Open'
-                                ? 'bg-rose-50/70 border-rose-200 text-rose-900'
-                                : 'bg-emerald-50/70 border-emerald-200 text-emerald-900'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between font-bold">
-                              <span>{q.field} ({q.status})</span>
-                              <span className="text-[10px] font-mono">{q.createdAt}</span>
-                            </div>
-                            <p className="mt-0.5">{q.comment}</p>
-                            {q.resolutionComment && (
-                              <p className="mt-1 pt-1 border-t border-emerald-200 text-emerald-800 text-[10px]">
-                                <strong>OSE Resolution:</strong> {q.resolutionComment}
-                              </p>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Right Side: Uploaded ID & Driving Licence Scans */}
-                <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-xs space-y-3 flex flex-col justify-between">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                      <div className="flex items-center gap-2">
-                        <Eye className="w-4 h-4 text-emerald-700" />
-                        <h3 className="font-extrabold text-slate-900 text-sm">
-                          2. Uploaded Document Scans
-                        </h3>
-                      </div>
-
-                      {/* Image Viewer Toolbar */}
-                      <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
-                        <button
-                          type="button"
-                          onClick={handleZoomIn}
-                          className="p-1 text-slate-600 hover:text-slate-900"
-                          title="Zoom In"
-                        >
-                          <ZoomIn className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleZoomOut}
-                          className="p-1 text-slate-600 hover:text-slate-900"
-                          title="Zoom Out"
-                        >
-                          <ZoomOut className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleRotate}
-                          className="p-1 text-slate-600 hover:text-slate-900"
-                          title="Rotate 90 degrees"
-                        >
-                          <RotateCw className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleResetZoom}
-                          className="px-1.5 py-0.5 text-[10px] font-mono text-slate-600 hover:text-slate-900"
-                          title="Reset"
-                        >
-                          {Math.round(zoomLevel * 100)}%
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Document Selector Tabs */}
-                    <div className="flex flex-wrap gap-1.5 text-[11px] font-bold">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActiveDocTab('id_front');
-                          handleResetZoom();
-                        }}
-                        className={`px-2.5 py-1 rounded-lg transition-all ${
-                          activeDocTab === 'id_front'
-                            ? 'bg-teal-800 text-white shadow-2xs'
-                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                        }`}
-                      >
-                        Aadhaar Front
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActiveDocTab('id_back');
-                          handleResetZoom();
-                        }}
-                        className={`px-2.5 py-1 rounded-lg transition-all ${
-                          activeDocTab === 'id_back'
-                            ? 'bg-teal-800 text-white shadow-2xs'
-                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                        }`}
-                      >
-                        Aadhaar Back
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActiveDocTab('dl_front');
-                          handleResetZoom();
-                        }}
-                        className={`px-2.5 py-1 rounded-lg transition-all ${
-                          activeDocTab === 'dl_front'
-                            ? 'bg-teal-800 text-white shadow-2xs'
-                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                        }`}
-                      >
-                        DL Front
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActiveDocTab('dl_back');
-                          handleResetZoom();
-                        }}
-                        className={`px-2.5 py-1 rounded-lg transition-all ${
-                          activeDocTab === 'dl_back'
-                            ? 'bg-teal-800 text-white shadow-2xs'
-                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                        }`}
-                      >
-                        DL Back
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActiveDocTab('photo');
-                          handleResetZoom();
-                        }}
-                        className={`px-2.5 py-1 rounded-lg transition-all ${
-                          activeDocTab === 'photo'
-                            ? 'bg-teal-800 text-white shadow-2xs'
-                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                        }`}
-                      >
-                        Live Photo
-                      </button>
-                    </div>
-
-                    {/* Scan Display Canvas with Zoom & Rotate */}
-                    <div className="relative border border-slate-200 rounded-2xl bg-slate-900/5 min-h-[340px] max-h-[420px] flex items-center justify-center overflow-hidden p-2">
-                      {currentScanUrl ? (
-                        <div
-                          style={{
-                            transform: `scale(${zoomLevel}) rotate(${rotation}deg)`,
-                            transition: 'transform 0.15s ease-out'
-                          }}
-                          className="max-w-full max-h-[380px] flex items-center justify-center"
-                        >
-                          <img
-                            src={currentScanUrl}
-                            alt="Document Scan"
-                            className="max-h-[360px] w-auto object-contain rounded-xl shadow-md border border-slate-300 bg-white"
-                          />
-                        </div>
-                      ) : (
-                        <div className="text-center p-8 text-slate-400 text-xs">
-                          <Eye className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                          Document scan preview unavailable for this field.
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Audit Checklist Guidance */}
-                  <div className="p-3 rounded-2xl bg-emerald-50/60 border border-emerald-200/80 text-[11px] text-emerald-950 space-y-1">
-                    <span className="font-extrabold flex items-center gap-1.5 text-emerald-900">
-                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
-                      PO Inspection Verification Checklist
-                    </span>
-                    <p className="text-emerald-800">
-                      Verify candidate spelling matches the DL card, vehicle class authorization is valid for commercial transport, and DOB agrees with Aadhaar.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center text-slate-400 space-y-3 shadow-xs">
-              <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" />
-              <h3 className="text-base font-bold text-slate-800">Queue is Clear</h3>
-              <p className="text-xs text-slate-500">
-                All candidates in this regional scope have been reviewed. Select another center or filter from the left list.
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-
-        </>
+        <PoAuditDesk initialCenterId={filterCenterId} />
       ) : poWorkspaceMode === 'facility_audit' ? (
         /* CENTER FACILITY ISSUES AUDIT QUEUE */
         <div className="space-y-6">
@@ -1482,3 +1004,7 @@ export const PoDashboard: React.FC = () => {
     </div>
   );
 };
+
+export { PoAuditDesk, AuditInspectionWorkspace };
+export default PoDashboard;
+

@@ -582,7 +582,7 @@ export const TrainerDashboard: React.FC = () => {
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-2.5">
                             <img
-                              src={c.photoUrl}
+                              src={c.photoUrl || 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=256&q=80'}
                               alt={c.fullName}
                               className="w-8 h-8 rounded-lg object-cover border border-slate-200"
                             />
@@ -655,7 +655,7 @@ export const TrainerDashboard: React.FC = () => {
 
             <div className="flex items-start gap-4">
               <img
-                src={selectedCandidate.photoUrl}
+                src={selectedCandidate.photoUrl || 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=256&q=80'}
                 alt={selectedCandidate.fullName}
                 className="w-20 h-20 rounded-xl object-cover border border-slate-200"
               />

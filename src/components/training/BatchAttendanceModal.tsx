@@ -197,7 +197,7 @@ export const BatchAttendanceModal: React.FC<BatchAttendanceModalProps> = ({
                             {idx + 1}.
                           </span>
                           <img
-                            src={cand.photoUrl}
+                            src={cand.photoUrl || 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=256&q=80'}
                             alt={cand.fullName}
                             className="w-9 h-9 rounded-lg object-cover border border-slate-200"
                           />

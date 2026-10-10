@@ -254,7 +254,8 @@ export const CandidateRegistrationModal: React.FC<CandidateRegistrationModalProp
       dlFrontUrl: dlProof || ocrFrontDl || undefined,
       dlBackUrl: ocrBackDl || undefined,
       aadhaarProofUrl: aadhaarProof || undefined,
-      dlProofUrl: dlProof || undefined
+      dlProofUrl: dlProof || undefined,
+      status: 'Pending PO Review'
     });
 
     onClose();

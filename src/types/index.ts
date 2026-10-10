@@ -23,7 +23,9 @@ export type CandidateAuditStatus =
   | 'Draft'
   | 'Pending PO Review'
   | 'Returned for Correction'
-  | 'Approved by PO';
+  | 'Approved by PO'
+  | 'PENDING_PO_REVIEW'
+  | 'PENDING_SM_REVIEW';
 
 export type CandidateStatus =
   | 'Draft'
@@ -34,8 +36,12 @@ export type CandidateStatus =
   | 'Green Signal (Video Call)'
   | 'Senior Manager QC Passed'
   | 'APM QC Passed'
+  | 'APM_QC_PASSED'
+  | 'RETURNED_TO_PO'
   | 'Certified & Dispatched'
-  | 'Approved by PO';
+  | 'Approved by PO'
+  | 'PENDING_PO_REVIEW'
+  | 'PENDING_SM_REVIEW';
 
 export type AttendanceStatus = 'Present' | 'Absent' | 'Late';
 
@@ -107,11 +113,21 @@ export interface Candidate {
   certificateHandoverPhotoUrl?: string;
   poCorrectionRemarks?: string;
   poApprovalTimestamp?: string;
+  poApprovedBy?: string;
+  poApprovedAt?: string;
+  poReviewer?: string;
+  currentStage?: 'PENDING_PO_REVIEW' | 'PENDING_SM_REVIEW' | 'APM_QC_PASSED' | string;
   queries: AuditQuery[];
   greenSignalBy?: string;
   greenSignalAt?: string;
   apmApprovedBy?: string;
   apmApprovedAt?: string;
+  smApprovedBy?: string;
+  smApprovalTimestamp?: string;
+  videoVerificationConfirmed?: boolean;
+  rejectionReason?: string;
+  returnedBy?: string;
+  returnedAt?: string;
   dispatchedAt?: string;
 }
 

@@ -682,7 +682,7 @@ export const CeoLeadershipDashboard: React.FC = () => {
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex items-center gap-3">
                               <img
-                                src={user.photoUrl}
+                                src={user.photoUrl || 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=256&q=80'}
                                 alt={user.name}
                                 className="w-11 h-11 rounded-xl object-cover border border-amber-300"
                               />

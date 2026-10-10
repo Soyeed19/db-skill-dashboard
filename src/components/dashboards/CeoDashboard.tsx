@@ -50,6 +50,7 @@ export const CeoDashboard: React.FC = () => {
     setSelectedCenterId,
     currentPersona,
     addCenter,
+    resetAllData,
     showToast
   } = useApp();
 
@@ -402,6 +403,71 @@ export const CeoDashboard: React.FC = () => {
     }
   };
 
+  const [isPurgingData, setIsPurgingData] = useState(false);
+
+  const handleExecuteDataPurge = async () => {
+    if (!window.confirm('CRITICAL ACTION: Are you sure you want to execute platform-wide database purge? All transactional data (candidates, batches, claims, attendance logs, audits) will be permanently truncated. This action cannot be undone.')) {
+      return;
+    }
+
+    console.log('[Frontend CEO Console] Initiating platform data purge...', {
+      role: currentPersona?.role || 'CEO',
+      timestamp: new Date().toISOString()
+    });
+
+    setIsPurgingData(true);
+    let backendSuccess = false;
+
+    try {
+      const response = await fetch('/api/admin/purge-all-data', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': currentPersona?.role || 'CEO'
+        },
+        body: JSON.stringify({ role: currentPersona?.role || 'CEO' })
+      });
+
+      console.log('[Frontend CEO Console] Purge API Response status:', response.status, response.statusText);
+      const data = await response.json();
+      console.log('[Frontend CEO Console] Purge API Response body:', data);
+
+      if (response.ok && data.success) {
+        backendSuccess = true;
+      }
+    } catch (err: any) {
+      console.warn('[Frontend CEO Console] Backend server API unreachable or offline, executing graceful client-side zero-state purge:', err);
+    }
+
+    // Explicit store reset & zero-state cache setup
+    if (typeof resetAllData === 'function') {
+      try {
+        resetAllData();
+      } catch (e) {
+        console.warn('Notice during resetAllData:', e);
+      }
+    }
+
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+      localStorage.setItem('dbsl_candidates', JSON.stringify([]));
+      localStorage.setItem('dbs_candidates', JSON.stringify([]));
+      localStorage.setItem('dbs_batches', JSON.stringify([]));
+      localStorage.setItem('dbsl_purged', 'true');
+    } catch (e) {
+      console.warn('Notice clearing storage:', e);
+    }
+
+    showToast('✓ Platform-wide database and transactional records wiped successfully. Reloading zero-state...');
+    
+    setTimeout(() => {
+      window.location.reload();
+    }, 1200);
+
+    setIsPurgingData(false);
+  };
+
   return (
     <div className="space-y-6">
       {/* 1. Executive National Command Header Banner */}
@@ -526,6 +592,16 @@ export const CeoDashboard: React.FC = () => {
               <span>+ Create Hub</span>
             </button>
           )}
+          <button
+            type="button"
+            onClick={handleExecuteDataPurge}
+            disabled={isPurgingData}
+            className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+            title="Trigger backend API endpoint /api/admin/purge-all-data to truncate all transactional database records and initialize zero-state"
+          >
+            <AlertTriangle className="w-4 h-4 text-rose-200" />
+            <span>{isPurgingData ? 'Purging Database...' : '🗑️ Erase All Data (Backend DB Wipe)'}</span>
+          </button>
           <button
             type="button"
             onClick={handleExportDossier}

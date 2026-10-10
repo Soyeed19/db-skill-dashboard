@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Search,
   FileDown,
@@ -27,6 +27,7 @@ export const CandidateList: React.FC = () => {
   const {
     candidates,
     activeCenter,
+    centers,
     currentPersona,
     grantGreenSignal,
     approveApmQc,
@@ -71,32 +72,60 @@ export const CandidateList: React.FC = () => {
     }
   };
 
-  // Filter candidates by center and search
-  const filteredCandidates = candidates.filter(c => {
-    // If not GM/Senior Manager, filter by active center
-    const matchesCenter = currentPersona.role === 'GM' || currentPersona.role === 'Senior Manager'
-      ? (activeCenter ? c.centerId === activeCenter.id : true)
-      : c.centerId === activeCenter.id;
+  const [selectedCenterFilter, setSelectedCenterFilter] = useState<string>('all');
 
-    const matchesSearch =
-      c.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.dlNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.registrationNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.idCardNumber.includes(searchQuery) ||
-      c.mobileNumber.includes(searchQuery);
+  // Candidate pool scoped by role
+  const centerScopedCandidates = useMemo(() => {
+    if (currentPersona.role === 'GM' || currentPersona.role === 'Senior Manager') {
+      return selectedCenterFilter === 'all'
+        ? candidates
+        : candidates.filter(c => c.centerId === selectedCenterFilter);
+    }
+    return candidates.filter(c => c.centerId === activeCenter.id);
+  }, [candidates, currentPersona.role, selectedCenterFilter, activeCenter.id]);
 
-    const matchesStatus = statusFilter === 'All' || c.status === statusFilter;
+  const isApmQcPassedStatus = (s: string) =>
+    s === 'APM_QC_PASSED' || s === 'APM QC Passed' || s === 'Senior Manager QC Passed';
 
-    return matchesCenter && matchesSearch && matchesStatus;
-  });
+  // Filter candidates by search and status
+  const filteredCandidates = useMemo(() => {
+    return centerScopedCandidates.filter(c => {
+      const matchesSearch =
+        c.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        c.dlNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        c.registrationNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        c.idCardNumber.includes(searchQuery) ||
+        c.mobileNumber.includes(searchQuery);
+
+      const matchesStatus =
+        statusFilter === 'All' ||
+        (statusFilter === 'Pending PO Review'
+          ? (c.status === 'Pending PO Review' || (c.status as any) === 'PENDING_PO_REVIEW')
+          : statusFilter === 'Green Signal (Video Call)'
+          ? (c.status === 'Green Signal (Video Call)' || (c.status as any) === 'PENDING_SM_REVIEW' || (c.status as any) === 'Approved by PO')
+          : statusFilter === 'APM QC Passed'
+          ? isApmQcPassedStatus(c.status)
+          : c.status === statusFilter);
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [centerScopedCandidates, searchQuery, statusFilter]);
 
   const statuses: { label: string; value: string; count: number }[] = [
-    { label: 'All Candidates', value: 'All', count: candidates.filter(c => c.centerId === activeCenter.id).length },
-    { label: 'Pending PO Review', value: 'Pending PO Review', count: candidates.filter(c => c.centerId === activeCenter.id && c.status === 'Pending PO Review').length },
-    { label: 'Query Raised', value: 'Query Raised', count: candidates.filter(c => c.centerId === activeCenter.id && c.status === 'Query Raised').length },
-    { label: 'Green Signal (Video Call)', value: 'Green Signal (Video Call)', count: candidates.filter(c => c.centerId === activeCenter.id && c.status === 'Green Signal (Video Call)').length },
-    { label: 'APM QC Passed', value: 'APM QC Passed', count: candidates.filter(c => c.centerId === activeCenter.id && c.status === 'APM QC Passed').length },
-    { label: 'Certified & Dispatched', value: 'Certified & Dispatched', count: candidates.filter(c => c.centerId === activeCenter.id && c.status === 'Certified & Dispatched').length }
+    { label: 'All Candidates', value: 'All', count: centerScopedCandidates.length },
+    {
+      label: 'Pending PO Review',
+      value: 'Pending PO Review',
+      count: centerScopedCandidates.filter(c => c.status === 'Pending PO Review' || (c.status as any) === 'PENDING_PO_REVIEW').length
+    },
+    { label: 'Query Raised', value: 'Query Raised', count: centerScopedCandidates.filter(c => c.status === 'Query Raised').length },
+    {
+      label: 'Green Signal (Video Call)',
+      value: 'Green Signal (Video Call)',
+      count: centerScopedCandidates.filter(c => c.status === 'Green Signal (Video Call)' || (c.status as any) === 'PENDING_SM_REVIEW' || (c.status as any) === 'Approved by PO').length
+    },
+    { label: 'APM QC Passed', value: 'APM QC Passed', count: centerScopedCandidates.filter(c => isApmQcPassedStatus(c.status)).length },
+    { label: 'Certified & Dispatched', value: 'Certified & Dispatched', count: centerScopedCandidates.filter(c => c.status === 'Certified & Dispatched').length }
   ];
 
   // Daily target calculation for OSE
@@ -185,15 +214,32 @@ export const CandidateList: React.FC = () => {
 
       {/* Filter and Search Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
-        <div className="relative flex-1 max-w-md">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-          <input
-            type="text"
-            placeholder="Search by candidate name, DL number, Aadhaar, reg ID..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 text-xs bg-white border border-slate-300 rounded-sm focus:outline-[#007A3D]"
-          />
+        <div className="flex items-center gap-2 flex-1 max-w-xl">
+          {(currentPersona.role === 'GM' || currentPersona.role === 'Senior Manager') && (
+            <select
+              value={selectedCenterFilter}
+              onChange={e => setSelectedCenterFilter(e.target.value)}
+              className="text-xs bg-white border border-slate-300 rounded-sm px-2.5 py-1.5 font-bold text-slate-800 focus:outline-[#007A3D]"
+            >
+              <option value="all">All Pan-India Centers ({centers.length})</option>
+              {centers.map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.name} ({c.code})
+                </option>
+              ))}
+            </select>
+          )}
+
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            <input
+              type="text"
+              placeholder="Search by candidate name, DL number, Aadhaar, reg ID..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-3 py-1.5 text-xs bg-white border border-slate-300 rounded-sm focus:outline-[#007A3D]"
+            />
+          </div>
         </div>
 
         <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
@@ -268,7 +314,7 @@ export const CandidateList: React.FC = () => {
                     <td className="py-2.5 px-3">
                       <div className="flex items-center gap-2.5">
                         <img
-                          src={candidate.photoUrl}
+                          src={candidate.photoUrl || undefined}
                           alt={candidate.fullName}
                           className="w-9 h-9 rounded-xs object-cover border border-slate-300"
                         />
@@ -391,31 +437,6 @@ export const CandidateList: React.FC = () => {
                           <FileDown className="w-3.5 h-3.5 text-[#007A3D]" />
                         </button>
 
-                        {/* PO Quick Green Signal */}
-                        {(currentPersona.role === 'PO' || currentPersona.role === 'GM') &&
-                          candidate.status === 'Pending PO Review' && (
-                            <button
-                              onClick={() => grantGreenSignal(candidate.id)}
-                              className="px-2 py-1 rounded-sm text-xs font-bold bg-[#007A3D] text-white hover:bg-[#005C2E] transition-colors border border-[#005C2E] flex items-center gap-1"
-                              title="Grant Green Signal for Video Call"
-                            >
-                              <ShieldCheck className="w-3.5 h-3.5" />
-                              Green Signal
-                            </button>
-                          )}
-
-                        {/* Senior Manager QC Clearance */}
-                        {(currentPersona.role === 'Senior Manager' || currentPersona.role === 'GM') &&
-                          candidate.status === 'Green Signal (Video Call)' && (
-                            <button
-                              onClick={() => approveApmQc(candidate.id)}
-                              className="px-2 py-1 rounded-sm text-xs font-bold bg-[#007A3D] text-white hover:bg-[#005C2E] transition-colors border border-[#005C2E] flex items-center gap-1"
-                              title="Approve APM Secondary QC"
-                            >
-                              <CheckCircle className="w-3.5 h-3.5" />
-                              QC Pass
-                            </button>
-                          )}
 
                         {/* Final Certificate PDF */}
                         {candidate.status === 'Certified & Dispatched' && (

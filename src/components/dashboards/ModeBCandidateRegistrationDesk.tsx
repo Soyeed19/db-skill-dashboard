@@ -550,33 +550,41 @@ export const ModeBCandidateRegistrationDesk: React.FC<ModeBCandidateRegistration
               </div>
 
               <div className="relative rounded-sm overflow-hidden border border-slate-300 bg-white group aspect-16/10">
-                <img
-                  src={submittedEnrollment?.aadhaarProofUrl || aadhaarProofUrl}
-                  alt="Aadhaar Audit Proof"
-                  className="w-full h-full object-contain p-2"
-                />
-                <button
-                  type="button"
-                  onClick={() =>
-                    setProofInspector({
-                      isOpen: true,
-                      title: 'Aadhaar Card Permanent Audit Proof',
-                      type: 'Aadhaar',
-                      dataUrl: submittedEnrollment?.aadhaarProofUrl || aadhaarProofUrl,
-                      fields: {
-                        'Aadhaar Number': submittedEnrollment?.aadhaarNumber || idCardNumber,
-                        'Candidate Name': submittedCandidate.fullName,
-                        'Date of Birth': submittedEnrollment?.dob || dateOfBirth,
-                        'Gender': submittedEnrollment?.gender || gender,
-                        'Assigned Center': activeCenter.name
-                      }
-                    })
-                  }
-                  className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-bold text-xs gap-1.5 cursor-pointer"
-                >
-                  <Eye className="w-4 h-4" />
-                  <span>Inspect Full Proof</span>
-                </button>
+                {(submittedEnrollment?.aadhaarProofUrl || aadhaarProofUrl) ? (
+                  <img
+                    src={submittedEnrollment?.aadhaarProofUrl || aadhaarProofUrl}
+                    alt="Aadhaar Audit Proof"
+                    className="w-full h-full object-contain p-2"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs">
+                    No Aadhaar Proof
+                  </div>
+                )}
+                {(submittedEnrollment?.aadhaarProofUrl || aadhaarProofUrl) && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setProofInspector({
+                        isOpen: true,
+                        title: 'Aadhaar Card Permanent Audit Proof',
+                        type: 'Aadhaar',
+                        dataUrl: submittedEnrollment?.aadhaarProofUrl || aadhaarProofUrl,
+                        fields: {
+                          'Aadhaar Number': submittedEnrollment?.aadhaarNumber || idCardNumber,
+                          'Candidate Name': submittedCandidate.fullName,
+                          'Date of Birth': submittedEnrollment?.dob || dateOfBirth,
+                          'Gender': submittedEnrollment?.gender || gender,
+                          'Assigned Center': activeCenter.name
+                        }
+                      })
+                    }
+                    className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-bold text-xs gap-1.5 cursor-pointer"
+                  >
+                    <Eye className="w-4 h-4" />
+                    <span>Inspect Full Proof</span>
+                  </button>
+                )}
               </div>
 
               <div className="text-[11px] text-slate-600 flex items-center justify-between font-mono bg-white p-2 rounded-xs border border-slate-300">
@@ -600,33 +608,41 @@ export const ModeBCandidateRegistrationDesk: React.FC<ModeBCandidateRegistration
               </div>
 
               <div className="relative rounded-sm overflow-hidden border border-slate-300 bg-white group aspect-16/10">
-                <img
-                  src={submittedEnrollment?.dlProofUrl || dlProofUrl}
-                  alt="Driving Licence Audit Proof"
-                  className="w-full h-full object-contain p-2"
-                />
-                <button
-                  type="button"
-                  onClick={() =>
-                    setProofInspector({
-                      isOpen: true,
-                      title: 'Commercial Driving Licence Audit Proof',
-                      type: 'DL',
-                      dataUrl: submittedEnrollment?.dlProofUrl || dlProofUrl,
-                      fields: {
-                        'DL Number': submittedEnrollment?.dlNumber || dlNumber,
-                        'Expiry Date': submittedEnrollment?.dlExpiryDate || dlExpiryDate,
-                        'Vehicle Class': vehicleClass,
-                        'Candidate Name': submittedCandidate.fullName,
-                        'Verification': submittedEnrollment?.verificationStatus || 'Auto-Verified'
-                      }
-                    })
-                  }
-                  className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-bold text-xs gap-1.5 cursor-pointer"
-                >
-                  <Eye className="w-4 h-4" />
-                  <span>Inspect Full Proof</span>
-                </button>
+                {(submittedEnrollment?.dlProofUrl || dlProofUrl) ? (
+                  <img
+                    src={submittedEnrollment?.dlProofUrl || dlProofUrl}
+                    alt="Driving Licence Audit Proof"
+                    className="w-full h-full object-contain p-2"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs">
+                    No DL Proof
+                  </div>
+                )}
+                {(submittedEnrollment?.dlProofUrl || dlProofUrl) && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setProofInspector({
+                        isOpen: true,
+                        title: 'Commercial Driving Licence Audit Proof',
+                        type: 'DL',
+                        dataUrl: submittedEnrollment?.dlProofUrl || dlProofUrl,
+                        fields: {
+                          'DL Number': submittedEnrollment?.dlNumber || dlNumber,
+                          'Expiry Date': submittedEnrollment?.dlExpiryDate || dlExpiryDate,
+                          'Vehicle Class': vehicleClass,
+                          'Candidate Name': submittedCandidate.fullName,
+                          'Verification': submittedEnrollment?.verificationStatus || 'Auto-Verified'
+                        }
+                      })
+                    }
+                    className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-bold text-xs gap-1.5 cursor-pointer"
+                  >
+                    <Eye className="w-4 h-4" />
+                    <span>Inspect Full Proof</span>
+                  </button>
+                )}
               </div>
 
               <div className="text-[11px] text-slate-600 flex items-center justify-between font-mono bg-white p-2 rounded-xs border border-slate-300">
@@ -703,7 +719,7 @@ export const ModeBCandidateRegistrationDesk: React.FC<ModeBCandidateRegistration
                   Driver Candidate Registration & 3-Way Identity Ingestion
                 </h2>
                 <p className="text-xs text-emerald-100 mt-0.5">
-                  Center: {activeCenter.code} ({activeCenter.name}) • Active Batch: {currentBatch.batchCode}
+                  Center: {activeCenter.code} ({activeCenter.name}) • Active Batch: {currentBatch?.batchCode || 'DBS-GENERAL-BATCH'}
                 </p>
               </div>
               <span className="text-xs text-white font-mono bg-[#005C2E] px-2.5 py-1 rounded-xs border border-white/20 flex items-center gap-1.5">
@@ -876,11 +892,18 @@ export const ModeBCandidateRegistrationDesk: React.FC<ModeBCandidateRegistration
                     </div>
 
                     <div className="relative rounded-lg overflow-hidden border border-slate-200 bg-slate-900/5 aspect-4/3 flex items-center justify-center group">
-                      <img
-                        src={aadhaarProofUrl}
-                        alt="Aadhaar Card Document"
-                        className="w-full h-full object-contain p-1"
-                      />
+                      {aadhaarProofUrl ? (
+                        <img
+                          src={aadhaarProofUrl}
+                          alt="Aadhaar Card Document"
+                          className="w-full h-full object-contain p-1"
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center p-4 text-center text-slate-400">
+                          <CreditCard className="w-8 h-8 mb-1.5 opacity-40 text-emerald-600" />
+                          <span className="text-[11px] font-medium text-slate-500">Awaiting Aadhaar Card Scan / Ingestion</span>
+                        </div>
+                      )}
 
                       {isAadhaarScanning && (
                         <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-2xs flex flex-col items-center justify-center p-3 text-center">
@@ -890,7 +913,7 @@ export const ModeBCandidateRegistrationDesk: React.FC<ModeBCandidateRegistration
                         </div>
                       )}
 
-                      {!isAadhaarScanning && (
+                      {!isAadhaarScanning && aadhaarProofUrl && (
                         <button
                           type="button"
                           onClick={() =>
@@ -985,11 +1008,18 @@ export const ModeBCandidateRegistrationDesk: React.FC<ModeBCandidateRegistration
                     </div>
 
                     <div className="relative rounded-lg overflow-hidden border border-slate-200 bg-slate-900/5 aspect-4/3 flex items-center justify-center group">
-                      <img
-                        src={dlProofUrl}
-                        alt="Driving Licence Document"
-                        className="w-full h-full object-contain p-1"
-                      />
+                      {dlProofUrl ? (
+                        <img
+                          src={dlProofUrl}
+                          alt="Driving Licence Document"
+                          className="w-full h-full object-contain p-1"
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center p-4 text-center text-slate-400">
+                          <Truck className="w-8 h-8 mb-1.5 opacity-40 text-cyan-600" />
+                          <span className="text-[11px] font-medium text-slate-500">Awaiting Driving Licence Scan</span>
+                        </div>
+                      )}
 
                       {isDlScanning && (
                         <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-2xs flex flex-col items-center justify-center p-3 text-center">
@@ -999,7 +1029,7 @@ export const ModeBCandidateRegistrationDesk: React.FC<ModeBCandidateRegistration
                         </div>
                       )}
 
-                      {!isDlScanning && (
+                      {!isDlScanning && dlProofUrl && (
                         <button
                           type="button"
                           onClick={() =>
@@ -1601,11 +1631,13 @@ export const ModeBCandidateRegistrationDesk: React.FC<ModeBCandidateRegistration
 
             {/* Large Preview */}
             <div className="rounded-2xl border-2 border-slate-200 bg-slate-900/5 p-2 flex items-center justify-center max-h-[380px] overflow-hidden">
-              <img
-                src={proofInspector.dataUrl}
-                alt={proofInspector.title}
-                className="w-full h-auto max-h-[360px] object-contain rounded-xl"
-              />
+              {proofInspector.dataUrl ? (
+                <img
+                  src={proofInspector.dataUrl}
+                  alt={proofInspector.title}
+                  className="w-full h-auto max-h-[360px] object-contain rounded-xl"
+                />
+              ) : null}
             </div>
 
             {/* Extracted Metadata Grid */}

@@ -771,23 +771,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const grantGreenSignal = (candidateId: string) => {
-    const now = new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+    const nowIso = new Date().toISOString();
+    const nowFormatted = new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+    const reviewerName = currentPersona?.name || 'Program Officer';
     setCandidates(prev =>
       prev.map(c => {
         if (c.id === candidateId) {
           return {
             ...c,
-            status: 'Approved by PO',
+            status: 'PENDING_SM_REVIEW',
             isLocked: true,
-            poApprovalTimestamp: now,
-            greenSignalBy: `${currentPersona.name} (${currentPersona.role})`,
-            greenSignalAt: now
+            poApprovedBy: reviewerName,
+            poApprovedAt: nowIso,
+            poApprovalTimestamp: nowIso,
+            poReviewer: reviewerName,
+            currentStage: 'PENDING_SM_REVIEW',
+            greenSignalBy: `${reviewerName} (${currentPersona?.role || 'PO'})`,
+            greenSignalAt: nowFormatted
           };
         }
         return c;
       })
     );
-    showToast('Candidate approved by PO and advance logged!');
+    showToast('Candidate approved by PO and forwarded to Senior Manager for final QC approval.');
   };
 
   const approveApmQc = (candidateId: string) => {

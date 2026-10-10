@@ -216,7 +216,7 @@ export const CertificatePhotoUploadModal: React.FC<CertificatePhotoUploadModalPr
         <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 flex flex-wrap items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-3">
             <img
-              src={candidate.photoUrl}
+              src={candidate.photoUrl || 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=256&q=80'}
               alt={candidate.fullName}
               className="w-10 h-10 rounded-xl object-cover border border-slate-200"
             />

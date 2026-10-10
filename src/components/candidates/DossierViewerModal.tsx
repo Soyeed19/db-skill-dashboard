@@ -87,11 +87,13 @@ export const DossierViewerModal: React.FC<DossierViewerModalProps> = ({
         {/* Top Bar */}
         <div className="bg-[#007A3D] text-white px-5 py-3 flex items-center justify-between shrink-0 border-b border-[#005C2E]">
           <div className="flex items-center gap-3">
-            <img
-              src={candidate.photoUrl}
-              alt={candidate.fullName}
-              className="w-10 h-10 rounded-xs object-cover border border-white/40"
-            />
+            {candidate.photoUrl && (
+              <img
+                src={candidate.photoUrl}
+                alt={candidate.fullName}
+                className="w-10 h-10 rounded-xs object-cover border border-white/40"
+              />
+            )}
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-200">
@@ -210,11 +212,17 @@ export const DossierViewerModal: React.FC<DossierViewerModalProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Photo & QR */}
                 <div className="flex flex-col items-center justify-center p-4 bg-slate-50 rounded-xl border border-slate-200 text-center">
-                  <img
-                    src={candidate.photoUrl}
-                    alt={candidate.fullName}
-                    className="w-32 h-40 object-cover rounded-lg shadow-sm border-2 border-white mb-3"
-                  />
+                  {candidate.photoUrl ? (
+                    <img
+                      src={candidate.photoUrl}
+                      alt={candidate.fullName}
+                      className="w-32 h-40 object-cover rounded-lg shadow-sm border-2 border-white mb-3"
+                    />
+                  ) : (
+                    <div className="w-32 h-40 rounded-lg bg-slate-200 flex items-center justify-center text-slate-400 text-xs mb-3">
+                      No Photo
+                    </div>
+                  )}
                   <span className="text-xs font-bold text-slate-900">{candidate.fullName}</span>
                   <span className="text-[11px] text-slate-500 font-mono">{candidate.registrationNumber}</span>
                   <div className="mt-3 flex items-center gap-1 text-[11px] text-teal-700 bg-teal-50 px-2 py-1 rounded border border-teal-200">
@@ -318,11 +326,15 @@ export const DossierViewerModal: React.FC<DossierViewerModalProps> = ({
                     </span>
                   </div>
                   <div className="relative rounded-lg overflow-hidden border border-slate-300 aspect-video bg-slate-900 flex items-center justify-center">
-                    <img
-                      src={candidate.idFrontUrl}
-                      alt="ID Front Scan"
-                      className="w-full h-full object-cover"
-                    />
+                    {candidate.idFrontUrl ? (
+                      <img
+                        src={candidate.idFrontUrl}
+                        alt="ID Front Scan"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-xs text-slate-400">ID Front Scan Unavailable</span>
+                    )}
                     <div className="absolute top-2 right-2 bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-xs">
                       NAME MATCH: 100%
                     </div>
@@ -341,11 +353,15 @@ export const DossierViewerModal: React.FC<DossierViewerModalProps> = ({
                     </span>
                   </div>
                   <div className="relative rounded-lg overflow-hidden border border-slate-300 aspect-video bg-slate-900 flex items-center justify-center">
-                    <img
-                      src={candidate.idBackUrl}
-                      alt="ID Back Scan"
-                      className="w-full h-full object-cover"
-                    />
+                    {candidate.idBackUrl ? (
+                      <img
+                        src={candidate.idBackUrl}
+                        alt="ID Back Scan"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-xs text-slate-400">ID Back Scan Unavailable</span>
+                    )}
                     <div className="absolute top-2 right-2 bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-xs">
                       PINCODE: {candidate.pincode}
                     </div>
@@ -369,12 +385,16 @@ export const DossierViewerModal: React.FC<DossierViewerModalProps> = ({
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-                  <div className="md:col-span-4 rounded-lg overflow-hidden border border-slate-300 h-36 bg-slate-900">
-                    <img
-                      src={candidate.driverHoldingIdUrl || candidate.photoUrl}
-                      alt="Driver Holding ID"
-                      className="w-full h-full object-cover"
-                    />
+                  <div className="md:col-span-4 rounded-lg overflow-hidden border border-slate-300 h-36 bg-slate-900 flex items-center justify-center">
+                    {(candidate.driverHoldingIdUrl || candidate.photoUrl) ? (
+                      <img
+                        src={candidate.driverHoldingIdUrl || candidate.photoUrl}
+                        alt="Driver Holding ID"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-xs text-slate-400">Proof Unavailable</span>
+                    )}
                   </div>
                   <div className="md:col-span-8 space-y-2 text-xs">
                     <p className="text-slate-700 leading-relaxed">
@@ -413,12 +433,16 @@ export const DossierViewerModal: React.FC<DossierViewerModalProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="border border-slate-200 rounded-xl p-4 bg-slate-50 space-y-2">
                   <span className="text-xs font-bold text-slate-800 block">Commercial DL Front</span>
-                  <div className="rounded-lg overflow-hidden border border-slate-300 aspect-video bg-slate-900">
-                    <img
-                      src={candidate.dlFrontUrl}
-                      alt="DL Front"
-                      className="w-full h-full object-cover"
-                    />
+                  <div className="rounded-lg overflow-hidden border border-slate-300 aspect-video bg-slate-900 flex items-center justify-center">
+                    {candidate.dlFrontUrl ? (
+                      <img
+                        src={candidate.dlFrontUrl}
+                        alt="DL Front"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-xs text-slate-400">DL Front Scan Unavailable</span>
+                    )}
                   </div>
                   <p className="text-[11px] text-slate-500">
                     Validity: <strong className="text-slate-800">{candidate.dlExpiryDate}</strong> • Vehicle Class:{' '}
@@ -428,12 +452,16 @@ export const DossierViewerModal: React.FC<DossierViewerModalProps> = ({
 
                 <div className="border border-slate-200 rounded-xl p-4 bg-slate-50 space-y-2">
                   <span className="text-xs font-bold text-slate-800 block">Commercial DL Back</span>
-                  <div className="rounded-lg overflow-hidden border border-slate-300 aspect-video bg-slate-900">
-                    <img
-                      src={candidate.dlBackUrl}
-                      alt="DL Back"
-                      className="w-full h-full object-cover"
-                    />
+                  <div className="rounded-lg overflow-hidden border border-slate-300 aspect-video bg-slate-900 flex items-center justify-center">
+                    {candidate.dlBackUrl ? (
+                      <img
+                        src={candidate.dlBackUrl}
+                        alt="DL Back"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-xs text-slate-400">DL Back Scan Unavailable</span>
+                    )}
                   </div>
                   <p className="text-[11px] text-slate-500">
                     Hazardous materials badge and heavy commercial endorsements verified.

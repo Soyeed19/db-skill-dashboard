@@ -171,12 +171,45 @@ export function safeSaveCandidates(candidates: Candidate[]): boolean {
   }
 }
 
+const STORAGE_PURGE_VERSION_KEY = 'dbs_data_version_v10_prod_zero_state';
+
+/**
+ * Performs a one-time purge of legacy dummy/test state cached in localStorage.
+ * Ensures the app starts at 0 candidates, 0 batches, 0 claims, 0 leaves, and 0 logs.
+ */
+export function purgeLegacyTestCache(): void {
+  try {
+    const currentVer = localStorage.getItem(STORAGE_PURGE_VERSION_KEY);
+    if (currentVer !== 'v10_zero_state') {
+      const keysToPurge = [
+        'dbs_candidates',
+        'dbs_candidate_enrollments',
+        'dbsl_candidates',
+        'dbs_batches',
+        'dbs_transactions',
+        'dbs_leaves',
+        'dbs_tours',
+        'dbs_expenses',
+        'dbs_expense_claims',
+        'dbs_attendance_logs',
+        'dbs_attendance_punches',
+        'dbs_maintenance_tickets'
+      ];
+      keysToPurge.forEach(k => localStorage.removeItem(k));
+      localStorage.setItem(STORAGE_PURGE_VERSION_KEY, 'v10_zero_state');
+    }
+  } catch (err) {
+    console.warn('[SafeStorage] Notice during zero-state cache purge:', err);
+  }
+}
+
 /**
  * Self-healing routine executed immediately on module initialization.
  * Detects if existing localStorage contains bloated candidate data from previous turns,
  * and shrinks it before React's lifecycle hooks run.
  */
 export function initSafeStorageSelfHealing(): void {
+  purgeLegacyTestCache();
   try {
     const raw = localStorage.getItem('dbs_candidates');
     if (raw && raw.length > 80000) {

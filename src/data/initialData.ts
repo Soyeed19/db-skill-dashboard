@@ -281,7 +281,7 @@ export const INITIAL_PERSONAS: UserPersona[] = [
     phone: '+91 99201 44552',
     avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=256&q=80',
     designation: 'Senior Manager',
-    region: 'West'
+    region: 'North & West'
   },
   {
     id: 'usr-gm-1',
@@ -299,269 +299,9 @@ export const INITIAL_PERSONAS: UserPersona[] = [
   }
 ];
 
-export const INITIAL_BATCHES: Batch[] = [
-  {
-    id: 'batch-jod-20260923',
-    batchCode: 'DBS-RJ01-2609-B1',
-    centerId: 'ctr-jodhpur',
-    date: '2026-09-23',
-    trainerId: 'usr-trainer-1',
-    trainerName: 'Vikram Singh Rathore',
-    targetCount: 30,
-    enrolledCount: 28,
-    presentCount: 26,
-    status: 'Training Active',
-    classroomPhotoUrl: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=800&q=80',
-    classroomPhotoTimestamp: '2026-09-23 10:15:32 AM IST',
-    classroomPhotoGps: {
-      lat: 26.2389,
-      lng: 73.0243,
-      locationName: 'Basni Phase II, Jodhpur (Center Hall 1)'
-    },
-    notes: 'Morning heavy vehicle defensive driving session completed. Simulator drills scheduled for post-lunch.'
-  },
-  {
-    id: 'batch-del-20260923',
-    batchCode: 'DBS-DL02-2609-B1',
-    centerId: 'ctr-delhi',
-    date: '2026-09-23',
-    trainerId: 'usr-trainer-2',
-    trainerName: 'Manish Kumar',
-    targetCount: 30,
-    enrolledCount: 30,
-    presentCount: 29,
-    status: 'Audit Underway',
-    classroomPhotoUrl: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80',
-    classroomPhotoTimestamp: '2026-09-23 11:30:10 AM IST',
-    classroomPhotoGps: {
-      lat: 28.5355,
-      lng: 77.2731,
-      locationName: 'Okhla Phase-I, New Delhi'
-    }
-  },
-  {
-    id: 'batch-mum-20260922',
-    batchCode: 'DBS-MH03-2609-B2',
-    centerId: 'ctr-mumbai',
-    date: '2026-09-22',
-    trainerId: 'usr-trainer-3',
-    trainerName: 'Santosh Sawant',
-    targetCount: 25,
-    enrolledCount: 25,
-    presentCount: 25,
-    status: 'Dispatched',
-    classroomPhotoUrl: 'https://images.unsplash.com/photo-1577495508048-b635879837f1?auto=format&fit=crop&w=800&q=80',
-    classroomPhotoTimestamp: '2026-09-22 09:45:00 AM IST',
-    classroomPhotoGps: {
-      lat: 19.0760,
-      lng: 72.8777,
-      locationName: 'Turbhe MIDC, Navi Mumbai'
-    }
-  }
-];
+export const INITIAL_BATCHES: Batch[] = [];
 
-export const INITIAL_CANDIDATES: Candidate[] = [
-  {
-    id: 'cand-1',
-    registrationNumber: 'DBS/2026/RJ01/0142',
-    batchId: 'batch-jod-20260923',
-    centerId: 'ctr-jodhpur',
-    fullName: 'Surendra Kumar Bishnoi',
-    fatherName: 'Pukhraj Bishnoi',
-    dateOfBirth: '1991-04-12',
-    gender: 'Male',
-    mobileNumber: '9828456123',
-    idCardNumber: '548291034419',
-    abhaNumber: '14920384756182',
-    dlNumber: 'RJ19 20140029811',
-    dlExpiryDate: '2029-08-14',
-    vehicleClass: 'TRANS',
-    address: 'Village Luni, Tehsil Luni, Jodhpur Rural',
-    city: 'Jodhpur',
-    state: 'Rajasthan',
-    pincode: '342008',
-    enrolledAt: '2026-09-23 08:35 AM',
-    status: 'Green Signal (Video Call)',
-    photoUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=256&q=80',
-    idFrontUrl: 'https://images.unsplash.com/photo-1589330694653-dad6bc0140fa?auto=format&fit=crop&w=600&q=80',
-    idBackUrl: 'https://images.unsplash.com/photo-1589330694653-dad6bc0140fa?auto=format&fit=crop&w=600&q=80',
-    dlFrontUrl: 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=600&q=80',
-    dlBackUrl: 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=600&q=80',
-    driverHoldingIdUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=600&q=80',
-    attendanceStatus: 'Present',
-    trainingDate: '2026-09-23',
-    preTestScore: 68,
-    postTestScore: 92,
-    certificateNumber: 'DBS-CERT-2026-8841',
-    certificateIssuedDate: '2026-09-23',
-    kitIssued: true,
-    tshirtSize: 'XL',
-    queries: [],
-    greenSignalBy: 'Pooja Verma (PO)',
-    greenSignalAt: '2026-09-23 11:20 AM'
-  },
-  {
-    id: 'cand-2',
-    registrationNumber: 'DBS/2026/RJ01/0143',
-    batchId: 'batch-jod-20260923',
-    centerId: 'ctr-jodhpur',
-    fullName: 'Mohammad Rafiq Khan',
-    fatherName: 'Abdul Ghani Khan',
-    dateOfBirth: '1987-11-20',
-    gender: 'Male',
-    mobileNumber: '9414278901',
-    idCardNumber: '782194025183',
-    abhaNumber: '14882910472651',
-    dlNumber: 'RJ19 20110008432',
-    dlExpiryDate: '2027-12-05',
-    vehicleClass: 'HMV',
-    address: 'Near Sojati Gate, Ghantaghar Road',
-    city: 'Jodhpur',
-    state: 'Rajasthan',
-    pincode: '342001',
-    enrolledAt: '2026-09-23 08:42 AM',
-    status: 'Query Raised',
-    photoUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=256&q=80',
-    idFrontUrl: 'https://images.unsplash.com/photo-1589330694653-dad6bc0140fa?auto=format&fit=crop&w=600&q=80',
-    idBackUrl: 'https://images.unsplash.com/photo-1589330694653-dad6bc0140fa?auto=format&fit=crop&w=600&q=80',
-    dlFrontUrl: 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=600&q=80',
-    dlBackUrl: 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=600&q=80',
-    attendanceStatus: 'Present',
-    trainingDate: '2026-09-23',
-    preTestScore: 60,
-    postTestScore: 84,
-    kitIssued: false,
-    tshirtSize: 'L',
-    queries: [
-      {
-        id: 'qry-1',
-        candidateId: 'cand-2',
-        raisedByRole: 'PO',
-        raisedByName: 'Pooja Verma',
-        field: 'DL Back',
-        comment: 'DL back scan is blurry. Transport hazardous material badge endorsement not readable. Please rescan high-res.',
-        createdAt: '2026-09-23 10:45 AM',
-        status: 'Open'
-      }
-    ]
-  },
-  {
-    id: 'cand-3',
-    registrationNumber: 'DBS/2026/RJ01/0144',
-    batchId: 'batch-jod-20260923',
-    centerId: 'ctr-jodhpur',
-    fullName: 'Jitendra Singh Shekhawat',
-    fatherName: 'Bhanwar Singh Shekhawat',
-    dateOfBirth: '1995-07-03',
-    gender: 'Male',
-    mobileNumber: '9672044819',
-    idCardNumber: '920148712395',
-    abhaNumber: '14109847261543',
-    dlNumber: 'RJ19 20170041290',
-    dlExpiryDate: '2031-03-22',
-    vehicleClass: 'HGMV',
-    address: 'Kudi Bhagtasni Housing Board, Sector 4',
-    city: 'Jodhpur',
-    state: 'Rajasthan',
-    pincode: '342005',
-    enrolledAt: '2026-09-23 08:50 AM',
-    status: 'Pending PO Review',
-    photoUrl: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=256&q=80',
-    idFrontUrl: 'https://images.unsplash.com/photo-1589330694653-dad6bc0140fa?auto=format&fit=crop&w=600&q=80',
-    idBackUrl: 'https://images.unsplash.com/photo-1589330694653-dad6bc0140fa?auto=format&fit=crop&w=600&q=80',
-    dlFrontUrl: 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=600&q=80',
-    dlBackUrl: 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=600&q=80',
-    attendanceStatus: 'Present',
-    trainingDate: '2026-09-23',
-    preTestScore: 72,
-    postTestScore: 96,
-    kitIssued: true,
-    tshirtSize: 'M',
-    queries: []
-  },
-  {
-    id: 'cand-4',
-    registrationNumber: 'DBS/2026/RJ01/0145',
-    batchId: 'batch-jod-20260923',
-    centerId: 'ctr-jodhpur',
-    fullName: 'Kailash Chand Gurjar',
-    fatherName: 'Mangilal Gurjar',
-    dateOfBirth: '1989-02-14',
-    gender: 'Male',
-    mobileNumber: '9983120984',
-    idCardNumber: '341908274156',
-    abhaNumber: '14392817409214',
-    dlNumber: 'RJ19 20130018742',
-    dlExpiryDate: '2028-09-18',
-    vehicleClass: 'TRANS',
-    address: 'Dhamli Ki Dhani, Mandore, Jodhpur',
-    city: 'Jodhpur',
-    state: 'Rajasthan',
-    pincode: '342304',
-    enrolledAt: '2026-09-23 09:05 AM',
-    status: 'Senior Manager QC Passed',
-    photoUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=256&q=80',
-    idFrontUrl: 'https://images.unsplash.com/photo-1589330694653-dad6bc0140fa?auto=format&fit=crop&w=600&q=80',
-    idBackUrl: 'https://images.unsplash.com/photo-1589330694653-dad6bc0140fa?auto=format&fit=crop&w=600&q=80',
-    dlFrontUrl: 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=600&q=80',
-    dlBackUrl: 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=600&q=80',
-    driverHoldingIdUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=600&q=80',
-    attendanceStatus: 'Present',
-    trainingDate: '2026-09-23',
-    preTestScore: 70,
-    postTestScore: 88,
-    certificateNumber: 'DBS-CERT-2026-8842',
-    certificateIssuedDate: '2026-09-23',
-    kitIssued: true,
-    tshirtSize: 'XXL',
-    queries: [],
-    greenSignalBy: 'Pooja Verma (PO)',
-    greenSignalAt: '2026-09-23 11:25 AM',
-    apmApprovedBy: 'Siddharth Nair (Senior Manager)',
-    apmApprovedAt: '2026-09-23 12:40 PM'
-  },
-  {
-    id: 'cand-5',
-    registrationNumber: 'DBS/2026/RJ01/0146',
-    batchId: 'batch-jod-20260923',
-    centerId: 'ctr-jodhpur',
-    fullName: 'Shankar Lal Meghwal',
-    fatherName: 'Heera Ram Meghwal',
-    dateOfBirth: '1993-08-30',
-    gender: 'Male',
-    mobileNumber: '9784019283',
-    idCardNumber: '891047261548',
-    abhaNumber: '14910283746192',
-    dlNumber: 'RJ19 20160032901',
-    dlExpiryDate: '2030-05-19',
-    vehicleClass: 'LMV-TR',
-    address: 'Near Salawas Railway Station, Jodhpur',
-    city: 'Jodhpur',
-    state: 'Rajasthan',
-    pincode: '342804',
-    enrolledAt: '2026-09-23 09:15 AM',
-    status: 'Certified & Dispatched',
-    photoUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=256&q=80',
-    idFrontUrl: 'https://images.unsplash.com/photo-1589330694653-dad6bc0140fa?auto=format&fit=crop&w=600&q=80',
-    idBackUrl: 'https://images.unsplash.com/photo-1589330694653-dad6bc0140fa?auto=format&fit=crop&w=600&q=80',
-    dlFrontUrl: 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=600&q=80',
-    dlBackUrl: 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=600&q=80',
-    attendanceStatus: 'Present',
-    trainingDate: '2026-09-23',
-    preTestScore: 76,
-    postTestScore: 94,
-    certificateNumber: 'DBS-CERT-2026-8840',
-    certificateIssuedDate: '2026-09-23',
-    kitIssued: true,
-    tshirtSize: 'L',
-    queries: [],
-    greenSignalBy: 'Pooja Verma (PO)',
-    greenSignalAt: '2026-09-23 10:50 AM',
-    apmApprovedBy: 'Siddharth Nair (Senior Manager)',
-    apmApprovedAt: '2026-09-23 12:00 PM',
-    dispatchedAt: '2026-09-23 01:15 PM'
-  }
-];
+export const INITIAL_CANDIDATES: Candidate[] = [];
 
 export const INITIAL_CONSUMABLES: ConsumableItem[] = [
   // Jodhpur Center
@@ -797,41 +537,7 @@ export const INITIAL_CONSUMABLES: ConsumableItem[] = [
   }
 ];
 
-export const INITIAL_TRANSACTIONS: StockTransaction[] = [
-  {
-    id: 'tx-1',
-    centerId: 'ctr-jodhpur',
-    itemType: 'Certificates',
-    transactionType: 'INWARD_CHALLAN',
-    quantity: 200,
-    referenceNumber: 'CH-HQ-2026-0811',
-    date: '2026-09-15',
-    performedBy: 'Ramesh Sharma (OSE)',
-    notes: 'Received dispatch from Head Office Jaipur print warehouse'
-  },
-  {
-    id: 'tx-2',
-    centerId: 'ctr-jodhpur',
-    itemType: 'Certificates',
-    transactionType: 'OUTWARD_BATCH_DISPATCH',
-    quantity: 27,
-    referenceNumber: 'DBS-RJ01-2609-B0',
-    date: '2026-09-21',
-    performedBy: 'Vikram Singh Rathore (Trainer)',
-    notes: 'Issued to certified batch candidates post-training'
-  },
-  {
-    id: 'tx-3',
-    centerId: 'ctr-jodhpur',
-    itemType: 'Blankets',
-    transactionType: 'OUTWARD_BATCH_DISPATCH',
-    quantity: 27,
-    referenceNumber: 'DBS-RJ01-2609-B0',
-    date: '2026-09-21',
-    performedBy: 'Ramesh Sharma (OSE)',
-    notes: 'Winter kits issued to transport drivers'
-  }
-];
+export const INITIAL_TRANSACTIONS: StockTransaction[] = [];
 
 export const INITIAL_EMPLOYEES: Employee[] = [
   {
@@ -850,32 +556,13 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     email: 'ramesh.sharma@dbskills.in',
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80',
     monthlyTarget: 600,
-    monthlyAchieved: 512,
+    monthlyAchieved: 0,
     casualLeaveBalance: 7,
     compOffBalance: 2,
     deploymentStatus: 'On-Site',
-    totalPresentDays: 22,
-    deploymentHistory: [
-      {
-        id: 'dep-hist-1',
-        orderNumber: 'ORD/MOB/2026/04/104',
-        fromCenterId: 'ctr-delhi',
-        fromCenterName: 'Delhi South Driver Institute',
-        toCenterId: 'ctr-jodhpur',
-        toCenterName: 'Jodhpur Transport Skill Hub',
-        effectiveDate: '2026-04-01',
-        reason: 'Permanent center operations lead posting for Rajasthan corridor',
-        assignedBy: 'Siddharth Nair (Senior Manager)',
-        timestamp: '2026-03-25 11:30 AM'
-      }
-    ],
-    lastCheckIn: {
-      timestamp: '2026-09-23 08:15:10 AM',
-      lat: 26.2391,
-      lng: 73.0245,
-      isGeofenceValid: true,
-      centerDistanceMeters: 45
-    }
+    totalPresentDays: 0,
+    deploymentHistory: [],
+    lastCheckIn: undefined
   },
   {
     id: 'emp-2',
@@ -893,32 +580,13 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     email: 'vikram.rathore@dbskills.in',
     avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=256&q=80',
     monthlyTarget: 600,
-    monthlyAchieved: 540,
+    monthlyAchieved: 0,
     casualLeaveBalance: 5,
     compOffBalance: 3,
     deploymentStatus: 'On Tour',
-    totalPresentDays: 24,
-    deploymentHistory: [
-      {
-        id: 'dep-hist-2',
-        orderNumber: 'ORD/MOB/2026/07/218',
-        fromCenterId: 'ctr-mumbai',
-        fromCenterName: 'Mumbai Central Logistics Hub',
-        toCenterId: 'ctr-jodhpur',
-        toCenterName: 'Jodhpur Transport Skill Hub',
-        effectiveDate: '2026-07-15',
-        reason: 'Heavy simulation module trainer deployment and regional instructor calibration',
-        assignedBy: 'Siddharth Nair (Senior Manager)',
-        timestamp: '2026-07-10 03:15 PM'
-      }
-    ],
-    lastCheckIn: {
-      timestamp: '2026-09-23 08:22:40 AM',
-      lat: 26.2388,
-      lng: 73.0242,
-      isGeofenceValid: true,
-      centerDistanceMeters: 22
-    }
+    totalPresentDays: 0,
+    deploymentHistory: [],
+    lastCheckIn: undefined
   },
   {
     id: 'emp-3',
@@ -936,18 +604,12 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     email: 'pooja.verma@dbskills.in',
     avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=256&q=80',
     monthlyTarget: 1200,
-    monthlyAchieved: 1140,
+    monthlyAchieved: 0,
     casualLeaveBalance: 9,
     compOffBalance: 1,
     deploymentStatus: 'On-Site',
-    totalPresentDays: 23,
-    lastCheckIn: {
-      timestamp: '2026-09-23 09:02:15 AM',
-      lat: 26.2389,
-      lng: 73.0243,
-      isGeofenceValid: true,
-      centerDistanceMeters: 10
-    }
+    totalPresentDays: 0,
+    lastCheckIn: undefined
   },
   {
     id: 'emp-4',
@@ -965,18 +627,12 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     email: 'siddharth.nair@dbskills.in',
     avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=256&q=80',
     monthlyTarget: 1800,
-    monthlyAchieved: 1690,
+    monthlyAchieved: 0,
     casualLeaveBalance: 8,
     compOffBalance: 4,
     deploymentStatus: 'On-Site',
-    totalPresentDays: 25,
-    lastCheckIn: {
-      timestamp: '2026-09-23 08:45:00 AM',
-      lat: 19.0762,
-      lng: 72.8779,
-      isGeofenceValid: true,
-      centerDistanceMeters: 30
-    }
+    totalPresentDays: 0,
+    lastCheckIn: undefined
   },
   {
     id: 'emp-5',
@@ -994,11 +650,11 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     email: 'rajesh.mehta@dbskills.in',
     avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=256&q=80',
     monthlyTarget: 5000,
-    monthlyAchieved: 4780,
+    monthlyAchieved: 0,
     casualLeaveBalance: 11,
     compOffBalance: 0,
     deploymentStatus: 'On-Site',
-    totalPresentDays: 26
+    totalPresentDays: 0
   },
   {
     id: 'emp-6',
@@ -1016,18 +672,12 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     email: 'amit.saxena@dbskills.in',
     avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=256&q=80',
     monthlyTarget: 600,
-    monthlyAchieved: 480,
+    monthlyAchieved: 0,
     casualLeaveBalance: 9,
     compOffBalance: 1,
     deploymentStatus: 'On-Site',
-    totalPresentDays: 21,
-    lastCheckIn: {
-      timestamp: '2026-09-23 08:30:15 AM',
-      lat: 28.5355,
-      lng: 77.2600,
-      isGeofenceValid: true,
-      centerDistanceMeters: 18
-    }
+    totalPresentDays: 0,
+    lastCheckIn: undefined
   },
   {
     id: 'emp-7',
@@ -1045,11 +695,11 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     email: 'manish.kumar@dbskills.in',
     avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=256&q=80',
     monthlyTarget: 600,
-    monthlyAchieved: 520,
+    monthlyAchieved: 0,
     casualLeaveBalance: 6,
     compOffBalance: 2,
     deploymentStatus: 'On Leave',
-    totalPresentDays: 18
+    totalPresentDays: 0
   },
   {
     id: 'emp-8',
@@ -1067,18 +717,12 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     email: 'sneha.patil@dbskills.in',
     avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=256&q=80',
     monthlyTarget: 600,
-    monthlyAchieved: 560,
+    monthlyAchieved: 0,
     casualLeaveBalance: 10,
     compOffBalance: 1,
     deploymentStatus: 'On-Site',
-    totalPresentDays: 24,
-    lastCheckIn: {
-      timestamp: '2026-09-23 08:50:22 AM',
-      lat: 19.0760,
-      lng: 72.8777,
-      isGeofenceValid: true,
-      centerDistanceMeters: 25
-    }
+    totalPresentDays: 0,
+    lastCheckIn: undefined
   },
   {
     id: 'emp-9',
@@ -1096,587 +740,23 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     email: 'suresh.hegde@dbskills.in',
     avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=256&q=80',
     monthlyTarget: 600,
-    monthlyAchieved: 590,
+    monthlyAchieved: 0,
     casualLeaveBalance: 8,
     compOffBalance: 3,
     deploymentStatus: 'On-Site',
-    totalPresentDays: 25,
-    lastCheckIn: {
-      timestamp: '2026-09-23 08:35:40 AM',
-      lat: 12.9716,
-      lng: 77.5946,
-      isGeofenceValid: true,
-      centerDistanceMeters: 14
-    }
+    totalPresentDays: 0,
+    lastCheckIn: undefined
   }
 ];
 
-export const INITIAL_LEAVES: LeaveRecord[] = [
-  {
-    id: 'lv-1',
-    employeeId: 'emp-1',
-    employeeName: 'Ramesh Sharma',
-    employeeRole: 'OSE',
-    employeeLevel: 'Level 4',
-    centerId: 'ctr-jodhpur',
-    centerName: 'Jodhpur Transport Skill Hub',
-    leaveType: 'Casual/Sick Leave',
-    startDate: '2026-09-28',
-    endDate: '2026-09-29',
-    daysCount: 2,
-    reason: 'Family urgent medical appointment at AIIMS Jodhpur',
-    status: 'Pending',
-    approverTarget: 'PO', // Routed to PO
-    appliedAt: '2026-09-23 09:30 AM',
-    region: 'North'
-  },
-  {
-    id: 'lv-2',
-    employeeId: 'emp-2',
-    employeeName: 'Vikram Singh Rathore',
-    employeeRole: 'Trainer',
-    employeeLevel: 'Level 4',
-    centerId: 'ctr-jodhpur',
-    centerName: 'Jodhpur Transport Skill Hub',
-    leaveType: 'Compensatory Off (Comp Off)',
-    startDate: '2026-09-26',
-    endDate: '2026-09-26',
-    daysCount: 1,
-    compOffWorkDate: '2026-09-13 (Sunday Special Batch)',
-    reason: 'Compensatory off for conducting emergency Sunday batch for state logistics fleet',
-    status: 'Approved',
-    approverTarget: 'PO',
-    reviewedBy: 'Pooja Verma (PO)',
-    reviewRemarks: 'Verified against batch logbook dated 13th Sept. Approved.',
-    reviewedAt: '2026-09-22 04:15 PM',
-    appliedAt: '2026-09-21 11:00 AM',
-    region: 'North'
-  },
-  {
-    id: 'lv-3',
-    employeeId: 'emp-3',
-    employeeName: 'Pooja Verma',
-    employeeRole: 'PO',
-    employeeLevel: 'Level 3',
-    centerId: 'ctr-jodhpur',
-    centerName: 'North Operations Hub',
-    leaveType: 'Casual/Sick Leave',
-    startDate: '2026-10-05',
-    endDate: '2026-10-06',
-    daysCount: 2,
-    reason: 'Personal family religious ceremony in Delhi',
-    status: 'Pending',
-    approverTarget: 'GM', // Routed to Senior Manager / GM
-    appliedAt: '2026-09-22 03:00 PM',
-    region: 'North'
-  },
-  {
-    id: 'lv-4',
-    employeeId: 'emp-4',
-    employeeName: 'Siddharth Nair',
-    employeeRole: 'Senior Manager',
-    employeeLevel: 'Level 3',
-    centerId: 'ctr-mumbai',
-    centerName: 'West & South Operations',
-    leaveType: 'Casual/Sick Leave',
-    startDate: '2026-09-18',
-    endDate: '2026-09-19',
-    daysCount: 2,
-    reason: 'High viral fever and medical rest advice',
-    status: 'Approved',
-    approverTarget: 'GM',
-    reviewedBy: 'Col. Rajesh Mehta (GM)',
-    reviewRemarks: 'Medical certificate reviewed. Approved.',
-    reviewedAt: '2026-09-17 06:30 PM',
-    appliedAt: '2026-09-17 02:00 PM',
-    region: 'West'
-  }
-];
+export const INITIAL_LEAVES: LeaveRecord[] = [];
 
-export const INITIAL_TOURS: TourRequest[] = [
-  {
-    id: 'tour-1',
-    tourSanctionNumber: 'TSO/DBS/2026/09/014',
-    employeeId: 'emp-3',
-    employeeName: 'Pooja Verma',
-    employeeRole: 'PO',
-    employeeLevel: 'Level 3',
-    originCenter: 'Jodhpur Transport Skill Hub',
-    destinationCity: 'New Delhi',
-    departureDate: '2026-09-14',
-    returnDate: '2026-09-17',
-    travelMode: 'Train 2AC',
-    purpose: 'Quarterly Audit Inspection of Delhi South Fleet Training Center and Transport Commissioner liaison meeting',
-    estimatedBudget: 12500,
-    status: 'Expense Claim Filed',
-    sanctionedBy: 'Col. Rajesh Mehta (GM)',
-    sanctionRemarks: 'Sanctioned under operational inspection head. Max lodging limit Rs. 3,500/night for Delhi Metro.',
-    sanctionedBudget: 12500,
-    sanctionedAt: '2026-09-11 11:00 AM',
-    appliedAt: '2026-09-10 10:15 AM'
-  },
-  {
-    id: 'tour-2',
-    tourSanctionNumber: 'TSO/DBS/2026/09/019',
-    employeeId: 'emp-2',
-    employeeName: 'Vikram Singh Rathore',
-    employeeRole: 'Trainer',
-    employeeLevel: 'Level 4',
-    originCenter: 'Jodhpur Transport Skill Hub',
-    destinationCity: 'Udaipur',
-    departureDate: '2026-09-30',
-    returnDate: '2026-10-02',
-    travelMode: 'Bus',
-    purpose: 'Special on-site road safety and hazmat certification for regional petroleum tanker drivers',
-    estimatedBudget: 6200,
-    status: 'Sanctioned',
-    sanctionedBy: 'Col. Rajesh Mehta (GM)',
-    sanctionRemarks: 'Sanctioned for Udaipur on-site client session.',
-    sanctionedBudget: 6200,
-    sanctionedAt: '2026-09-22 05:00 PM',
-    appliedAt: '2026-09-21 02:40 PM'
-  },
-  {
-    id: 'tour-3',
-    tourSanctionNumber: 'TSO/DBS/2026/09/022',
-    employeeId: 'emp-4',
-    employeeName: 'Siddharth Nair',
-    employeeRole: 'Senior Manager',
-    employeeLevel: 'Level 3',
-    originCenter: 'Mumbai Central Logistics Hub',
-    destinationCity: 'Bengaluru',
-    departureDate: '2026-10-08',
-    returnDate: '2026-10-11',
-    travelMode: 'Flight (Special Permit)',
-    purpose: 'Quality compliance audit of newly commissioned Bengaluru East Center and trainer calibration',
-    estimatedBudget: 18500,
-    status: 'Submitted',
-    appliedAt: '2026-09-23 10:00 AM'
-  },
-  {
-    id: 'tour-4',
-    tourSanctionNumber: 'TSO/DBS/2026/09/028',
-    employeeId: 'usr-ose-1',
-    employeeName: 'Ramesh Sharma',
-    employeeRole: 'OSE',
-    employeeLevel: 'Level 4',
-    originCenter: 'Jodhpur Transport Skill Hub',
-    destinationCity: 'Jaipur Regional Transport Cluster',
-    departureDate: '2026-10-01',
-    returnDate: '2026-10-04',
-    travelMode: 'Train 3AC',
-    purpose: 'Mobilisation and driver simulation tech deployment audit across 3 partner centers',
-    estimatedBudget: 8500,
-    status: 'Sanctioned',
-    sanctionedBy: 'Col. Rajesh Mehta (GM)',
-    sanctionRemarks: 'Granted approval under state cluster rollout head.',
-    sanctionedBudget: 8500,
-    sanctionedAt: '2026-09-24 04:00 PM',
-    appliedAt: '2026-09-23 09:30 AM'
-  }
-];
+export const INITIAL_TOURS: TourRequest[] = [];
 
-export const INITIAL_EXPENSE_CLAIMS: ExpenseClaim[] = [
-  {
-    id: 'exp-vikram',
-    claimNumber: 'EXP/DBS/2026/09/119',
-    claimRef: 'EXP/DBS/2026/09/119',
-    tourId: 'tour-2',
-    tourSanctionNumber: 'TSO/DBS/2026/09/019',
-    tourSanctionRef: 'TSO/DBS/2026/09/019',
-    employeeId: 'emp-2',
-    empId: 'emp-2',
-    employeeName: 'Vikram Singh Rathore',
-    claimantName: 'Vikram Singh Rathore',
-    employeeRole: 'Trainer',
-    claimantRole: 'Trainer',
-    employeeLevel: 'Level 4',
-    designation: 'Senior Master Road Safety Trainer',
-    projectName: 'Special Hazmat Fleet Driver Upskilling',
-    zone: 'North-West Zone',
-    tourDates: '19 Sep 2026 – 22 Sep 2026',
-    tourPurpose: 'Emergency on-site hazmat chemical transport driver training at Kota Industrial Corridor',
-    submissionDate: '2026-09-23',
-    claimDate: '2026-09-23',
-    cityType: 'Non-Metro',
-    fareAmount: 2450.00,
-    lodgingBoardingAmount: 5800.00,
-    othersDaAmount: 2439.60,
-    totalClaimed: 10689.60,
-    totalEntitlement: 11200.00,
-    policyEntitlement: 11200.00,
-    totalApproved: 10689.60,
-    approvedReimbursement: 10689.60,
-    status: 'Pending Senior Manager Review',
-    items: [
-      {
-        id: 'itm-vk-1',
-        category: 'Travel Ticket',
-        description: 'RSRTC AC Multi-Axle Volvo Coach: Jodhpur to Kota Junction & Return (PNR: RJ-KT-904128)',
-        date: '2026-09-19',
-        claimAmount: 2450.00,
-        entitlementLimit: 2600.00,
-        approvedAmount: 2450.00,
-        receiptName: 'RSRTC_Volvo_Ticket_Kota_Return.pdf',
-        invoiceNumber: 'RSRTC/JOD/2026/904128',
-        vendorName: 'Rajasthan State Road Transport Corporation',
-        gstin: '08AABCR1234F1Z9',
-        isWithinPolicy: true
-      },
-      {
-        id: 'itm-vk-2',
-        category: 'Hotel/Lodging',
-        description: 'Hotel Umed Palace Kota (2 Nights Executive AC Room @ ₹2,900/night incl. GST)',
-        date: '2026-09-21',
-        claimAmount: 5800.00,
-        entitlementLimit: 6000.00,
-        approvedAmount: 5800.00,
-        receiptName: 'Hotel_Umed_Palace_GST_Invoice_2419.pdf',
-        invoiceNumber: 'INV/HUP/2026/2419',
-        vendorName: 'Hotel Umed Palace Ltd, Kota Station Road',
-        gstin: '08AAACH9941K1Z2',
-        isWithinPolicy: true
-      },
-      {
-        id: 'itm-vk-3',
-        category: 'Daily Food Allowance (DA)',
-        description: 'Daily Food Allowance for 3 days on field duty (3 days @ ₹600/day policy cap for Level 4)',
-        date: '2026-09-22',
-        claimAmount: 1800.00,
-        entitlementLimit: 1800.00,
-        approvedAmount: 1800.00,
-        receiptName: 'Food_Vouchers_Summary_Declaration.pdf',
-        invoiceNumber: 'DA/SLF/2026/0922',
-        vendorName: 'Self-Certified Meal Bills & Highway Dhabas',
-        gstin: 'NOT APPLICABLE (DA SELF-CLAIM)',
-        isWithinPolicy: true
-      },
-      {
-        id: 'itm-vk-4',
-        category: 'Local Conveyance',
-        description: 'Local auto & taxi transit between Kota Bus Depot, Industrial Zone A, and Chemical Tanker Yard',
-        date: '2026-09-22',
-        claimAmount: 639.60,
-        entitlementLimit: 800.00,
-        approvedAmount: 639.60,
-        receiptName: 'Kota_Local_Auto_Receipts.pdf',
-        invoiceNumber: 'CNV/KOT/2026/08',
-        vendorName: 'Local Auto Drivers Union & Fuel Vouchers',
-        gstin: '08XXAUT9912L1Z5',
-        isWithinPolicy: true
-      }
-    ]
-  },
-  {
-    id: 'exp-1',
-    claimNumber: 'EXP/DBS/2026/09/088',
-    tourId: 'tour-1',
-    tourSanctionNumber: 'TSO/DBS/2026/09/014',
-    employeeId: 'emp-3',
-    employeeName: 'Pooja Verma',
-    employeeRole: 'PO',
-    employeeLevel: 'Level 3',
-    designation: 'Program Officer (North Region)',
-    projectName: 'Commercial Fleet Safety Mission',
-    zone: 'North Zone',
-    tourDates: '14 Sep 2026 – 17 Sep 2026',
-    tourPurpose: 'Quarterly Audit Inspection of Delhi South Fleet Training Center and Transport Commissioner liaison meeting',
-    submissionDate: '2026-09-18',
-    cityType: 'Metro',
-    fareAmount: 3840.00,
-    lodgingBoardingAmount: 9600.00,
-    othersDaAmount: 4650.00,
-    totalClaimed: 18090.00,
-    totalEntitlement: 19200.00,
-    totalApproved: 0,
-    status: 'Returned by GM for Correction',
-    gmRemarks: 'Hotel bill missing GST number / invalid tax invoice. Please upload compliant tax invoice.',
-    reviewedBy: 'Col. Rajesh Mehta (GM)',
-    reviewedAt: '2026-09-22 11:45 AM',
-    items: [
-      {
-        id: 'itm-1',
-        category: 'Travel Ticket',
-        description: 'Mandore Express Train 2AC Jodhpur - Old Delhi & Return (PNR: 2419082341)',
-        date: '2026-09-14',
-        claimAmount: 3840,
-        entitlementLimit: 4000,
-        approvedAmount: 3840,
-        receiptName: 'IRCTC_E-Ticket_Pooja_2AC.pdf',
-        invoiceNumber: 'IRCTC/NR/2419082341',
-        vendorName: 'Indian Railway Catering & Tourism Corp',
-        gstin: '07AAACI1234D1Z6',
-        isWithinPolicy: true
-      },
-      {
-        id: 'itm-2',
-        category: 'Hotel/Lodging',
-        description: 'Hotel Ginger Okhla New Delhi (3 Nights @ ₹3,200/night incl. GST)',
-        date: '2026-09-16',
-        claimAmount: 9600,
-        entitlementLimit: 10500, // Rs 3,500/night limit for Metro
-        approvedAmount: 9600,
-        receiptName: 'Ginger_Okhla_Invoice_INV2910.pdf',
-        invoiceNumber: 'INV/GNG/2026/2910',
-        vendorName: 'Ginger Hotels Okhla Phase 2 Delhi',
-        gstin: '07AAACG5512N1Z4',
-        isWithinPolicy: true
-      },
-      {
-        id: 'itm-3',
-        category: 'Daily Food Allowance (DA)',
-        description: 'Daily Food Allowance for 4 days in Metro (Rs. 800/day policy cap for Level 3)',
-        date: '2026-09-17',
-        claimAmount: 3200,
-        entitlementLimit: 3200,
-        approvedAmount: 3200,
-        receiptName: 'Food_Vouchers_Summary.pdf',
-        invoiceNumber: 'VCH/FOOD/2026/09',
-        vendorName: 'Delhi Transit Meals & Vouchers',
-        gstin: '07AABCD8891P1ZX',
-        isWithinPolicy: true
-      },
-      {
-        id: 'itm-4',
-        category: 'Local Conveyance',
-        description: 'Prepaid Taxi / Metro travels between Delhi Station, Okhla Center & Transport Dept',
-        date: '2026-09-17',
-        claimAmount: 1450,
-        entitlementLimit: 1500,
-        approvedAmount: 1450,
-        receiptName: 'Uber_Auto_Bills_Collated.pdf',
-        invoiceNumber: 'UBR/DEL/2026/994',
-        vendorName: 'Uber India Systems Pvt Ltd',
-        gstin: '07AABCU1122M1ZQ',
-        isWithinPolicy: true
-      }
-    ]
-  },
-  {
-    id: 'exp-ramesh',
-    claimNumber: 'EXP/DBS/2026/09/102',
-    tourId: 'tour-past-1',
-    tourSanctionNumber: 'TSO/DBS/2026/09/008',
-    employeeId: 'emp-1',
-    employeeName: 'Ramesh Sharma',
-    employeeRole: 'OSE',
-    employeeLevel: 'Level 4',
-    designation: 'Operations Support Executive',
-    projectName: 'Biometric Driver Ingestion Drive',
-    zone: 'North Zone',
-    tourDates: '20 Sep 2026 – 21 Sep 2026',
-    tourPurpose: 'Biometric registration camp setup and field verification at Pali freight terminal',
-    submissionDate: '2026-09-22',
-    cityType: 'Non-Metro',
-    fareAmount: 850.00,
-    lodgingBoardingAmount: 2200.00,
-    othersDaAmount: 1300.00,
-    totalClaimed: 4350.00,
-    totalEntitlement: 4500.00,
-    totalApproved: 4350.00,
-    status: 'Approved by GM - Ready for Bank Disbursement',
-    gmRemarks: 'Verified and sanctioned in full by GM. Forwarded to Accounts for NEFT release.',
-    reviewedBy: 'Col. Rajesh Mehta (GM)',
-    reviewedAt: '2026-09-23 04:15 PM',
-    items: [
-      {
-        id: 'itm-rm-1',
-        category: 'Travel Ticket',
-        description: 'Jodhpur to Pali Express Bus ticket and return shuttle',
-        date: '2026-09-20',
-        claimAmount: 850.00,
-        entitlementLimit: 900.00,
-        approvedAmount: 850.00,
-        receiptName: 'Pali_Express_Bus_Tickets.pdf',
-        invoiceNumber: 'RSRTC/PAL/2026/112',
-        vendorName: 'RSRTC Pali Depot',
-        gstin: '08AABCR1234F1Z9',
-        isWithinPolicy: true
-      },
-      {
-        id: 'itm-rm-2',
-        category: 'Hotel/Lodging',
-        description: 'Hotel Gurukripa Pali (1 Night Standard AC Room)',
-        date: '2026-09-20',
-        claimAmount: 2200.00,
-        entitlementLimit: 2400.00,
-        approvedAmount: 2200.00,
-        receiptName: 'Hotel_Gurukripa_GST_Bill.pdf',
-        invoiceNumber: 'INV/HGK/2026/440',
-        vendorName: 'Hotel Gurukripa Pali Highway',
-        gstin: '08AABCG7712M1Z3',
-        isWithinPolicy: true
-      },
-      {
-        id: 'itm-rm-3',
-        category: 'Daily Food Allowance (DA)',
-        description: 'DA for 2 days Non-Metro (₹500/day policy cap for Level 4) + ₹300 terminal cartage',
-        date: '2026-09-21',
-        claimAmount: 1300.00,
-        entitlementLimit: 1300.00,
-        approvedAmount: 1300.00,
-        receiptName: 'Pali_Food_Camp_Conveyance.pdf',
-        invoiceNumber: 'DA/PAL/2026/09',
-        vendorName: 'Camp Food & Conveyance Self-Attested',
-        gstin: 'NOT APPLICABLE',
-        isWithinPolicy: true
-      }
-    ]
-  },
-  {
-    id: 'exp-2',
-    claimNumber: 'EXP/DBS/2026/08/042',
-    tourId: 'tour-past-old',
-    tourSanctionNumber: 'TSO/DBS/2026/08/009',
-    employeeId: 'emp-1',
-    employeeName: 'Ramesh Sharma',
-    employeeRole: 'OSE',
-    employeeLevel: 'Level 4',
-    designation: 'Operations Support Executive',
-    projectName: 'Regional Route Familiarization',
-    zone: 'North Zone',
-    tourDates: '25 Aug 2026 – 26 Aug 2026',
-    tourPurpose: 'Logistics survey of rural highway checkposts',
-    submissionDate: '2026-08-28',
-    cityType: 'Non-Metro',
-    fareAmount: 480.00,
-    lodgingBoardingAmount: 0,
-    othersDaAmount: 1000.00,
-    totalClaimed: 1480,
-    totalEntitlement: 1600,
-    totalApproved: 1480,
-    status: 'Disbursed',
-    bankReferenceNumber: 'NEFT/HDFC/20260902/894102',
-    settledAt: '2026-09-02 02:30 PM',
-    gmRemarks: 'Verified and disbursed as per Non-Metro field ops scale.',
-    reviewedBy: 'Col. Rajesh Mehta (GM)',
-    items: [
-      {
-        id: 'itm-21',
-        category: 'Travel Ticket',
-        description: 'RSRTC AC Bus Jodhpur to Pali & Return',
-        date: '2026-08-25',
-        claimAmount: 480,
-        entitlementLimit: 600,
-        approvedAmount: 480,
-        receiptName: 'RSRTC_Bus_Tickets.pdf',
-        invoiceNumber: 'RSRTC/JOD/88910',
-        vendorName: 'RSRTC Jodhpur',
-        gstin: '08AABCR1234F1Z9',
-        isWithinPolicy: true
-      },
-      {
-        id: 'itm-22',
-        category: 'Daily Food Allowance (DA)',
-        description: 'DA for 2 days Non-Metro (Rs. 500/day for Level 4)',
-        date: '2026-08-26',
-        claimAmount: 1000,
-        entitlementLimit: 1000,
-        approvedAmount: 1000,
-        receiptName: 'DA_Self_Declaration.pdf',
-        invoiceNumber: 'DA/AUG/2026/01',
-        vendorName: 'Self-Certified DA',
-        gstin: 'NOT APPLICABLE',
-        isWithinPolicy: true
-      }
-    ]
-  }
-];
+export const INITIAL_EXPENSE_CLAIMS: ExpenseClaim[] = [];
 
-export const INITIAL_ATTENDANCE_PUNCHES: AttendancePunch[] = [
-  {
-    id: 'pnch-1',
-    employeeId: 'emp-1',
-    employeeName: 'Ramesh Sharma',
-    designation: 'Operation Support Executive',
-    type: 'CHECK_IN',
-    timestamp: '2026-09-23T08:15:10',
-    timeFormatted: '08:15:10 AM',
-    lat: 26.2391,
-    lng: 73.0245,
-    locationAddress: 'Basni Phase II, Jodhpur (Near Center Gate)',
-    centerProximityStatus: 'Within Center Geofence',
-    photoWithWatermark: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80'
-  },
-  {
-    id: 'pnch-2',
-    employeeId: 'emp-2',
-    employeeName: 'Vikram Singh Rathore',
-    designation: 'Senior Master Road Safety Trainer',
-    type: 'CHECK_IN',
-    timestamp: '2026-09-23T08:22:40',
-    timeFormatted: '08:22:40 AM',
-    lat: 26.2388,
-    lng: 73.0242,
-    locationAddress: 'Heavy Industrial Area, Jodhpur (Simulator Room A)',
-    centerProximityStatus: 'Within Center Geofence',
-    photoWithWatermark: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80'
-  },
-  {
-    id: 'pnch-3',
-    employeeId: 'emp-3',
-    employeeName: 'Pooja Verma',
-    designation: 'Program Officer (North Region)',
-    type: 'CHECK_IN',
-    timestamp: '2026-09-23T09:02:15',
-    timeFormatted: '09:02:15 AM',
-    lat: 26.2389,
-    lng: 73.0243,
-    locationAddress: 'Jodhpur Transport Skill Hub Administration Cabin',
-    centerProximityStatus: 'Within Center Geofence',
-    photoWithWatermark: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&q=80'
-  }
-];
+export const INITIAL_ATTENDANCE_PUNCHES: AttendancePunch[] = [];
 
-export const INITIAL_MAINTENANCE_TICKETS: CenterIssueTicket[] = [
-  {
-    id: 'tkt-mnt-101',
-    centerId: 'ctr-jodhpur',
-    centerName: 'Jodhpur Transport Skill Hub',
-    reportedByTrainerId: 'usr-trainer-1',
-    reportedByTrainerName: 'Vikram Singh Rathore',
-    category: 'Water Filter / RO',
-    title: 'RO Water Purifier Dispenser Leak & Low Pressure',
-    description: 'The commercial 50 LPH RO unit in Hall 1 corridor has a persistent bottom casing leak and drivers are facing drinking water delays before the afternoon simulation batch.',
-    priority: 'High',
-    photoUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80',
-    createdAt: '2026-09-24 10:15 AM',
-    status: 'Endorsed by PO',
-    poName: 'Pooja Verma',
-    poEndorsedAt: '2026-09-24 11:45 AM'
-  },
-  {
-    id: 'tkt-mnt-102',
-    centerId: 'ctr-jodhpur',
-    centerName: 'Jodhpur Transport Skill Hub',
-    reportedByTrainerId: 'usr-trainer-1',
-    reportedByTrainerName: 'Vikram Singh Rathore',
-    category: 'Classroom Projector / Audio',
-    title: 'Ceiling HDMI Display Flickering in Classroom 2',
-    description: 'During Defensive Driving Module 2, the projector cable exhibits heavy signal loss when playing simulator hazard clips. Needs replacement with heavy-duty 15m 4K HDMI lead.',
-    priority: 'Medium',
-    photoUrl: 'https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?auto=format&fit=crop&w=600&q=80',
-    createdAt: '2026-09-25 08:30 AM',
-    status: 'Pending PO Verification'
-  },
-  {
-    id: 'tkt-mnt-103',
-    centerId: 'ctr-delhi',
-    centerName: 'Delhi South Fleet Training Center',
-    reportedByTrainerId: 'usr-trainer-delhi',
-    reportedByTrainerName: 'Manish Kumar',
-    category: 'Electricity / AC',
-    title: 'Classroom 1 Split AC Blower Motor Vibration',
-    description: 'Heavy vibration sound during afternoon batch; temperature not cooling below 28°C. Trainees experiencing discomfort.',
-    priority: 'High',
-    createdAt: '2026-09-23 02:20 PM',
-    status: 'Resolved by Senior Manager',
-    poName: 'Pooja Verma',
-    poEndorsedAt: '2026-09-23 03:00 PM',
-    apmName: 'Siddharth Nair',
-    apmResolvedAt: '2026-09-24 04:30 PM',
-    resolutionRemarks: 'Local Daikin authorized technician visited, replaced fan capacitor and serviced filter coils. Cooling fully restored.'
-  }
-];
+export const INITIAL_MAINTENANCE_TICKETS: CenterIssueTicket[] = [];
 
 

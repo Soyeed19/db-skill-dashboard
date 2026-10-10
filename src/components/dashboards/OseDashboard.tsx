@@ -128,8 +128,18 @@ export const OseDashboard: React.FC = () => {
   }, [candidates, activeCenter.id]);
 
   const currentBatch = useMemo(() => {
-    return batches.find(b => b.centerId === activeCenter.id) || batches[0];
-  }, [batches, activeCenter.id]);
+    return batches.find(b => b.centerId === activeCenter.id) || batches[0] || {
+      id: 'batch-default',
+      batchCode: `DBS-${activeCenter.code.replace('-', '')}-BATCH-1`,
+      centerId: activeCenter.id,
+      centerCode: activeCenter.code,
+      date: new Date().toISOString().split('T')[0],
+      enrolledCount: 0,
+      targetCount: 30,
+      status: 'Open',
+      trainerName: 'Master Trainer'
+    };
+  }, [batches, activeCenter.id, activeCenter.code]);
 
   // Draft Batch Tracking for Daily Lifecycle (Stage 1 to Stage 3)
   const draftCandidates = useMemo(() => {
@@ -1018,7 +1028,7 @@ export const OseDashboard: React.FC = () => {
               </span>
               <span className="text-slate-300">•</span>
               <span className="text-xs text-slate-500 font-mono">
-                Batch: {currentBatch.batchCode}
+                Batch: {currentBatch?.batchCode || 'DBS-GENERAL-BATCH'}
               </span>
               <span className="text-slate-300">•</span>
               <span className="text-xs text-slate-500 font-medium">

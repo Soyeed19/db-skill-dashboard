@@ -287,11 +287,17 @@ export const EditDiscrepancyModal: React.FC<EditDiscrepancyModalProps> = ({
                     />
                   </label>
                 </div>
-                <img
-                  src={dlBackUrl}
-                  alt="DL Back Scan"
-                  className="w-full h-24 object-cover rounded-lg border border-slate-200"
-                />
+                {dlBackUrl ? (
+                  <img
+                    src={dlBackUrl}
+                    alt="DL Back Scan"
+                    className="w-full h-24 object-cover rounded-lg border border-slate-200"
+                  />
+                ) : (
+                  <div className="w-full h-24 rounded-lg border border-slate-200 bg-slate-100 flex items-center justify-center text-slate-400 text-xs">
+                    No DL Back Scan
+                  </div>
+                )}
               </div>
 
               <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-2">
@@ -316,11 +322,17 @@ export const EditDiscrepancyModal: React.FC<EditDiscrepancyModalProps> = ({
                     />
                   </label>
                 </div>
-                <img
-                  src={dlFrontUrl}
-                  alt="DL Front Scan"
-                  className="w-full h-24 object-cover rounded-lg border border-slate-200"
-                />
+                {dlFrontUrl ? (
+                  <img
+                    src={dlFrontUrl}
+                    alt="DL Front Scan"
+                    className="w-full h-24 object-cover rounded-lg border border-slate-200"
+                  />
+                ) : (
+                  <div className="w-full h-24 rounded-lg border border-slate-200 bg-slate-100 flex items-center justify-center text-slate-400 text-xs">
+                    No DL Front Scan
+                  </div>
+                )}
               </div>
             </div>
           </div>

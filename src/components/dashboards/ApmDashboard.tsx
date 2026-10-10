@@ -48,6 +48,7 @@ import { Candidate, Center, Employee, ExpenseClaim, ExpenseItem, LeaveRecord, De
 import { exportCandidatesToExcel } from '../../utils/excelExporter';
 import { EmployeeSelfAttendanceModal } from '../attendance/EmployeeSelfAttendanceModal';
 import { ExpenseAuditTrailModal } from '../travel/ExpenseAuditTrailModal';
+import { SeniorManagerConsole } from './SeniorManagerConsole';
 
 export const ApmDashboard: React.FC = () => {
   const {
@@ -183,7 +184,9 @@ export const ApmDashboard: React.FC = () => {
 
   // Candidates awaiting Senior Manager QC Stamp
   const awaitingApmQc = useMemo(() => {
-    return candidates.filter(c => c.status === 'Green Signal (Video Call)');
+    return candidates.filter(
+      c => c.status === 'Green Signal (Video Call)' || c.status === 'PENDING_SM_REVIEW' || c.status === 'Approved by PO'
+    );
   }, [candidates]);
 
   const apmPassedCandidates = useMemo(() => {
@@ -296,7 +299,7 @@ export const ApmDashboard: React.FC = () => {
   // Master Excel Export
   const handleExportMasterExcel = () => {
     const verifiedCandidates = candidates.filter(
-      c => c.status === 'Senior Manager QC Passed' || c.status === 'APM QC Passed' || c.status === 'Certified & Dispatched' || c.status === 'Green Signal (Video Call)'
+      c => c.status === 'Senior Manager QC Passed' || c.status === 'APM QC Passed' || c.status === 'Certified & Dispatched' || c.status === 'Green Signal (Video Call)' || c.status === 'PENDING_SM_REVIEW' || c.status === 'Approved by PO'
     );
 
     exportCandidatesToExcel({
@@ -1632,184 +1635,7 @@ Date: ${formattedDate}`;
       {/* FEATURE 5 / TAB 5: CANDIDATE QC & MASTER EXPORT      */}
       {/* ==================================================== */}
       {activeTab === 'qc_master_export' && (
-        <div className="space-y-4">
-          <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-base font-extrabold text-slate-900">
-                Final Candidate Quality Approval & Master Export
-              </h2>
-              <p className="text-xs text-slate-500">
-                Candidates verified by PO with <strong>Green Signal</strong> await final Senior Manager QC Approval Stamp before dispatch.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <select
-                value={candidateCenterFilter}
-                onChange={(e) => setCandidateCenterFilter(e.target.value)}
-                className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 font-medium focus:outline-none"
-              >
-                <option value="all">All Regional Centers</option>
-                {centers.map(c => (
-                  <option key={c.id} value={c.id}>{c.name} ({c.code})</option>
-                ))}
-              </select>
-
-              <div className="relative">
-                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search candidate..."
-                  value={candidateSearch}
-                  onChange={(e) => setCandidateSearch(e.target.value)}
-                  className="pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20"
-                />
-              </div>
-
-              <button
-                type="button"
-                onClick={handleExportMasterExcel}
-                className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#0d5c63] text-white hover:bg-teal-900 flex items-center gap-1.5 shadow-xs"
-              >
-                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-300" />
-                <span>Export Master Dossier</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Candidate Dossier Review Table */}
-          <div className="bg-white border border-slate-200 rounded-3xl shadow-xs overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[10px]">
-                    <th className="py-3 px-4">Trainee Candidate</th>
-                    <th className="py-3 px-4">Center & Batch</th>
-                    <th className="py-3 px-4">Commercial DL & Class</th>
-                    <th className="py-3 px-4">PO Verification Stamp</th>
-                    <th className="py-3 px-4">Audit Status</th>
-                    <th className="py-3 px-4 text-right">Senior Manager Final Certification</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-medium">
-                  {filteredCandidates.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="py-12 text-center text-slate-400 text-xs">
-                        No candidate dossiers matching the filter.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredCandidates.map(c => {
-                      const isGreenSignal = c.status === 'Green Signal (Video Call)';
-                      const isApmPassed = c.status === 'Senior Manager QC Passed' || c.status === 'APM QC Passed';
-                      const isDispatched = c.status === 'Certified & Dispatched';
-                      const centerObj = centers.find(ctr => ctr.id === c.centerId);
-
-                      return (
-                        <tr key={c.id} className="hover:bg-slate-50/80 transition-colors">
-                          <td className="py-3.5 px-4">
-                            <div className="flex items-center gap-2.5">
-                              <img
-                                src={c.photoUrl}
-                                alt={c.fullName}
-                                className="w-9 h-9 rounded-xl object-cover border border-slate-200 shrink-0"
-                              />
-                              <div>
-                                <span className="font-extrabold text-slate-900 block leading-tight">{c.fullName}</span>
-                                <span className="text-[10px] text-slate-500 font-mono">{c.registrationNumber}</span>
-                                <span className="text-[10px] text-slate-400 block font-mono">Aadhaar: {c.idCardNumber}</span>
-                              </div>
-                            </div>
-                          </td>
-
-                          <td className="py-3.5 px-4">
-                            <span className="font-bold text-slate-800 block">{centerObj?.name || c.centerId}</span>
-                            <span className="text-[10px] font-mono text-teal-800 bg-teal-50 px-1.5 py-0.2 rounded border border-teal-200">
-                              {centerObj?.code || 'REG'}
-                            </span>
-                          </td>
-
-                          <td className="py-3.5 px-4">
-                            <span className="font-mono font-bold text-slate-900 block">{c.dlNumber}</span>
-                            <div className="flex items-center gap-1 mt-0.5">
-                              <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-slate-100 text-slate-700">
-                                {c.vehicleClass}
-                              </span>
-                              <span className="text-[10px] text-slate-400 font-mono">Exp: {c.dlExpiryDate}</span>
-                            </div>
-                          </td>
-
-                          <td className="py-3.5 px-4">
-                            {c.greenSignalBy ? (
-                              <div className="text-[11px]">
-                                <span className="inline-flex items-center gap-1 text-emerald-700 font-bold">
-                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                                  Green Signal Passed
-                                </span>
-                                <span className="text-[10px] text-slate-400 block font-mono">
-                                  By: {c.greenSignalBy}
-                                </span>
-                              </div>
-                            ) : (
-                              <span className="text-slate-400 text-[10px]">Pending PO Audit</span>
-                            )}
-                          </td>
-
-                          <td className="py-3.5 px-4">
-                            <span
-                              className={`px-2.5 py-1 rounded-full text-[10px] font-bold inline-block ${
-                                isDispatched
-                                  ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                                  : isApmPassed
-                                  ? 'bg-teal-100 text-teal-900 border border-teal-300'
-                                  : isGreenSignal
-                                  ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                                  : 'bg-slate-100 text-slate-700'
-                              }`}
-                            >
-                              {c.status}
-                            </span>
-                          </td>
-
-                          <td className="py-3.5 px-4 text-right">
-                            {isGreenSignal && (
-                              <button
-                                type="button"
-                                onClick={() => approveApmQc(c.id)}
-                                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs inline-flex items-center gap-1 transition-all active:scale-95"
-                              >
-                                <Check className="w-3.5 h-3.5" />
-                                <span>Senior Manager Final Certification</span>
-                              </button>
-                            )}
-
-                            {isApmPassed && (
-                              <button
-                                type="button"
-                                onClick={() => dispatchCandidate(c.id)}
-                                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#0d5c63] hover:bg-teal-900 text-white shadow-xs inline-flex items-center gap-1 transition-all active:scale-95"
-                              >
-                                <Send className="w-3.5 h-3.5 text-emerald-300" />
-                                <span>Dispatch Certificate</span>
-                              </button>
-                            )}
-
-                            {isDispatched && (
-                              <span className="text-[11px] font-mono text-emerald-800 font-bold inline-flex items-center gap-1">
-                                <FileCheck2 className="w-3.5 h-3.5 text-emerald-600" />
-                                {c.certificateNumber || 'Certified'}
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+        <SeniorManagerConsole />
       )}
 
       {/* ==================================================== */}
@@ -3334,3 +3160,6 @@ Date: ${formattedDate}`;
     </div>
   );
 };
+
+export { SeniorManagerConsole };
+export default ApmDashboard;
