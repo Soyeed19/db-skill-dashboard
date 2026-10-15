@@ -150,6 +150,66 @@ export const OseDashboard: React.FC = () => {
     return draftCandidates.filter(c => isCandidateReadyForPo(c)).length;
   }, [draftCandidates]);
 
+  // Monthly historical compliance ledger dynamically aggregated from real center candidates in Supabase
+  const monthlyLedger = useMemo(() => {
+    const now = new Date();
+    let refYear = now.getFullYear();
+    let refMonth = now.getMonth();
+    if (refYear < 2026) {
+      refYear = 2026;
+      refMonth = 8; // September
+    }
+
+    const baseTarget = activeCenter.code === 'DL-02' ? 650 : 600;
+
+    const list = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(refYear, refMonth - i, 1);
+      const y = d.getFullYear();
+      const m = d.getMonth();
+      const key = `${y}-${String(m + 1).padStart(2, '0')}`;
+      const monthName = d.toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+      const isCurrentMonth = i === 0;
+
+      const monthCands = centerCandidates.filter(c => {
+        const raw = c.enrolledAt || (c as any).created_at || (c as any).createdAt || c.trainingDate;
+        if (!raw) return isCurrentMonth;
+        const cd = new Date(raw);
+        if (isNaN(cd.getTime())) return isCurrentMonth;
+        const cKey = `${cd.getFullYear()}-${String(cd.getMonth() + 1).padStart(2, '0')}`;
+        return cKey === key;
+      });
+
+      const enrolled = monthCands.length;
+      const certified = monthCands.filter(c => c.status === 'Certified & Dispatched').length;
+      const target = baseTarget;
+      const achievementRate = target > 0 ? Math.round((enrolled / target) * 100) : 0;
+
+      const classesCount: Record<string, number> = {};
+      monthCands.forEach(c => {
+        const cls = c.vehicleClass || 'TRANS';
+        classesCount[cls] = (classesCount[cls] || 0) + 1;
+      });
+      const classSummary = Object.keys(classesCount).length > 0
+        ? Object.entries(classesCount).map(([k, v]) => `${k} (${v})`).join(' • ')
+        : '—';
+
+      list.push({
+        id: key,
+        monthName: isCurrentMonth ? `${monthName} (Live MTD)` : monthName,
+        isCurrentMonth,
+        target,
+        enrolled,
+        achievementRate,
+        certified,
+        classSummary,
+        hasAuditQueries: monthCands.some(c => c.queries && c.queries.some(q => q.status === 'Open'))
+      });
+    }
+
+    return list;
+  }, [activeCenter.code, centerCandidates]);
+
   // Two Isolated Modes in OSE Workspace
   // Mode A: OSE Operations Dashboard & Enrollment History (Default)
   // Mode B: Dedicated Full-Page Candidate Registration Desk
@@ -309,11 +369,11 @@ export const OseDashboard: React.FC = () => {
       email: currentPersona.email,
       avatar: currentPersona.avatar,
       monthlyTarget: 600,
-      monthlyAchieved: 512,
+      monthlyAchieved: centerCandidates.length,
       casualLeaveBalance: 7,
       compOffBalance: 2
     };
-  }, [employees, currentPersona, activeCenter]);
+  }, [employees, currentPersona, activeCenter, centerCandidates.length]);
 
   // OSE Tours and Claims
   const oseClaims = useMemo(() => {
@@ -334,7 +394,7 @@ export const OseDashboard: React.FC = () => {
     );
   }, [tours, oseEmployee.id, currentPersona.name]);
 
-  const completedToursCount = Math.max(1, oseTours.filter(t => t.status === 'Completed' || t.status === 'Expense Claim Filed' || t.status === 'Sanctioned').length);
+  const completedToursCount = oseTours.filter(t => t.status === 'Completed' || t.status === 'Expense Claim Filed' || t.status === 'Sanctioned').length;
 
   // Main navigation sub-tabs
   type OseSubTab = 'enrollment' | 'expense_claim' | 'attendance_history' | 'enrollment_trends';
@@ -671,7 +731,7 @@ export const OseDashboard: React.FC = () => {
       role: 'Operation Support Executive (Level 4)',
       status: 'Current Posting',
       isCurrent: true,
-      highlights: 'Lead enrollment desk; 512+ commercial drivers qualified; zero audit discrepancies'
+      highlights: `Lead enrollment desk; ${centerCandidates.length} commercial drivers processed; active audit compliance`
     },
     {
       centerName: 'Jaipur Logistics Training Hub (RJ-02)',
@@ -1216,7 +1276,7 @@ export const OseDashboard: React.FC = () => {
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-3">
                               <img
-                                src={candidate.photoUrl}
+                                src={candidate.photoUrl || 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=256&q=80'}
                                 alt={candidate.fullName}
                                 className="w-11 h-11 rounded-xs object-cover border border-slate-200 shrink-0"
                               />
@@ -2148,126 +2208,64 @@ export const OseDashboard: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium">
-                  <tr className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-3 px-4 font-bold text-slate-900">April 2026</td>
-                    <td className="py-3 px-4 font-mono text-slate-700">{activeCenter.code === 'DL-02' ? 550 : 500}</td>
-                    <td className="py-3 px-4 font-mono font-bold text-teal-900">{activeCenter.code === 'DL-02' ? 530 : 482}</td>
-                    <td className="py-3 px-4">
-                      <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                        {activeCenter.code === 'DL-02' ? '96%' : '96%'} Achieved
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 font-mono text-emerald-800 font-bold">{activeCenter.code === 'DL-02' ? 505 : 456}</td>
-                    <td className="py-3 px-4 text-slate-600 font-mono">TRANS (42%) • HMV (28%)</td>
-                    <td className="py-3 px-4">
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Senior Manager QC Closed
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-right text-slate-500 font-mono">100%</td>
-                  </tr>
-
-                  <tr className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-3 px-4 font-bold text-slate-900">May 2026</td>
-                    <td className="py-3 px-4 font-mono text-slate-700">{activeCenter.code === 'DL-02' ? 550 : 500}</td>
-                    <td className="py-3 px-4 font-mono font-bold text-teal-900">{activeCenter.code === 'DL-02' ? 560 : 514}</td>
-                    <td className="py-3 px-4">
-                      <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                        103% (Surplus)
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 font-mono text-emerald-800 font-bold">{activeCenter.code === 'DL-02' ? 538 : 490}</td>
-                    <td className="py-3 px-4 text-slate-600 font-mono">TRANS (40%) • LMV-TR (20%)</td>
-                    <td className="py-3 px-4">
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Senior Manager QC Closed
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-right text-slate-500 font-mono">100%</td>
-                  </tr>
-
-                  <tr className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-3 px-4 font-bold text-slate-900">June 2026</td>
-                    <td className="py-3 px-4 font-mono text-slate-700">{activeCenter.code === 'DL-02' ? 600 : 550}</td>
-                    <td className="py-3 px-4 font-mono font-bold text-teal-900">{activeCenter.code === 'DL-02' ? 592 : 540}</td>
-                    <td className="py-3 px-4">
-                      <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                        98% Achieved
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 font-mono text-emerald-800 font-bold">{activeCenter.code === 'DL-02' ? 570 : 518}</td>
-                    <td className="py-3 px-4 text-slate-600 font-mono">TRANS (44%) • HMV (26%)</td>
-                    <td className="py-3 px-4">
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Senior Manager QC Closed
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-right text-slate-500 font-mono">100%</td>
-                  </tr>
-
-                  <tr className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-3 px-4 font-bold text-slate-900">July 2026</td>
-                    <td className="py-3 px-4 font-mono text-slate-700">{activeCenter.code === 'DL-02' ? 600 : 550}</td>
-                    <td className="py-3 px-4 font-mono font-bold text-teal-900">{activeCenter.code === 'DL-02' ? 615 : 562}</td>
-                    <td className="py-3 px-4">
-                      <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                        102% (Surplus)
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 font-mono text-emerald-800 font-bold">{activeCenter.code === 'DL-02' ? 592 : 539}</td>
-                    <td className="py-3 px-4 text-slate-600 font-mono">TRANS (42%) • HMV (30%)</td>
-                    <td className="py-3 px-4">
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Senior Manager QC Closed
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-right text-slate-500 font-mono">100%</td>
-                  </tr>
-
-                  <tr className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-3 px-4 font-bold text-slate-900">August 2026</td>
-                    <td className="py-3 px-4 font-mono text-slate-700">{activeCenter.code === 'DL-02' ? 650 : 600}</td>
-                    <td className="py-3 px-4 font-mono font-bold text-teal-900">{activeCenter.code === 'DL-02' ? 638 : 588}</td>
-                    <td className="py-3 px-4">
-                      <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                        98% Achieved
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 font-mono text-emerald-800 font-bold">{activeCenter.code === 'DL-02' ? 615 : 564}</td>
-                    <td className="py-3 px-4 text-slate-600 font-mono">TRANS (45%) • HMV (25%)</td>
-                    <td className="py-3 px-4">
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Senior Manager QC Closed
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-right text-slate-500 font-mono">100%</td>
-                  </tr>
-
-                  <tr className="hover:bg-teal-50/50 bg-teal-50/30 transition-colors">
-                    <td className="py-3 px-4 font-bold text-teal-950 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                      September 2026 (Live MTD)
-                    </td>
-                    <td className="py-3 px-4 font-mono text-slate-700">{activeCenter.code === 'DL-02' ? 650 : 600}</td>
-                    <td className="py-3 px-4 font-mono font-extrabold text-teal-900">
-                      {(activeCenter.code === 'DL-02' ? 570 : 512) + centerCandidates.length}
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
-                        In Progress (Day 23)
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 font-mono text-emerald-800 font-bold">
-                      {(activeCenter.code === 'DL-02' ? 542 : 480) + centerCandidates.filter(c => c.status === 'Certified & Dispatched').length}
-                    </td>
-                    <td className="py-3 px-4 text-slate-700 font-mono">TRANS • HMV • LMV-TR</td>
-                    <td className="py-3 px-4">
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700">
-                        PO Audit & QC Active
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-right text-teal-800 font-mono font-bold">Active</td>
-                  </tr>
+                  {monthlyLedger.map((row) => (
+                    <tr
+                      key={row.id}
+                      className={
+                        row.isCurrentMonth
+                          ? 'hover:bg-teal-50/50 bg-teal-50/30 transition-colors'
+                          : 'hover:bg-slate-50/80 transition-colors'
+                      }
+                    >
+                      <td className={`py-3 px-4 font-bold ${row.isCurrentMonth ? 'text-teal-950 flex items-center gap-1.5' : 'text-slate-900'}`}>
+                        {row.isCurrentMonth && <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>}
+                        {row.monthName}
+                      </td>
+                      <td className="py-3 px-4 font-mono text-slate-700">{row.target}</td>
+                      <td className={`py-3 px-4 font-mono ${row.isCurrentMonth ? 'font-extrabold text-teal-900' : 'font-bold text-slate-900'}`}>
+                        {row.enrolled}
+                      </td>
+                      <td className="py-3 px-4">
+                        {row.enrolled === 0 ? (
+                          <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                            0% Achieved
+                          </span>
+                        ) : row.achievementRate >= 100 ? (
+                          <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                            {row.achievementRate}% (Surplus)
+                          </span>
+                        ) : (
+                          <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                            {row.achievementRate}% Achieved
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 font-mono text-emerald-800 font-bold">
+                        {row.certified}
+                      </td>
+                      <td className="py-3 px-4 text-slate-600 font-mono">
+                        {row.classSummary}
+                      </td>
+                      <td className="py-3 px-4">
+                        {row.enrolled === 0 ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-500">
+                            Zero-State (0 Enrolled)
+                          </span>
+                        ) : row.hasAuditQueries ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700">
+                            PO Audit & Queries Open
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Senior Manager QC Closed
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-right text-slate-500 font-mono">
+                        {row.enrolled === 0 ? '0%' : `${row.achievementRate}%`}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>

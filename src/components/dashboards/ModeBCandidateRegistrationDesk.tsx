@@ -415,15 +415,8 @@ export const ModeBCandidateRegistrationDesk: React.FC<ModeBCandidateRegistration
       verificationStatus
     };
 
-    // 2. Persist in LocalStorage permanent ledger (quota protected)
-    try {
-      const existingStr = localStorage.getItem('dbs_candidate_enrollments');
-      const existingList: CandidateEnrollment[] = existingStr ? JSON.parse(existingStr) : [];
-      const updatedList = [enrollmentRecord, ...existingList].slice(0, 20);
-      safeLocalStorageSet('dbs_candidate_enrollments', JSON.stringify(updatedList));
-    } catch (err) {
-      console.warn('Failed to save enrollment to localStorage', err);
-    }
+    // 2. Direct Cloud Registration (Local Storage Bypassed for Multi-Device Cloud Sync)
+    // Candidate is routed directly to Supabase cloud database via addCandidate
 
     // 3. Register in AppContext Candidate Pipeline
     const newCandidate = addCandidate({
@@ -812,11 +805,18 @@ export const ModeBCandidateRegistrationDesk: React.FC<ModeBCandidateRegistration
                     </div>
 
                     <div className="relative rounded-lg overflow-hidden border border-slate-200 bg-slate-900/5 aspect-4/3 flex items-center justify-center group">
-                      <img
-                        src={photoUrl}
-                        alt="Candidate Passport Photo"
-                        className="w-full h-full object-cover"
-                      />
+                      {photoUrl ? (
+                        <img
+                          src={photoUrl}
+                          alt="Candidate Passport Photo"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center p-4 text-center text-slate-400">
+                          <User className="w-8 h-8 mb-1.5 opacity-40 text-slate-600" />
+                          <span className="text-[11px] font-medium text-slate-500">Awaiting Photo Capture / Upload</span>
+                        </div>
+                      )}
                       <button
                         type="button"
                         onClick={() =>

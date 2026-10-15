@@ -1079,7 +1079,7 @@ export const CeoLeadershipDashboard: React.FC = () => {
                               title="Click to inspect burned watermark stamp"
                             >
                               <img
-                                src={punch.photoWithWatermark}
+                                src={punch.photoWithWatermark || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80'}
                                 alt="Watermarked proof"
                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                               />
@@ -1830,11 +1830,13 @@ export const CeoLeadershipDashboard: React.FC = () => {
 
             {/* Document Image & High-Fidelity Proof Viewport */}
             <div className="relative bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden flex flex-col items-center justify-center min-h-[300px] max-h-[440px]">
-              <img
-                src={previewDoc.url}
-                alt={previewDoc.title}
-                className="w-full h-full object-contain max-h-[420px]"
-              />
+              {previewDoc.url ? (
+                <img
+                  src={previewDoc.url}
+                  alt={previewDoc.title}
+                  className="w-full h-full object-contain max-h-[420px]"
+                />
+              ) : null}
               <div className="absolute bottom-3 left-3 right-3 bg-slate-900/90 backdrop-blur-md border border-slate-700 p-2.5 rounded-xl flex items-center justify-between text-xs text-slate-200">
                 <div className="flex items-center gap-2">
                   <BadgeCheck className="w-4 h-4 text-emerald-400" />
@@ -2636,7 +2638,7 @@ export const CeoLeadershipDashboard: React.FC = () => {
             <div className="p-5 overflow-y-auto space-y-4">
               <div className="relative w-full max-h-[460px] bg-slate-950 rounded-xl overflow-hidden flex items-center justify-center border border-slate-700">
                 <img
-                  src={inspectGmPunch.photoWithWatermark}
+                  src={inspectGmPunch.photoWithWatermark || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80'}
                   alt="Watermarked punch proof"
                   className="max-h-[460px] w-auto object-contain mx-auto"
                 />

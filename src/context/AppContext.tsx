@@ -36,9 +36,7 @@ import {
 } from '../data/initialData';
 import { INITIAL_EMPLOYEE_USERS } from '../data/initialAuthData';
 import {
-  safeLocalStorageSet,
-  safeSaveCandidates,
-  sanitizeCandidateListForStorage
+  safeLocalStorageSet
 } from '../utils/safeStorage';
 import {
   checkSupabaseConnection,
@@ -48,6 +46,7 @@ import {
 } from '../lib/supabase';
 import {
   fetchCandidatesFromSupabase,
+  insertCandidateToSupabase,
   upsertCandidateToSupabase,
   upsertCandidatesBulk,
   deleteCandidateFromSupabase,
@@ -475,25 +474,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // Candidates
-  const [candidates, setCandidates] = useState<Candidate[]>(() => {
-    try {
-      const saved = localStorage.getItem('dbs_candidates');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return sanitizeCandidateListForStorage(parsed);
-        }
-      }
-    } catch (e) {
-      console.warn('Failed to parse dbs_candidates from storage:', e);
-    }
-    return INITIAL_CANDIDATES;
-  });
-
-  useEffect(() => {
-    safeSaveCandidates(candidates);
-  }, [candidates]);
+  // Candidates: STRICTLY CLOUD-NATIVE (Supabase PostgreSQL Database)
+  // Zero reading from or writing to browser localStorage.
+  // Real-time synchronization guarantees cross-device parity.
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
 
   // Batches
   const [batches, setBatches] = useState<Batch[]>(() => {
@@ -501,7 +485,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (saved) {
       try { return JSON.parse(saved); } catch (e) { console.error(e); }
     }
-    return INITIAL_BATCHES;
+    return [];
   });
 
   useEffect(() => {
@@ -513,10 +497,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [supabaseMessage, setSupabaseMessage] = useState<string>('Connecting to Supabase cloud database...');
   const [isCloudSyncing, setIsCloudSyncing] = useState<boolean>(false);
 
+  // Direct fetch function querying Supabase candidates & batches
+  const syncFromCloud = async (isInitial = false) => {
+    if (isInitial) setIsCloudSyncing(true);
+    try {
+      const cloudCandidates = await fetchCandidatesFromSupabase();
+      if (cloudCandidates !== null) {
+        setCandidates(cloudCandidates);
+      }
+      const cloudBatches = await fetchBatchesFromSupabase();
+      if (cloudBatches !== null) {
+        setBatches(cloudBatches);
+        safeLocalStorageSet('dbs_batches', JSON.stringify(cloudBatches));
+      }
+    } catch (err) {
+      console.warn('[Supabase Cloud Sync Notice]:', err);
+    } finally {
+      if (isInitial) setIsCloudSyncing(false);
+    }
+  };
+
   // Initialize and synchronize with Supabase Cloud Database on startup
   useEffect(() => {
     let unsubscribeRealtime: (() => void) | undefined;
     let isMounted = true;
+    let pollTimer: ReturnType<typeof setInterval> | undefined;
+
+    // Purge any stale legacy local cache key from browser
+    try {
+      localStorage.removeItem('dbs_candidates');
+      localStorage.removeItem('dbsl_candidates');
+      localStorage.removeItem('dbs_candidate_enrollments');
+    } catch {}
 
     const initCloudDatabase = async () => {
       setIsCloudSyncing(true);
@@ -528,32 +540,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSupabaseMessage(health.message);
 
         if (health.tablesReady) {
-          // 1. Fetch remote candidates from Supabase
+          // 1. Initial direct cloud query: SELECT * FROM candidates
           const cloudCandidates = await fetchCandidatesFromSupabase();
           if (!isMounted) return;
 
-          if (cloudCandidates && cloudCandidates.length > 0) {
-            console.log(`[Supabase Realtime] Synchronized ${cloudCandidates.length} candidate dossiers from cloud.`);
+          if (cloudCandidates !== null) {
+            console.log(`[Supabase Cloud] Synchronized ${cloudCandidates.length} candidate dossiers from cloud database.`);
             setCandidates(cloudCandidates);
-            safeSaveCandidates(cloudCandidates);
-          } else if (cloudCandidates && cloudCandidates.length === 0) {
-            // Cloud table exists but empty - seed demo candidates if local has them
-            console.log('[Supabase] Connected to empty cloud database. Seeding initial candidate dossiers...');
-            await upsertCandidatesBulk(INITIAL_CANDIDATES);
           }
 
           // 2. Fetch remote batches from Supabase
           const cloudBatches = await fetchBatchesFromSupabase();
           if (!isMounted) return;
 
-          if (cloudBatches && cloudBatches.length > 0) {
+          if (cloudBatches !== null) {
             setBatches(cloudBatches);
             safeLocalStorageSet('dbs_batches', JSON.stringify(cloudBatches));
-          } else if (cloudBatches && cloudBatches.length === 0) {
-            // Seed initial batches
-            for (const b of INITIAL_BATCHES) {
-              await upsertBatchToSupabase(b);
-            }
           }
 
           // 3. Setup Supabase Realtime multi-device synchronization
@@ -561,33 +563,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             onCandidateInsert: (newCand) => {
               setCandidates(prev => {
                 if (prev.some(c => c.id === newCand.id)) return prev;
-                const next = [newCand, ...prev];
-                safeSaveCandidates(next);
-                return next;
+                return [newCand, ...prev];
               });
               showToast(`[Cloud Sync] New candidate ${newCand.fullName} received from cloud.`);
             },
             onCandidateUpdate: (updatedCand) => {
               setCandidates(prev => {
-                const next = prev.map(c => c.id === updatedCand.id ? updatedCand : c);
-                safeSaveCandidates(next);
-                return next;
+                return prev.map(c => c.id === updatedCand.id ? updatedCand : c);
               });
             },
             onCandidateDelete: (deletedId) => {
-              setCandidates(prev => {
-                const next = prev.filter(c => c.id !== deletedId);
-                safeSaveCandidates(next);
-                return next;
-              });
+              setCandidates(prev => prev.filter(c => c.id !== deletedId));
             },
             onBatchChange: async () => {
               const freshBatches = await fetchBatchesFromSupabase();
-              if (freshBatches && freshBatches.length > 0) {
+              if (freshBatches !== null && isMounted) {
                 setBatches(freshBatches);
+                safeLocalStorageSet('dbs_batches', JSON.stringify(freshBatches));
               }
+            },
+            onPurge: () => {
+              setCandidates([]);
+              setBatches([]);
+              safeLocalStorageSet('dbs_batches', JSON.stringify([]));
+              showToast('[Cloud Sync] Database wipe executed by CEO. State reset to zero.');
             }
           });
+
+          // 4. Background Polling Guard: Re-sync every 5s across all devices
+          pollTimer = setInterval(() => {
+            if (isMounted) syncFromCloud(false);
+          }, 5000);
         }
       } catch (err: any) {
         console.warn('[Supabase] Initialization caught error:', err);
@@ -598,9 +604,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     initCloudDatabase();
 
+    // 5. Re-sync immediately on browser tab focus or device wake
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && isMounted) {
+        syncFromCloud(false);
+      }
+    };
+    const handleFocus = () => {
+      if (isMounted) syncFromCloud(false);
+    };
+
+    window.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
     return () => {
       isMounted = false;
       if (unsubscribeRealtime) unsubscribeRealtime();
+      if (pollTimer) clearInterval(pollTimer);
+      window.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
     };
   }, []);
 
@@ -615,8 +637,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const cloudCandidates = await fetchCandidatesFromSupabase();
         if (cloudCandidates) {
           setCandidates(cloudCandidates);
-          safeSaveCandidates(cloudCandidates);
-          showToast(`Successfully refreshed ${cloudCandidates.length} candidates from Supabase!`);
+          showToast(`Successfully refreshed ${cloudCandidates.length} candidates from Supabase cloud database!`);
         }
         const cloudBatches = await fetchBatchesFromSupabase();
         if (cloudBatches) {
@@ -739,7 +760,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     safeLocalStorageSet('dbs_expense_claims', JSON.stringify(expenseClaims));
   }, [expenseClaims]);
 
-  // --- CANDIDATE METHODS ---
+  // --- CANDIDATE METHODS (DIRECT CLOUD SUPABASE INTEGRATION) ---
   const addCandidate = (candidateData: Partial<Candidate>): Candidate => {
     const centerObj = centers.find(c => c.id === (candidateData.centerId || activeCenter.id)) || activeCenter;
     const centerCodeClean = centerObj.code.replace('-', '');
@@ -772,7 +793,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       city: candidateData.city || centerObj.city,
       state: candidateData.state || centerObj.state,
       pincode: candidateData.pincode || '302001',
-      enrolledAt: new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }),
+      enrolledAt: new Date().toISOString(),
       status: candidateData.status || 'Draft',
       isLocked: candidateData.isLocked ?? false,
       certificateHoldingPhotoUrl: candidateData.certificateHoldingPhotoUrl,
@@ -796,11 +817,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       queries: []
     };
 
+    // Optimistic local state update
     setCandidates(prev => [newCandidate, ...prev]);
 
-    // Asynchronously synchronize with Supabase Cloud Database
-    upsertCandidateToSupabase(newCandidate).catch(err => {
-      console.warn('[Supabase] Candidate sync warning:', err);
+    // DIRECT CLOUD DATABASE WRITE: Executed immediately to Supabase
+    insertCandidateToSupabase(newCandidate).then(res => {
+      if (res.success && res.data) {
+        setCandidates(prev => {
+          const idx = prev.findIndex(c => c.id === newCandidate.id);
+          if (idx >= 0) {
+            const copy = [...prev];
+            copy[idx] = res.data!;
+            return copy;
+          }
+          return [res.data!, ...prev];
+        });
+        showToast(`✓ Candidate ${newCandidate.fullName} saved to Supabase cloud!`);
+      } else {
+        console.warn('[Supabase Cloud Warning]', res.error);
+        showToast(`⚠️ Cloud Warning: ${res.error || 'Failed to save to Supabase'}`);
+      }
+    }).catch(err => {
+      console.error('[Supabase Cloud Write Error]', err);
+      showToast(`⚠️ Could not reach Supabase cloud: ${err?.message || 'Network error'}`);
     });
 
     // Update batch enrolled count
@@ -818,7 +857,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       prev.map(emp => (emp.id === currentPersona.id ? { ...emp, monthlyAchieved: emp.monthlyAchieved + 1 } : emp))
     );
 
-    showToast(`Candidate ${newCandidate.fullName} registered successfully! Dossier initialized.`);
     return newCandidate;
   };
 
@@ -883,19 +921,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: false, submittedCount: 0, missingCandidates };
     }
 
+    const dispatched: Candidate[] = [];
     setCandidates(prev =>
       prev.map(c => {
         const isTarget = targetCandidates.some(tc => tc.id === c.id);
         if (isTarget) {
-          return {
+          const updated = {
             ...c,
-            status: 'Pending PO Review',
+            status: 'Pending PO Review' as const,
             isLocked: true
           };
+          dispatched.push(updated);
+          return updated;
         }
         return c;
       })
     );
+
+    // Direct Cloud Write: Sync dispatched batch candidates to Supabase
+    if (dispatched.length > 0) {
+      upsertCandidatesBulk(dispatched).catch(err => {
+        console.warn('[Supabase] Dispatch sync warning:', err);
+      });
+    }
 
     // Update batch status to Audit Underway
     setBatches(prev =>
@@ -923,13 +971,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCandidates(prev =>
       prev.map(c => {
         if (c.id === candidateId) {
-          return {
+          const updated = {
             ...c,
-            status: 'Returned for Correction',
+            status: 'Returned for Correction' as const,
             isLocked: false,
             poCorrectionRemarks: comment,
             queries: [newQuery, ...c.queries]
           };
+          upsertCandidateToSupabase(updated).catch(err => {
+            console.warn('[Supabase] Query sync warning:', err);
+          });
+          return updated;
         }
         return c;
       })
@@ -953,13 +1005,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               : q
           );
           const hasRemainingOpen = updatedQueries.some(q => q.status === 'Open');
-          return {
+          const updated = {
             ...c,
             queries: updatedQueries,
-            status: hasRemainingOpen ? 'Returned for Correction' : 'Pending PO Review',
+            status: (hasRemainingOpen ? 'Returned for Correction' : 'Pending PO Review') as Candidate['status'],
             isLocked: !hasRemainingOpen,
             poCorrectionRemarks: hasRemainingOpen ? c.poCorrectionRemarks : undefined
           };
+          upsertCandidateToSupabase(updated).catch(err => {
+            console.warn('[Supabase] Resolve query sync warning:', err);
+          });
+          return updated;
         }
         return c;
       })
@@ -975,9 +1031,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCandidates(prev =>
       prev.map(c => {
         if (c.id === candidateId) {
-          return {
+          const updated = {
             ...c,
-            status: 'PENDING_SM_REVIEW',
+            status: 'PENDING_SM_REVIEW' as const,
             isLocked: true,
             poApprovedBy: reviewerName,
             poApprovedAt: nowIso,
@@ -987,6 +1043,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             greenSignalBy: `${reviewerName} (${currentPersona?.role || 'PO'})`,
             greenSignalAt: nowFormatted
           };
+          upsertCandidateToSupabase(updated).catch(err => {
+            console.warn('[Supabase] Green signal sync warning:', err);
+          });
+          return updated;
         }
         return c;
       })
@@ -998,12 +1058,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCandidates(prev =>
       prev.map(c => {
         if (c.id === candidateId) {
-          return {
+          const updated = {
             ...c,
-            status: 'Senior Manager QC Passed',
+            status: 'Senior Manager QC Passed' as const,
             apmApprovedBy: `${currentPersona.name} (Senior Manager)`,
             apmApprovedAt: new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })
           };
+          upsertCandidateToSupabase(updated).catch(err => {
+            console.warn('[Supabase] APM QC sync warning:', err);
+          });
+          return updated;
         }
         return c;
       })
@@ -1018,13 +1082,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCandidates(prev =>
       prev.map(c => {
         if (c.id === candidateId) {
-          return {
+          const updated = {
             ...c,
-            status: 'Certified & Dispatched',
+            status: 'Certified & Dispatched' as const,
             certificateNumber: certNum,
             certificateIssuedDate: today,
             dispatchedAt: new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })
           };
+          upsertCandidateToSupabase(updated).catch(err => {
+            console.warn('[Supabase] Dispatch sync warning:', err);
+          });
+          return updated;
         }
         return c;
       })
@@ -1034,19 +1102,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // --- BATCH & PHOTO METHODS ---
   const updateBatchAttendance = (batchId: string, attendanceMap: Record<string, AttendanceStatus>) => {
+    const updatedCandidates: Candidate[] = [];
     setCandidates(prev =>
       prev.map(c => {
         if (c.batchId === batchId && attendanceMap[c.id]) {
-          return { ...c, attendanceStatus: attendanceMap[c.id] };
+          const updated = { ...c, attendanceStatus: attendanceMap[c.id] };
+          updatedCandidates.push(updated);
+          return updated;
         }
         return c;
       })
     );
 
+    if (updatedCandidates.length > 0) {
+      upsertCandidatesBulk(updatedCandidates).catch(err => {
+        console.warn('[Supabase] Attendance sync warning:', err);
+      });
+    }
+
     const presentCount = Object.values(attendanceMap).filter(v => v === 'Present' || v === 'Late').length;
-    setBatches(prev =>
-      prev.map(b => (b.id === batchId ? { ...b, presentCount } : b))
-    );
+    setBatches(prev => {
+      const next = prev.map(b => (b.id === batchId ? { ...b, presentCount } : b));
+      const targetBatch = next.find(b => b.id === batchId);
+      if (targetBatch) {
+        upsertBatchToSupabase(targetBatch).catch(() => {});
+      }
+      return next;
+    });
 
     showToast('Batch classroom attendance roll-call saved successfully.');
   };
@@ -1061,8 +1143,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const timestamp = new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'medium' }) + ' IST';
 
     if (photoType === 'classroom') {
-      setBatches(prev =>
-        prev.map(b =>
+      setBatches(prev => {
+        const next = prev.map(b =>
           b.id === batchId
             ? {
                 ...b,
@@ -1071,12 +1153,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 classroomPhotoGps: gpsStamp
               }
             : b
-        )
-      );
+        );
+        const targetBatch = next.find(b => b.id === batchId);
+        if (targetBatch) {
+          upsertBatchToSupabase(targetBatch).catch(() => {});
+        }
+        return next;
+      });
       showToast('Live classroom session group photo uploaded with auto-stamped GPS & time!');
     } else if (photoType === 'driverId' && candidateId) {
       setCandidates(prev =>
-        prev.map(c => (c.id === candidateId ? { ...c, driverHoldingIdUrl: photoUrl } : c))
+        prev.map(c => {
+          if (c.id === candidateId) {
+            const updated = { ...c, driverHoldingIdUrl: photoUrl };
+            upsertCandidateToSupabase(updated).catch(() => {});
+            return updated;
+          }
+          return c;
+        })
       );
       showToast('Driver holding ID photo uploaded & stamped!');
     }
@@ -1727,20 +1821,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const resetAllData = () => {
-    localStorage.removeItem('dbs_persona');
-    localStorage.removeItem('dbs_candidates');
-    localStorage.removeItem('dbs_batches');
-    localStorage.removeItem('dbs_consumables');
-    localStorage.removeItem('dbs_transactions');
-    localStorage.removeItem('dbs_employees');
-    localStorage.removeItem('dbs_leaves');
-    localStorage.removeItem('dbs_tours');
-    localStorage.removeItem('dbs_expenses');
-    localStorage.removeItem('dbs_expense_claims');
+    localStorage.clear();
+    sessionStorage.clear();
+    safeLocalStorageSet('dbs_batches', JSON.stringify([]));
 
     setCurrentPersona(INITIAL_PERSONAS[0]);
-    setCandidates(INITIAL_CANDIDATES);
-    setBatches(INITIAL_BATCHES);
+    setCandidates([]);
+    setBatches([]);
     setConsumables(INITIAL_CONSUMABLES);
     setTransactions(INITIAL_TRANSACTIONS);
     setEmployees(INITIAL_EMPLOYEES);
@@ -1753,7 +1840,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       console.warn('[Supabase] Cloud purge on reset error:', err);
     });
 
-    showToast('System data reset to initial demo configuration.');
+    showToast('Platform data reset to zero-state.');
   };
 
   return (

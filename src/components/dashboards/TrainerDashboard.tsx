@@ -1576,8 +1576,10 @@ export const TrainerDashboard: React.FC = () => {
 
               <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80">
                 <span className="text-slate-400 block text-[10px] uppercase font-bold">Monthly Target</span>
-                <strong className="text-slate-900 text-sm mt-0.5 block">{currentEmp?.monthlyAchieved || 540} / {currentEmp?.monthlyTarget || 600}</strong>
-                <span className="text-[10px] text-emerald-600 font-bold">90% Drivers Trained</span>
+                <strong className="text-slate-900 text-sm mt-0.5 block">{currentEmp?.monthlyAchieved ?? 0} / {currentEmp?.monthlyTarget || 600}</strong>
+                <span className="text-[10px] text-emerald-600 font-bold">
+                  {currentEmp?.monthlyTarget ? Math.round(((currentEmp?.monthlyAchieved || 0) / currentEmp.monthlyTarget) * 100) : 0}% Drivers Trained
+                </span>
               </div>
             </div>
 

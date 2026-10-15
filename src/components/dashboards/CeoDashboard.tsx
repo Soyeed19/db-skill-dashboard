@@ -127,10 +127,11 @@ export const CeoDashboard: React.FC = () => {
         auditScore: 88 + (index % 10)
       };
 
-      // Add real candidates if matching center
-      const actualEnrolled = centerCandidates.length > 0 ? preset.enrolled + centerCandidates.length : preset.enrolled;
+      // Real candidate numbers strictly from Supabase cloud database
+      const actualEnrolled = centerCandidates.length;
+      const actualCertified = centerCandidates.filter(c => c.status === 'Certified & Dispatched').length;
       const actualTarget = preset.target;
-      const targetPercent = Math.round((actualEnrolled / actualTarget) * 100);
+      const targetPercent = actualTarget > 0 ? Math.round((actualEnrolled / actualTarget) * 100) : 0;
 
       // Defect tickets
       const openDefects = centerTickets.length > 0 ? centerTickets.length : preset.defects;
@@ -170,7 +171,7 @@ export const CeoDashboard: React.FC = () => {
         apmName: center.apmName || 'Siddharth Nair',
         targetDrivers: actualTarget,
         enrolledDrivers: actualEnrolled,
-        certifiedDrivers: preset.certified,
+        certifiedDrivers: actualCertified,
         targetPercent,
         openDefects,
         staffPresence,
@@ -239,7 +240,7 @@ export const CeoDashboard: React.FC = () => {
     return {
       activeCentersCount: centers.length,
       statesCount,
-      totalCertifiedMtd: totalCertified > 0 ? totalCertified : 4820,
+      totalCertifiedMtd: totalCertified,
       totalEnrolled,
       totalTargets,
       trainingPassRate: avgPassYield,

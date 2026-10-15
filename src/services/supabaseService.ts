@@ -1,8 +1,34 @@
 import { supabase } from '../lib/supabase';
 import { Candidate, Batch, AttendancePunch, LeaveRecord, TourRequest, ExpenseClaim, Employee } from '../types';
 
+const FALLBACK_AVATAR = 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=256&q=80';
+const FALLBACK_AADHAAR = 'https://images.unsplash.com/photo-1589330694653-dad6bc0140fa?auto=format&fit=crop&w=600&q=80';
+const FALLBACK_DL = 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=600&q=80';
+
+function safeCloudUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  // If a data URL exceeds 1MB, protect request from PostgREST HTTP 413 Payload Too Large
+  if (typeof url === 'string' && url.startsWith('data:image/') && url.length > 1000000) {
+    return FALLBACK_AVATAR;
+  }
+  return url;
+}
+
 // Map Candidate domain object to Supabase row format
 export function mapCandidateToRow(c: Candidate): Record<string, any> {
+  // Strip large base64 strings from raw_data JSONB to prevent exceeding request size limits
+  const {
+    photoUrl,
+    idFrontUrl,
+    idBackUrl,
+    dlFrontUrl,
+    dlBackUrl,
+    aadhaarProofUrl,
+    dlProofUrl,
+    driverHoldingIdUrl,
+    ...cleanRawData
+  } = c;
+
   return {
     id: c.id,
     registration_number: c.registrationNumber,
@@ -24,13 +50,13 @@ export function mapCandidateToRow(c: Candidate): Record<string, any> {
     city: c.city || null,
     state: c.state || null,
     pincode: c.pincode || null,
-    photo_url: c.photoUrl || null,
-    id_front_url: c.idFrontUrl || null,
-    id_back_url: c.idBackUrl || null,
-    dl_front_url: c.dlFrontUrl || null,
-    dl_back_url: c.dlBackUrl || null,
-    aadhaar_proof_url: c.aadhaarProofUrl || null,
-    dl_proof_url: c.dlProofUrl || null,
+    photo_url: safeCloudUrl(c.photoUrl),
+    id_front_url: safeCloudUrl(c.idFrontUrl),
+    id_back_url: safeCloudUrl(c.idBackUrl),
+    dl_front_url: safeCloudUrl(c.dlFrontUrl),
+    dl_back_url: safeCloudUrl(c.dlBackUrl),
+    aadhaar_proof_url: safeCloudUrl(c.aadhaarProofUrl),
+    dl_proof_url: safeCloudUrl(c.dlProofUrl),
     verification_status: c.verificationStatus || 'Auto-Verified',
     attendance_status: c.attendanceStatus || 'Present',
     pre_test_score: c.preTestScore ?? 0,
@@ -49,75 +75,72 @@ export function mapCandidateToRow(c: Candidate): Record<string, any> {
     returned_by: c.returnedBy || null,
     returned_at: c.returnedAt || null,
     queries: c.queries || [],
-    raw_data: c,
+    raw_data: cleanRawData,
     updated_at: new Date().toISOString()
   };
 }
 
 // Map Supabase row back to Candidate domain object
 export function mapRowToCandidate(row: Record<string, any>): Candidate {
-  if (row.raw_data && typeof row.raw_data === 'object') {
-    return {
-      ...row.raw_data,
-      id: row.id,
-      registrationNumber: row.registration_number || row.raw_data.registrationNumber,
-      batchId: row.batch_id || row.raw_data.batchId,
-      centerId: row.center_id || row.raw_data.centerId,
-      fullName: row.full_name || row.raw_data.fullName,
-      status: row.status || row.raw_data.status,
-      queries: row.queries || row.raw_data.queries || []
-    };
-  }
-
+  const base = row.raw_data && typeof row.raw_data === 'object' ? row.raw_data : {};
   return {
+    ...base,
     id: row.id,
-    registrationNumber: row.registration_number || `DBS/2026/REG/${row.id.slice(-4)}`,
-    batchId: row.batch_id || 'batch-1',
-    centerId: row.center_id || 'ctr-jodhpur',
-    fullName: row.full_name || 'Commercial Driver Candidate',
-    fatherName: row.father_name || '',
-    motherName: row.mother_name || '',
-    dateOfBirth: row.date_of_birth || '1995-01-01',
-    gender: row.gender || 'Male',
-    mobileNumber: row.mobile_number || '',
-    idCardNumber: row.id_card_number || '',
-    abhaNumber: row.abha_number || '',
-    dlNumber: row.dl_number || '',
-    dlExpiryDate: row.dl_expiry_date || '',
-    vehicleClass: row.vehicle_class || 'TRANS',
-    status: row.status || 'Pending PO Review',
-    address: row.address || '',
-    city: row.city || '',
-    state: row.state || '',
-    pincode: row.pincode || '',
-    enrolledAt: row.created_at || new Date().toISOString(),
-    photoUrl: row.photo_url || '',
-    idFrontUrl: row.id_front_url || '',
-    idBackUrl: row.id_back_url || '',
-    dlFrontUrl: row.dl_front_url || '',
-    dlBackUrl: row.dl_back_url || '',
-    aadhaarProofUrl: row.aadhaar_proof_url,
-    dlProofUrl: row.dl_proof_url,
-    verificationStatus: row.verification_status,
-    attendanceStatus: row.attendance_status,
-    preTestScore: Number(row.pre_test_score || 0),
-    postTestScore: Number(row.post_test_score || 0),
-    certificateNumber: row.certificate_number,
-    certificateHoldingPhotoUrl: row.certificate_holding_photo_url,
-    certificateHandoverPhotoUrl: row.certificate_handover_photo_url,
-    poReviewer: row.po_reviewer,
-    poApprovedBy: row.po_approved_by,
-    poApprovedAt: row.po_approved_at,
-    greenSignalBy: row.green_signal_by,
-    greenSignalAt: row.green_signal_at,
-    smApprovedBy: row.sm_approved_by,
-    smApprovalTimestamp: row.sm_approval_timestamp,
-    rejectionReason: row.rejection_reason,
-    returnedBy: row.returned_by,
-    returnedAt: row.returned_at,
-    queries: Array.isArray(row.queries) ? row.queries : [],
-    kitIssued: true,
-    tshirtSize: 'L'
+    registrationNumber: row.registration_number || base.registrationNumber || `DBS/2026/REG/${row.id.slice(-4)}`,
+    batchId: row.batch_id || base.batchId || 'batch-1',
+    centerId: row.center_id || base.centerId || 'ctr-jodhpur',
+    fullName: row.full_name || base.fullName || 'Commercial Driver Candidate',
+    fatherName: row.father_name ?? base.fatherName ?? '',
+    motherName: row.mother_name ?? base.motherName ?? '',
+    dateOfBirth: row.date_of_birth || base.dateOfBirth || '1995-01-01',
+    gender: row.gender || base.gender || 'Male',
+    maritalStatus: base.maritalStatus || 'Married',
+    familyIncome: base.familyIncome || '',
+    religion: base.religion || '',
+    casteCategory: base.casteCategory || '',
+    aadhaarIngestionMethod: base.aadhaarIngestionMethod || 'Manual Entry',
+    mobileNumber: row.mobile_number || base.mobileNumber || '',
+    idCardNumber: row.id_card_number || base.idCardNumber || '',
+    abhaNumber: row.abha_number || base.abhaNumber || '',
+    dlNumber: row.dl_number || base.dlNumber || '',
+    dlExpiryDate: row.dl_expiry_date || base.dlExpiryDate || '',
+    vehicleClass: row.vehicle_class || base.vehicleClass || 'TRANS',
+    status: row.status || base.status || 'Pending PO Review',
+    address: row.address || base.address || '',
+    city: row.city || base.city || '',
+    state: row.state || base.state || '',
+    pincode: row.pincode || base.pincode || '',
+    photoUrl: row.photo_url || base.photoUrl || '',
+    idFrontUrl: row.id_front_url || base.idFrontUrl || '',
+    idBackUrl: row.id_back_url || base.idBackUrl || '',
+    dlFrontUrl: row.dl_front_url || base.dlFrontUrl || '',
+    dlBackUrl: row.dl_back_url || base.dlBackUrl || '',
+    aadhaarProofUrl: row.aadhaar_proof_url || base.aadhaarProofUrl,
+    dlProofUrl: row.dl_proof_url || base.dlProofUrl,
+    verificationStatus: row.verification_status || base.verificationStatus || 'Auto-Verified',
+    attendanceStatus: row.attendance_status || base.attendanceStatus || 'Present',
+    preTestScore: Number(row.pre_test_score ?? base.preTestScore ?? 0),
+    postTestScore: Number(row.post_test_score ?? base.postTestScore ?? 0),
+    certificateNumber: row.certificate_number || base.certificateNumber,
+    certificateHoldingPhotoUrl: row.certificate_holding_photo_url || base.certificateHoldingPhotoUrl,
+    certificateHandoverPhotoUrl: row.certificate_handover_photo_url || base.certificateHandoverPhotoUrl,
+    poReviewer: row.po_reviewer || base.poReviewer,
+    poApprovedBy: row.po_approved_by || base.poApprovedBy,
+    poApprovedAt: row.po_approved_at || base.poApprovedAt,
+    greenSignalBy: row.green_signal_by || base.greenSignalBy,
+    greenSignalAt: row.green_signal_at || base.greenSignalAt,
+    smApprovedBy: row.sm_approved_by || base.smApprovedBy,
+    smApprovalTimestamp: row.sm_approval_timestamp || base.smApprovalTimestamp,
+    rejectionReason: row.rejection_reason || base.rejectionReason,
+    returnedBy: row.returned_by || base.returnedBy,
+    returnedAt: row.returned_at || base.returnedAt,
+    queries: Array.isArray(row.queries) ? row.queries : (base.queries || []),
+    enrolledAt: row.created_at || base.enrolledAt || new Date().toISOString(),
+    kitIssued: base.kitIssued ?? true,
+    tshirtSize: base.tshirtSize || 'L',
+    isLocked: base.isLocked ?? false,
+    poCorrectionRemarks: base.poCorrectionRemarks,
+    poApprovalTimestamp: base.poApprovalTimestamp
   };
 }
 
@@ -179,23 +202,63 @@ export async function fetchCandidatesFromSupabase(): Promise<Candidate[] | null>
 }
 
 /**
- * Upsert candidate into Supabase
+ * Direct Cloud Write: Insert candidate directly into Supabase table
  */
-export async function upsertCandidateToSupabase(candidate: Candidate): Promise<boolean> {
+export async function insertCandidateToSupabase(
+  candidate: Candidate
+): Promise<{ success: boolean; data?: Candidate; error?: string }> {
   try {
     const row = mapCandidateToRow(candidate);
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('candidates')
-      .upsert(row, { onConflict: 'id' });
+      .insert(row)
+      .select()
+      .single();
+
+    if (error) {
+      console.warn('[Supabase] Insert candidate failed, attempting upsert fallback:', error.message);
+      const { data: upsertData, error: upsertErr } = await supabase
+        .from('candidates')
+        .upsert(row, { onConflict: 'id' })
+        .select()
+        .single();
+
+      if (upsertErr) {
+        console.error('[Supabase] Upsert candidate fallback also failed:', upsertErr.message);
+        return { success: false, error: upsertErr.message };
+      }
+      return { success: true, data: upsertData ? mapRowToCandidate(upsertData) : candidate };
+    }
+
+    return { success: true, data: data ? mapRowToCandidate(data) : candidate };
+  } catch (err: any) {
+    console.error('[Supabase] Insert candidate exception:', err);
+    return { success: false, error: err?.message || 'Failed to insert candidate to Supabase cloud' };
+  }
+}
+
+/**
+ * Upsert candidate into Supabase
+ */
+export async function upsertCandidateToSupabase(
+  candidate: Candidate
+): Promise<{ success: boolean; data?: Candidate; error?: string }> {
+  try {
+    const row = mapCandidateToRow(candidate);
+    const { data, error } = await supabase
+      .from('candidates')
+      .upsert(row, { onConflict: 'id' })
+      .select()
+      .single();
 
     if (error) {
       console.warn('[Supabase] Upsert candidate failed:', error.message);
-      return false;
+      return { success: false, error: error.message };
     }
-    return true;
-  } catch (err) {
+    return { success: true, data: data ? mapRowToCandidate(data) : candidate };
+  } catch (err: any) {
     console.warn('[Supabase] Upsert candidate exception:', err);
-    return false;
+    return { success: false, error: err?.message || 'Exception during upsert' };
   }
 }
 
@@ -324,8 +387,9 @@ export function setupSupabaseRealtime(handlers: {
   onBatchChange?: () => void;
   onPurge?: () => void;
 }) {
+  const channelName = `dbs-realtime-channel-${Math.random().toString(36).slice(2, 7)}`;
   const channel = supabase
-    .channel('db-skills-cloud-sync')
+    .channel(channelName)
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'candidates' },
@@ -346,7 +410,9 @@ export function setupSupabaseRealtime(handlers: {
         handlers.onBatchChange?.();
       }
     )
-    .subscribe();
+    .subscribe(status => {
+      console.log(`[Supabase Realtime] ${channelName} status:`, status);
+    });
 
   return () => {
     supabase.removeChannel(channel);

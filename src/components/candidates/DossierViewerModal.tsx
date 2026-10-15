@@ -87,7 +87,7 @@ export const DossierViewerModal: React.FC<DossierViewerModalProps> = ({
         {/* Top Bar */}
         <div className="bg-[#007A3D] text-white px-5 py-3 flex items-center justify-between shrink-0 border-b border-[#005C2E]">
           <div className="flex items-center gap-3">
-            {candidate.photoUrl && (
+            {Boolean(candidate.photoUrl) && (
               <img
                 src={candidate.photoUrl}
                 alt={candidate.fullName}

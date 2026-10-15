@@ -52,46 +52,16 @@ interface MonthlyDataPoint {
   threeWheeler: number;
 }
 
-// Center-specific baseline profiles for the last 6 months (Apr 2026 - Sep 2026)
-const CENTER_HISTORICAL_BASELINES: Record<
-  string,
-  {
-    targetBase: number;
-    enrolledBase: number[];
-    certifiedBase: number[];
-    queriesBase: number[];
-    vehicleSplit: { lmv: number; trans: number; hmv: number; hgmv: number; threeWheeler: number };
-  }
-> = {
-  'ctr-jodhpur': {
-    targetBase: 600,
-    enrolledBase: [482, 514, 540, 562, 588, 512],
-    certifiedBase: [456, 490, 518, 539, 564, 480],
-    queriesBase: [26, 24, 22, 23, 24, 32],
-    vehicleSplit: { trans: 0.42, hmv: 0.28, lmv: 0.16, hgmv: 0.10, threeWheeler: 0.04 }
-  },
-  'ctr-delhi': {
-    targetBase: 650,
-    enrolledBase: [530, 560, 592, 615, 638, 570],
-    certifiedBase: [505, 538, 570, 592, 615, 542],
-    queriesBase: [25, 22, 22, 23, 23, 28],
-    vehicleSplit: { trans: 0.35, lmv: 0.30, hmv: 0.20, hgmv: 0.10, threeWheeler: 0.05 }
-  },
-  'ctr-mumbai': {
-    targetBase: 550,
-    enrolledBase: [465, 492, 510, 525, 548, 495],
-    certifiedBase: [445, 472, 490, 502, 526, 470],
-    queriesBase: [20, 20, 20, 23, 22, 25],
-    vehicleSplit: { trans: 0.38, lmv: 0.25, hmv: 0.22, hgmv: 0.10, threeWheeler: 0.05 }
-  },
-  'ctr-bengaluru': {
-    targetBase: 550,
-    enrolledBase: [440, 468, 475, 510, 522, 480],
-    certifiedBase: [420, 448, 456, 488, 501, 455],
-    queriesBase: [20, 20, 19, 22, 21, 25],
-    vehicleSplit: { trans: 0.40, lmv: 0.28, hmv: 0.18, hgmv: 0.09, threeWheeler: 0.05 }
-  }
-};
+// Helper to extract year-month key ('YYYY-MM') from candidate record
+function getCandidateMonthKey(c: Candidate): string {
+  const raw = c.enrolledAt || (c as any).created_at || (c as any).createdAt || c.trainingDate;
+  if (!raw) return '';
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
+}
 
 export const CenterEnrollmentTrendsChart: React.FC<CenterEnrollmentTrendsChartProps> = ({
   activeCenter,
@@ -102,73 +72,78 @@ export const CenterEnrollmentTrendsChart: React.FC<CenterEnrollmentTrendsChartPr
   const [timeRange, setTimeRange] = useState<'6m' | '3m'>('6m');
   const [isExpanded, setIsExpanded] = useState<boolean>(true);
 
-  // Month labels for the last 6 months up to current date (Sep 2026)
-  const monthLabels = useMemo(
-    () => [
-      { name: 'Apr 2026', short: 'Apr', days: 30, targetMult: 0.9 },
-      { name: 'May 2026', short: 'May', days: 31, targetMult: 0.95 },
-      { name: 'Jun 2026', short: 'Jun', days: 30, targetMult: 0.95 },
-      { name: 'Jul 2026', short: 'Jul', days: 31, targetMult: 1.0 },
-      { name: 'Aug 2026', short: 'Aug', days: 31, targetMult: 1.0 },
-      { name: 'Sep 2026', short: 'Sep (MTD)', days: 23, targetMult: 1.0 }
-    ],
-    []
-  );
+  // Month buckets for the last 6 months (chronological order)
+  const monthBuckets = useMemo(() => {
+    const now = new Date();
+    let refYear = now.getFullYear();
+    let refMonth = now.getMonth();
+    // Default to at least 2026 if system runtime clock is 2026
+    if (refYear < 2026) {
+      refYear = 2026;
+      refMonth = 8; // September
+    }
 
-  // Generate dynamic 6-month historical trend data tailored to the active center
+    const list: Array<{ key: string; name: string; short: string; year: number; monthIndex: number }> = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(refYear, refMonth - i, 1);
+      const y = d.getFullYear();
+      const m = d.getMonth();
+      const key = `${y}-${String(m + 1).padStart(2, '0')}`;
+      const name = d.toLocaleString('en-IN', { month: 'short', year: 'numeric' });
+      const short = d.toLocaleString('en-IN', { month: 'short' });
+      list.push({ key, name, short, year: y, monthIndex: m });
+    }
+    return list;
+  }, []);
+
+  // Dynamically aggregate real candidates from connected Supabase table by timestamp
   const trendData = useMemo<MonthlyDataPoint[]>(() => {
-    const fallbackProfile = {
-      targetBase: 500,
-      enrolledBase: [410, 435, 450, 480, 492, 440],
-      certifiedBase: [390, 415, 430, 460, 472, 418],
-      queriesBase: [20, 20, 20, 20, 20, 22],
-      vehicleSplit: { trans: 0.4, hmv: 0.25, lmv: 0.2, hgmv: 0.1, threeWheeler: 0.05 }
-    };
+    const baseTarget = activeCenter.code === 'DL-02' ? 650 : 600;
 
-    const profile = CENTER_HISTORICAL_BASELINES[activeCenter.id] || fallbackProfile;
-    const baseTarget = profile.targetBase;
+    const data: MonthlyDataPoint[] = monthBuckets.map((m, idx) => {
+      const isCurrentMonth = idx === monthBuckets.length - 1;
+      const target = baseTarget;
 
-    // Current live certified count and open queries for September
-    const liveEnrolledCount = centerCandidates.length;
-    const liveCertifiedCount = centerCandidates.filter(c => c.status === 'Certified & Dispatched').length;
-    const liveQueriesCount = centerCandidates.filter(c => c.queries.some(q => q.status === 'Open')).length;
+      // Filter real candidate dossiers strictly belonging to this center and matching this month bucket
+      const monthCandidates = centerCandidates.filter(c => {
+        const key = getCandidateMonthKey(c);
+        if (key) {
+          return key === m.key;
+        }
+        // If candidate date is unparsable, only place into the current month bucket
+        return isCurrentMonth;
+      });
 
-    const data: MonthlyDataPoint[] = monthLabels.map((m, idx) => {
-      const isCurrentMonth = idx === monthLabels.length - 1;
-      const target = Math.round(baseTarget * m.targetMult);
+      const enrolled = monthCandidates.length;
+      const certified = monthCandidates.filter(c => c.status === 'Certified & Dispatched').length;
+      const queries = monthCandidates.filter(c => c.queries && c.queries.some(q => q.status === 'Open')).length;
+      const achievementRate = target > 0 ? Math.round((enrolled / target) * 100) : 0;
 
-      let enrolled = profile.enrolledBase[idx];
-      let certified = profile.certifiedBase[idx];
-      let queries = profile.queriesBase[idx];
-
-      // Blend real-time live active candidates for September 2026
-      if (isCurrentMonth) {
-        enrolled = profile.enrolledBase[idx] + liveEnrolledCount;
-        certified = profile.certifiedBase[idx] + liveCertifiedCount;
-        queries = profile.queriesBase[idx] + liveQueriesCount;
-      }
-
-      const achievementRate = Math.round((enrolled / target) * 100);
+      const trans = monthCandidates.filter(c => c.vehicleClass === 'TRANS').length;
+      const hmv = monthCandidates.filter(c => c.vehicleClass === 'HMV').length;
+      const lmv = monthCandidates.filter(c => c.vehicleClass === 'LMV-TR').length;
+      const hgmv = monthCandidates.filter(c => c.vehicleClass === 'HGMV').length;
+      const threeWheeler = monthCandidates.filter(c => c.vehicleClass === '3W-CAB').length;
 
       return {
         month: m.name,
         monthShort: m.short,
-        year: 2026,
+        year: m.year,
         target,
         enrolled,
         certified,
         queriesRaised: queries,
         achievementRate,
-        trans: Math.round(enrolled * profile.vehicleSplit.trans),
-        hmv: Math.round(enrolled * profile.vehicleSplit.hmv),
-        lmv: Math.round(enrolled * profile.vehicleSplit.lmv),
-        hgmv: Math.round(enrolled * profile.vehicleSplit.hgmv),
-        threeWheeler: Math.round(enrolled * profile.vehicleSplit.threeWheeler)
+        trans,
+        hmv,
+        lmv,
+        hgmv,
+        threeWheeler
       };
     });
 
     return timeRange === '3m' ? data.slice(-3) : data;
-  }, [activeCenter.id, centerCandidates, monthLabels, timeRange]);
+  }, [activeCenter.code, centerCandidates, monthBuckets, timeRange]);
 
   // Aggregate stats across the visible period
   const totalEnrolled = useMemo(() => trendData.reduce((acc, d) => acc + d.enrolled, 0), [trendData]);
@@ -415,7 +390,7 @@ export const CenterEnrollmentTrendsChart: React.FC<CenterEnrollmentTrendsChartPr
 
             <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200/80">
               <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 block">
-                Sep 2026 Live Trainees
+                {trendData[trendData.length - 1]?.monthShort || 'Current Month'} Live Trainees
               </span>
               <div className="flex items-baseline gap-1 mt-0.5">
                 <span className="text-xl font-extrabold text-amber-950">
@@ -424,10 +399,20 @@ export const CenterEnrollmentTrendsChart: React.FC<CenterEnrollmentTrendsChartPr
                 <span className="text-xs font-bold text-amber-700">Enrolled</span>
               </div>
               <span className="text-[10px] text-amber-800 font-medium">
-                Includes {centerCandidates.length} live dossier registrations
+                {centerCandidates.length === 0 ? '0 live dossier registrations' : `Includes ${centerCandidates.length} live dossier registrations`}
               </span>
             </div>
           </div>
+
+          {/* Zero-State Real-Time Notification */}
+          {centerCandidates.length === 0 && (
+            <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-600">
+              <Info className="w-4 h-4 text-teal-700 shrink-0" />
+              <span>
+                <strong>Connected Supabase Cloud Database:</strong> Zero candidate dossiers currently registered for <strong>{activeCenter.name}</strong>. All metric cards accurately reflect real-time zero-state.
+              </span>
+            </div>
+          )}
 
           {/* Recharts Canvas */}
           <div className="w-full h-72 sm:h-80 pt-2">

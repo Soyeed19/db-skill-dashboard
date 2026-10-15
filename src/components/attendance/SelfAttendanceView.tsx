@@ -58,7 +58,7 @@ export const SelfAttendanceView: React.FC = () => {
                       className="w-12 h-12 rounded-xs overflow-hidden cursor-pointer border border-slate-300 hover:border-slate-400 transition-all relative group shadow-2xs bg-slate-100"
                     >
                       <img
-                        src={punch.photoWithWatermark}
+                        src={punch.photoWithWatermark || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80'}
                         alt="Watermark Selfie"
                         className="w-full h-full object-cover"
                         onError={(e) => {

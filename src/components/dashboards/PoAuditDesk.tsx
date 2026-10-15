@@ -479,7 +479,7 @@ export const PoAuditDesk: React.FC<PoAuditDeskProps> = ({ initialCenterId }) => 
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-2.5">
                           <img
-                            src={c.photoUrl}
+                            src={c.photoUrl || 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=256&q=80'}
                             alt={c.fullName}
                             className="w-10 h-10 rounded-xl object-cover border border-slate-200 shrink-0"
                           />

@@ -211,23 +211,10 @@ export function purgeLegacyTestCache(): void {
 export function initSafeStorageSelfHealing(): void {
   purgeLegacyTestCache();
   try {
-    const raw = localStorage.getItem('dbs_candidates');
-    if (raw && raw.length > 80000) {
-      try {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          const sanitized = sanitizeCandidateListForStorage(parsed);
-          try {
-            localStorage.setItem('dbs_candidates', JSON.stringify(sanitized));
-          } catch {
-            localStorage.removeItem('dbs_candidates');
-          }
-        }
-      } catch {
-        // If unparseable or severely corrupted, remove it
-        localStorage.removeItem('dbs_candidates');
-      }
-    }
+    // Candidates are cloud-only (Supabase PostgreSQL); remove any leftover keys from localStorage
+    localStorage.removeItem('dbs_candidates');
+    localStorage.removeItem('dbsl_candidates');
+    localStorage.removeItem('dbs_candidate_enrollments');
     evictBloatedStorage();
   } catch (err) {
     console.warn('[SafeStorage] Self-healing initial check completed with notice:', err);

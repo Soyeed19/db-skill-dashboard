@@ -492,7 +492,7 @@ export const PoDashboard: React.FC = () => {
                             Attached Photo Evidence
                           </span>
                           <img
-                            src={ticket.photoUrl}
+                            src={ticket.photoUrl || 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=256&q=80'}
                             alt={ticket.title}
                             className="w-full h-32 rounded-xl object-cover border border-slate-200 cursor-pointer hover:opacity-95 transition-opacity"
                             onClick={() => setInspectPhotoUrl(ticket.photoUrl || null)}
@@ -813,11 +813,13 @@ export const PoDashboard: React.FC = () => {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <img
-              src={inspectPhotoUrl}
-              alt="Maintenance Proof"
-              className="w-full max-h-[70vh] rounded-2xl object-contain bg-slate-900"
-            />
+            {inspectPhotoUrl && (
+              <img
+                src={inspectPhotoUrl}
+                alt="Maintenance Proof"
+                className="w-full max-h-[70vh] rounded-2xl object-contain bg-slate-900"
+              />
+            )}
           </div>
         </div>
       )}
