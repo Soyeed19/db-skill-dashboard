@@ -35,6 +35,7 @@ import { useApp } from '../../context/AppContext';
 import { Center } from '../../types';
 import { exportNationalMasterAuditDossier, NationalLeagueItem } from '../../utils/excelExporter';
 import { CreateHubModal, isAuthorizedForHubCreation } from '../CreateHubModal';
+import { purgeAllDataFromSupabase } from '../../services/supabaseService';
 
 export const CeoDashboard: React.FC = () => {
   const {
@@ -437,6 +438,14 @@ export const CeoDashboard: React.FC = () => {
       }
     } catch (err: any) {
       console.warn('[Frontend CEO Console] Backend server API unreachable or offline, executing graceful client-side zero-state purge:', err);
+    }
+
+    // Purge connected Supabase cloud database tables
+    try {
+      const spResult = await purgeAllDataFromSupabase();
+      console.log('[Frontend CEO Console] Supabase cloud database purge result:', spResult);
+    } catch (spErr) {
+      console.warn('[Frontend CEO Console] Supabase purge notice:', spErr);
     }
 
     // Explicit store reset & zero-state cache setup

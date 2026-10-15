@@ -19,13 +19,15 @@ import {
   Lock,
   UserPlus,
   Compass,
-  Plus
+  Plus,
+  Database
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { UserRole } from '../../types';
 import { EmployeeSelfAttendanceModal } from '../attendance/EmployeeSelfAttendanceModal';
 import { DbSkillsLogo } from '../common/DbSkillsLogo';
 import { CreateHubModal, isAuthorizedForHubCreation } from '../CreateHubModal';
+import { SupabaseStatusModal } from '../common/SupabaseStatusModal';
 
 interface NavbarProps {
   currentTab: string;
@@ -151,13 +153,16 @@ export const Navbar: React.FC<NavbarProps> = ({
     centers,
     addCenter,
     logoutToLanding,
-    loginAsPersona
+    loginAsPersona,
+    supabaseStatus,
+    supabaseMessage
   } = useApp();
 
   const [isPersonaMenuOpen, setIsPersonaMenuOpen] = useState(false);
   const [isCenterMenuOpen, setIsCenterMenuOpen] = useState(false);
   const [isSelfPunchModalOpen, setIsSelfPunchModalOpen] = useState(false);
   const [isCreateHubOpen, setIsCreateHubOpen] = useState(false);
+  const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
 
   // Strict RBAC: Hub creation authorized for GM Operations, Operations Head, Admin / CEO only
   const isHubCreationAllowed = isAuthorizedForHubCreation(currentPersona.role);
@@ -221,6 +226,28 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="font-medium text-slate-700">{currentPersona.name}</span>
             </span>
           </div>
+
+          {/* Supabase Cloud Database Status Indicator */}
+          <button
+            type="button"
+            onClick={() => setIsSupabaseModalOpen(true)}
+            className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-xs text-[11px] font-bold border transition-all cursor-pointer ${
+              supabaseStatus === 'connected'
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                : supabaseStatus === 'tables_missing'
+                ? 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100'
+                : 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200'
+            }`}
+            title={`Supabase Cloud Database: ${supabaseMessage}. Click for setup & sync controls.`}
+          >
+            <Database className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+            <span className="truncate">
+              {supabaseStatus === 'connected' ? 'Cloud Synced' : supabaseStatus === 'tables_missing' ? 'Supabase: SQL Setup' : 'Cloud DB'}
+            </span>
+            <span className={`w-2 h-2 rounded-full ${
+              supabaseStatus === 'connected' ? 'bg-emerald-500 animate-pulse' : supabaseStatus === 'tables_missing' ? 'bg-amber-500' : 'bg-slate-400'
+            }`} />
+          </button>
 
           {/* Right Controls: Center Scoping, Persona Switcher & Self-Punch */}
           <div className="flex items-center gap-2 shrink-0">
@@ -481,6 +508,12 @@ export const Navbar: React.FC<NavbarProps> = ({
         }}
       />
     )}
+
+    {/* Supabase Cloud Connection & Sync Modal */}
+    <SupabaseStatusModal
+      isOpen={isSupabaseModalOpen}
+      onClose={() => setIsSupabaseModalOpen(false)}
+    />
   </>
 );
 };

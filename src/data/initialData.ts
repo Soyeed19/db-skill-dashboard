@@ -267,7 +267,8 @@ export const INITIAL_PERSONAS: UserPersona[] = [
     phone: '+91 98112 33451',
     avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=256&q=80',
     designation: 'Program Officer (North Region)',
-    region: 'North'
+    region: 'North',
+    assignedCenterIds: ['ctr-jodhpur', 'ctr-jaipur', 'ctr-delhi', 'RJ-01', 'RJ-02', 'DL-02']
   },
   {
     id: 'usr-apm-1',
@@ -281,7 +282,20 @@ export const INITIAL_PERSONAS: UserPersona[] = [
     phone: '+91 99201 44552',
     avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=256&q=80',
     designation: 'Senior Manager',
-    region: 'North & West'
+    region: 'North & West',
+    assignedRegion: 'North & West Region',
+    regionCenterIds: [
+      'ctr-jodhpur', 'RJ-01',
+      'ctr-jaipur', 'RJ-02',
+      'ctr-mumbai', 'MH-03',
+      'ctr-pune', 'MH-01',
+      'ctr-nashik', 'MH-04',
+      'ctr-kota', 'RJ-03',
+      'ctr-udaipur', 'RJ-04',
+      'ctr-delhi', 'DL-02',
+      'ctr-delhi-north', 'DL-01',
+      'ctr-nagpur', 'MH-02'
+    ]
   },
   {
     id: 'usr-gm-1',
@@ -608,6 +622,8 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     casualLeaveBalance: 9,
     compOffBalance: 1,
     deploymentStatus: 'On-Site',
+    status: 'ACTIVE',
+    assignedCenterIds: ['ctr-jodhpur', 'ctr-jaipur', 'ctr-delhi', 'RJ-01', 'RJ-02', 'DL-02'],
     totalPresentDays: 0,
     lastCheckIn: undefined
   },
@@ -631,6 +647,20 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     casualLeaveBalance: 8,
     compOffBalance: 4,
     deploymentStatus: 'On-Site',
+    status: 'ACTIVE',
+    assignedRegion: 'North & West Region',
+    regionCenterIds: [
+      'ctr-jodhpur', 'RJ-01',
+      'ctr-jaipur', 'RJ-02',
+      'ctr-mumbai', 'MH-03',
+      'ctr-pune', 'MH-01',
+      'ctr-nashik', 'MH-04',
+      'ctr-kota', 'RJ-03',
+      'ctr-udaipur', 'RJ-04',
+      'ctr-delhi', 'DL-02',
+      'ctr-delhi-north', 'DL-01',
+      'ctr-nagpur', 'MH-02'
+    ],
     totalPresentDays: 0,
     lastCheckIn: undefined
   },

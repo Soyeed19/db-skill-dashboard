@@ -17,6 +17,9 @@ export interface UserPersona {
   avatar: string;
   designation?: string;
   region?: string;
+  assignedCenterIds?: string[]; // Array of center IDs for PO / Trainers
+  assignedRegion?: string;     // Region name for SM (e.g., "North Region", "West Region")
+  regionCenterIds?: string[];  // Hubs under SM's region jurisdiction
 }
 
 export type CandidateAuditStatus =
@@ -280,6 +283,10 @@ export interface Employee {
   casualLeaveBalance: number; // Max 12 per year
   compOffBalance: number;
   region?: string;
+  assignedCenterIds?: string[]; // Array of center IDs for PO / Trainers
+  assignedRegion?: string;     // Region name for SM (e.g., "North Region", "West Region")
+  regionCenterIds?: string[];  // Hubs under SM's region jurisdiction
+  status?: 'ACTIVE' | 'INACTIVE' | 'Active' | 'On Leave' | 'Suspended';
   deploymentStatus?: 'On-Site' | 'On Tour' | 'On Leave';
   totalPresentDays?: number;
   deploymentHistory?: DeploymentRecord[];

@@ -36,7 +36,11 @@ import {
   Copy,
   Check,
   Clock,
-  Plus
+  Plus,
+  Sliders,
+  CheckSquare,
+  Square,
+  Save
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Center, Employee, UserRole, UserLevel, ExpenseClaim, ExpenseItem, AttendancePunch } from '../../types';
@@ -45,6 +49,7 @@ import { generateExpenseClaimPdf } from '../../utils/pdfGenerator';
 import { ExpenseAuditTrailModal } from '../travel/ExpenseAuditTrailModal';
 import { TrainingEfficacyChart } from './TrainingEfficacyChart';
 import { CreateHubModal, isAuthorizedForHubCreation } from '../CreateHubModal';
+import { SM_ASSIGNED_HUBS, smAssignedCenterIds } from '../../data/hubs';
 
 export const CeoLeadershipDashboard: React.FC = () => {
   const {
@@ -63,6 +68,7 @@ export const CeoLeadershipDashboard: React.FC = () => {
     currentPersona,
     addCenter,
     onboardEmployee,
+    updateEmployee,
     approveExpenseClaim,
     rejectExpenseClaim,
     settleExpenseClaim,
@@ -115,7 +121,10 @@ export const CeoLeadershipDashboard: React.FC = () => {
   const [newEmpRole, setNewEmpRole] = useState<UserRole>('Trainer');
   const [newEmpLevel, setNewEmpLevel] = useState<UserLevel>('Level 4');
   const [newEmpDesignation, setNewEmpDesignation] = useState('Assistant Road Safety Trainer');
-  const [newEmpCenterId, setNewEmpCenterId] = useState(centers[0].id);
+  const [newEmpCenterId, setNewEmpCenterId] = useState(centers[0]?.id || 'ctr-jodhpur');
+  const [newEmpAssignedCenterIds, setNewEmpAssignedCenterIds] = useState<string[]>([centers[0]?.id || 'ctr-jodhpur']);
+  const [newEmpAssignedRegion, setNewEmpAssignedRegion] = useState<string>('North & West Region');
+  const [newEmpRegionCenterIds, setNewEmpRegionCenterIds] = useState<string[]>(smAssignedCenterIds);
   const [newEmpPhone, setNewEmpPhone] = useState('+91 98');
   const [newEmpEmail, setNewEmpEmail] = useState('');
   const [newEmpDoj, setNewEmpDoj] = useState('2026-09-23');
@@ -123,6 +132,13 @@ export const CeoLeadershipDashboard: React.FC = () => {
   const [newEmpTarget, setNewEmpTarget] = useState(600);
   const [newEmpPhoto, setNewEmpPhoto] = useState<string>('');
   const [newEmpStatus, setNewEmpStatus] = useState<'Active' | 'On Leave' | 'Suspended'>('Active');
+
+  // Edit Employee Allocation Modal State
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [editCenterId, setEditCenterId] = useState<string>('');
+  const [editAssignedCenterIds, setEditAssignedCenterIds] = useState<string[]>([]);
+  const [editAssignedRegion, setEditAssignedRegion] = useState<string>('North & West Region');
+  const [editRegionCenterIds, setEditRegionCenterIds] = useState<string[]>([]);
 
   // Password Reset Token Modal State (GM Authority)
   const [resetResultModal, setResetResultModal] = useState<{
@@ -173,21 +189,29 @@ export const CeoLeadershipDashboard: React.FC = () => {
       setNewEmpDesignation('Operation Support Executive');
       setNewEmpReporting('Pooja Verma (PO)');
       setNewEmpTarget(600);
+      setNewEmpAssignedCenterIds([newEmpCenterId]);
     } else if (role === 'Trainer') {
       setNewEmpLevel('Level 4');
       setNewEmpDesignation('Commercial Vehicle Driver Trainer');
       setNewEmpReporting('Pooja Verma (PO)');
       setNewEmpTarget(600);
+      setNewEmpAssignedCenterIds([newEmpCenterId]);
     } else if (role === 'PO') {
       setNewEmpLevel('Level 3');
       setNewEmpDesignation('Program Officer (Regional Ops)');
       setNewEmpReporting('Col. Rajesh Mehta (GM)');
       setNewEmpTarget(1200);
+      // Default to multiple northern centers
+      setNewEmpAssignedCenterIds(
+        centers.filter(c => c.region === 'North' || c.code.startsWith('RJ') || c.code.startsWith('DL')).map(c => c.id)
+      );
     } else if (role === 'Senior Manager') {
       setNewEmpLevel('Level 3');
       setNewEmpDesignation('Senior Manager (Quality & QC)');
       setNewEmpReporting('Col. Rajesh Mehta (GM)');
       setNewEmpTarget(1500);
+      setNewEmpAssignedRegion('North & West Region');
+      setNewEmpRegionCenterIds(smAssignedCenterIds);
     }
   };
 
@@ -199,6 +223,11 @@ export const CeoLeadershipDashboard: React.FC = () => {
     }
 
     const assignedCenter = centers.find(c => c.id === newEmpCenterId) || centers[0];
+    const finalAssignedCenterIds = newEmpRole === 'PO'
+      ? (newEmpAssignedCenterIds.length > 0 ? newEmpAssignedCenterIds : [assignedCenter.id])
+      : newEmpRole === 'Senior Manager'
+      ? (newEmpRegionCenterIds.length > 0 ? newEmpRegionCenterIds : [assignedCenter.id])
+      : [assignedCenter.id];
 
     onboardEmployee({
       name: newEmpName.trim(),
@@ -207,6 +236,10 @@ export const CeoLeadershipDashboard: React.FC = () => {
       designation: newEmpDesignation,
       centerId: assignedCenter.id,
       centerName: assignedCenter.name,
+      assignedCenterIds: finalAssignedCenterIds,
+      assignedRegion: newEmpRole === 'Senior Manager' ? newEmpAssignedRegion : undefined,
+      regionCenterIds: newEmpRole === 'Senior Manager' ? newEmpRegionCenterIds : undefined,
+      status: newEmpStatus === 'Active' ? 'ACTIVE' : 'INACTIVE',
       reportingOfficer: newEmpReporting,
       dateOfJoining: newEmpDoj,
       phone: newEmpPhone,
@@ -216,7 +249,7 @@ export const CeoLeadershipDashboard: React.FC = () => {
       monthlyAchieved: 0
     });
 
-    showToast(`Successfully provisioned ${newEmpName} (${newEmpRole}) at ${assignedCenter.name}`);
+    showToast(`Successfully provisioned ${newEmpName} (${newEmpRole}) with multi-hub routing enabled.`);
 
     setIsOnboardModalOpen(false);
     // Reset form
@@ -225,6 +258,47 @@ export const CeoLeadershipDashboard: React.FC = () => {
     setNewEmpEmail('');
     setNewEmpPhoto('');
     setNewEmpStatus('Active');
+    setNewEmpAssignedCenterIds([centers[0]?.id || 'ctr-jodhpur']);
+    setNewEmpRegionCenterIds(smAssignedCenterIds);
+  };
+
+  const handleOpenEditAllocation = (emp: Employee) => {
+    setEditingEmployee(emp);
+    setEditCenterId(emp.centerId || centers[0]?.id || '');
+    setEditAssignedCenterIds(
+      emp.assignedCenterIds && emp.assignedCenterIds.length > 0
+        ? emp.assignedCenterIds
+        : emp.centerId ? [emp.centerId] : [centers[0]?.id || 'ctr-jodhpur']
+    );
+    setEditAssignedRegion(emp.assignedRegion || emp.region || 'North & West Region');
+    setEditRegionCenterIds(
+      emp.regionCenterIds && emp.regionCenterIds.length > 0
+        ? emp.regionCenterIds
+        : smAssignedCenterIds
+    );
+  };
+
+  const handleSaveEditAllocation = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingEmployee) return;
+
+    const assignedCenter = centers.find(c => c.id === editCenterId) || centers[0];
+    const finalAssignedCenterIds = editingEmployee.role === 'PO' || editingEmployee.role === 'Trainer'
+      ? (editAssignedCenterIds.length > 0 ? editAssignedCenterIds : [assignedCenter.id])
+      : editingEmployee.role === 'Senior Manager'
+      ? (editRegionCenterIds.length > 0 ? editRegionCenterIds : [assignedCenter.id])
+      : [assignedCenter.id];
+
+    updateEmployee(editingEmployee.id, {
+      centerId: assignedCenter.id,
+      centerName: assignedCenter.name,
+      assignedCenterIds: finalAssignedCenterIds,
+      assignedRegion: editingEmployee.role === 'Senior Manager' ? editAssignedRegion : undefined,
+      regionCenterIds: editingEmployee.role === 'Senior Manager' ? editRegionCenterIds : undefined
+    });
+
+    showToast(`Updated center allocations for ${editingEmployee.name} (${editingEmployee.role})`);
+    setEditingEmployee(null);
   };
 
   return (
@@ -768,11 +842,13 @@ export const CeoLeadershipDashboard: React.FC = () => {
                   <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                     <th className="py-3 px-4">Staff Member & Code</th>
                     <th className="py-3 px-4">Role & Level</th>
-                    <th className="py-3 px-4">Deployment Center</th>
+                    <th className="py-3 px-4">Primary Base Hub</th>
+                    <th className="py-3 px-4">Allocated Hubs & Jurisdiction</th>
                     <th className="py-3 px-4">Tenure & Joining</th>
                     <th className="py-3 px-4">Leave Balance</th>
                     <th className="py-3 px-4">Driver Target Progress</th>
                     <th className="py-3 px-4">Tour Status</th>
+                    <th className="py-3 px-4 text-right">Configure</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -801,6 +877,36 @@ export const CeoLeadershipDashboard: React.FC = () => {
                         <td className="py-3 px-4">
                           <p className="font-semibold text-slate-800">{emp.centerName}</p>
                           <p className="text-[10px] text-slate-400">Reports to: {emp.reportingOfficer}</p>
+                        </td>
+
+                        <td className="py-3 px-4">
+                          {emp.role === 'PO' ? (
+                            <div className="space-y-1">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-100 text-teal-900 border border-teal-300">
+                                <Building2 className="w-3 h-3 text-teal-700" />
+                                <span>Multi-Hub ({emp.assignedCenterIds?.length || 1} Centers)</span>
+                              </span>
+                              <p className="text-[10px] text-slate-500 truncate max-w-[180px]">
+                                {(emp.assignedCenterIds || [emp.centerId])
+                                  .map(id => centers.find(c => c.id === id || c.code === id)?.code || id)
+                                  .join(', ')}
+                              </p>
+                            </div>
+                          ) : emp.role === 'Senior Manager' ? (
+                            <div className="space-y-1">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-900 border border-indigo-300">
+                                <MapPin className="w-3 h-3 text-indigo-700" />
+                                <span>{emp.assignedRegion || 'North & West Command'}</span>
+                              </span>
+                              <p className="text-[10px] text-slate-500">
+                                {(emp.regionCenterIds?.length || smAssignedCenterIds.length)} Hubs under Jurisdiction
+                              </p>
+                            </div>
+                          ) : (
+                            <span className="text-[11px] text-slate-500">
+                              Single Center Base ({emp.centerName})
+                            </span>
+                          )}
                         </td>
 
                         <td className="py-3 px-4 font-mono text-slate-700">
@@ -837,6 +943,18 @@ export const CeoLeadershipDashboard: React.FC = () => {
                           ) : (
                             <span className="text-slate-400 text-[11px]">Stationary at Hub</span>
                           )}
+                        </td>
+
+                        <td className="py-3 px-4 text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditAllocation(emp)}
+                            className="px-2.5 py-1.5 rounded-xl border border-slate-300 hover:border-teal-600 hover:bg-teal-50 text-slate-700 hover:text-teal-900 font-bold text-[11px] inline-flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
+                            title="Configure Multi-Center & Regional Allocation"
+                          >
+                            <Sliders className="w-3.5 h-3.5 text-teal-700" />
+                            <span>Configure Hubs</span>
+                          </button>
                         </td>
                       </tr>
                     );
@@ -1872,20 +1990,194 @@ export const CeoLeadershipDashboard: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Center Location</label>
+                  <label className="font-bold text-slate-700 block mb-1">Primary Base Hub</label>
                   <select
                     value={newEmpCenterId}
                     onChange={e => setNewEmpCenterId(e.target.value)}
-                    className="w-full p-2.5 rounded-xl border border-slate-300 text-xs bg-white"
+                    className="w-full p-2.5 rounded-xl border border-slate-300 text-xs bg-white font-medium"
                   >
                     {centers.map(c => (
                       <option key={c.id} value={c.id}>
-                        {c.name} ({c.code})
+                        {c.name} ({c.code}) - {c.city}
                       </option>
                     ))}
                   </select>
                 </div>
               </div>
+
+              {/* Dynamic Allocation Section: PO Multi-Center Allocation */}
+              {newEmpRole === 'PO' && (
+                <div className="bg-teal-50/70 border border-teal-200 rounded-2xl p-3.5 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="font-bold text-teal-950 text-xs block">
+                        Multi-Center PO Jurisdiction Allocations
+                      </label>
+                      <span className="text-[11px] text-teal-700 font-medium">
+                        Selected {newEmpAssignedCenterIds.length} of {centers.length} Centers
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px]">
+                      <button
+                        type="button"
+                        onClick={() => setNewEmpAssignedCenterIds(centers.map(c => c.id))}
+                        className="px-2 py-1 rounded-lg bg-teal-200 hover:bg-teal-300 text-teal-900 font-bold transition-colors"
+                      >
+                        Select All
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setNewEmpAssignedCenterIds(
+                            centers.filter(c => c.region === 'North' || c.code.startsWith('RJ') || c.code.startsWith('DL')).map(c => c.id)
+                          )
+                        }
+                        className="px-2 py-1 rounded-lg bg-teal-200 hover:bg-teal-300 text-teal-900 font-bold transition-colors"
+                      >
+                        North Hubs
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNewEmpAssignedCenterIds([newEmpCenterId])}
+                        className="px-2 py-1 rounded-lg bg-white border border-teal-300 text-slate-700 font-bold transition-colors"
+                      >
+                        Reset Base
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1">
+                    {centers.map(center => {
+                      const isChecked = newEmpAssignedCenterIds.includes(center.id);
+                      return (
+                        <label
+                          key={center.id}
+                          className={`flex items-center gap-2 p-2 rounded-xl border text-xs cursor-pointer transition-all ${
+                            isChecked
+                              ? 'bg-teal-800 text-white border-teal-900 shadow-xs'
+                              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              if (isChecked) {
+                                if (newEmpAssignedCenterIds.length > 1) {
+                                  setNewEmpAssignedCenterIds(prev => prev.filter(id => id !== center.id));
+                                }
+                              } else {
+                                setNewEmpAssignedCenterIds(prev => [...prev, center.id]);
+                              }
+                            }}
+                            className="rounded text-teal-600 focus:ring-teal-500 w-3.5 h-3.5 shrink-0"
+                          />
+                          <div className="truncate min-w-0">
+                            <span className="font-bold block truncate">{center.name}</span>
+                            <span className={`block text-[10px] ${isChecked ? 'text-teal-200' : 'text-slate-400'}`}>
+                              {center.code} • {center.city}
+                            </span>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Dynamic Allocation Section: Senior Manager Regional Management */}
+              {newEmpRole === 'Senior Manager' && (
+                <div className="bg-amber-50/80 border border-amber-200 rounded-2xl p-3.5 space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="font-bold text-amber-950 text-xs block mb-1">
+                        Assigned Regional Command
+                      </label>
+                      <select
+                        value={newEmpAssignedRegion}
+                        onChange={e => {
+                          const reg = e.target.value;
+                          setNewEmpAssignedRegion(reg);
+                          if (reg === 'North Region') {
+                            setNewEmpRegionCenterIds(
+                              centers.filter(c => c.region === 'North' || c.code.startsWith('RJ') || c.code.startsWith('DL')).map(c => c.id)
+                            );
+                          } else if (reg === 'West Region') {
+                            setNewEmpRegionCenterIds(
+                              centers.filter(c => c.region === 'West' || c.code.startsWith('MH')).map(c => c.id)
+                            );
+                          } else if (reg === 'North & West Region') {
+                            setNewEmpRegionCenterIds(smAssignedCenterIds);
+                          } else if (reg === 'Pan-India Command') {
+                            setNewEmpRegionCenterIds(centers.map(c => c.id));
+                          }
+                        }}
+                        className="w-full p-2 rounded-xl border border-amber-300 text-xs bg-white font-medium"
+                      >
+                        <option value="North & West Region">North & West Region (Command Area)</option>
+                        <option value="North Region">North Region Only (Rajasthan & Delhi)</option>
+                        <option value="West Region">West Region Only (Maharashtra)</option>
+                        <option value="Pan-India Command">Pan-India Command (All Centers)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="font-bold text-amber-950 text-xs block mb-1">
+                        Regional Scope Summary
+                      </label>
+                      <div className="p-2 rounded-xl bg-amber-100/80 text-amber-950 text-xs flex items-center justify-between font-bold">
+                        <span>{newEmpRegionCenterIds.length} Hubs in Scope</span>
+                        <button
+                          type="button"
+                          onClick={() => setNewEmpRegionCenterIds(smAssignedCenterIds)}
+                          className="px-2 py-0.5 rounded bg-amber-200 hover:bg-amber-300 text-amber-900 text-[10px] font-bold"
+                        >
+                          Default N&W
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-amber-950 text-[11px] block mb-1.5">
+                      Customizable Regional Centers Mapping ({newEmpRegionCenterIds.length} Selected)
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1">
+                      {centers.map(center => {
+                        const isChecked = newEmpRegionCenterIds.includes(center.id) || newEmpRegionCenterIds.includes(center.code);
+                        return (
+                          <label
+                            key={center.id}
+                            className={`flex items-center gap-2 p-2 rounded-xl border text-xs cursor-pointer transition-all ${
+                              isChecked
+                                ? 'bg-amber-800 text-white border-amber-900 shadow-xs'
+                                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                if (isChecked) {
+                                  setNewEmpRegionCenterIds(prev => prev.filter(id => id !== center.id && id !== center.code));
+                                } else {
+                                  setNewEmpRegionCenterIds(prev => [...prev, center.id, center.code]);
+                                }
+                              }}
+                              className="rounded text-amber-600 focus:ring-amber-500 w-3.5 h-3.5 shrink-0"
+                            />
+                            <div className="truncate min-w-0">
+                              <span className="font-bold block truncate">{center.name}</span>
+                              <span className={`block text-[10px] ${isChecked ? 'text-amber-200' : 'text-slate-400'}`}>
+                                {center.code} • {center.city} ({center.region || 'North/West'})
+                              </span>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -1949,6 +2241,255 @@ export const CeoLeadershipDashboard: React.FC = () => {
                 >
                   <UserPlus className="w-3.5 h-3.5" />
                   Complete Onboarding
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: EDIT EMPLOYEE MULTI-CENTER & REGIONAL ALLOCATION */}
+      {editingEmployee && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-xl w-full max-h-[90vh] overflow-hidden shadow-2xl border border-slate-200 flex flex-col animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-teal-100 text-teal-800 rounded-2xl">
+                  <Sliders className="w-5 h-5 text-teal-700" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    Configure Regional & Hub Allocations
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    {editingEmployee.name} • {editingEmployee.empCode} • <span className="font-semibold text-teal-800">{editingEmployee.role}</span>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingEmployee(null)}
+                className="p-1 rounded-xl hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditAllocation} className="p-6 space-y-4 overflow-y-auto text-xs">
+              {/* Primary Base Hub */}
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">
+                  Primary Base Center (Headquarter)
+                </label>
+                <select
+                  value={editCenterId}
+                  onChange={e => setEditCenterId(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border border-slate-300 text-xs bg-white font-medium"
+                >
+                  {centers.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({c.code}) - {c.city}, {c.state}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* If PO or Trainer: Multi-Center Allocation */}
+              {(editingEmployee.role === 'PO' || editingEmployee.role === 'Trainer') && (
+                <div className="bg-teal-50/70 border border-teal-200 rounded-2xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-bold text-teal-950 text-xs">
+                        Multi-Center Jurisdiction Array
+                      </h4>
+                      <p className="text-[11px] text-teal-700">
+                        {editAssignedCenterIds.length} of {centers.length} Centers Assigned to this {editingEmployee.role}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px]">
+                      <button
+                        type="button"
+                        onClick={() => setEditAssignedCenterIds(centers.map(c => c.id))}
+                        className="px-2 py-1 rounded-lg bg-teal-200 hover:bg-teal-300 text-teal-900 font-semibold"
+                      >
+                        Select All
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditAssignedCenterIds([editCenterId])}
+                        className="px-2 py-1 rounded-lg bg-white border border-teal-300 text-slate-700 font-semibold"
+                      >
+                        Only Base Center
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-52 overflow-y-auto pr-1">
+                    {centers.map(center => {
+                      const isChecked = editAssignedCenterIds.includes(center.id);
+                      return (
+                        <label
+                          key={center.id}
+                          className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
+                            isChecked
+                              ? 'bg-teal-800 text-white border-teal-900 shadow-xs'
+                              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              if (isChecked) {
+                                if (editAssignedCenterIds.length > 1) {
+                                  setEditAssignedCenterIds(prev => prev.filter(id => id !== center.id));
+                                }
+                              } else {
+                                setEditAssignedCenterIds(prev => [...prev, center.id]);
+                              }
+                            }}
+                            className="rounded text-teal-600 focus:ring-teal-500 w-3.5 h-3.5 shrink-0"
+                          />
+                          <div className="truncate min-w-0">
+                            <span className="font-bold block truncate">{center.name}</span>
+                            <span className={`block text-[10px] ${isChecked ? 'text-teal-200' : 'text-slate-400'}`}>
+                              {center.code} • {center.city}
+                            </span>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* If Senior Manager: Regional Allocation & Hubs Mapping */}
+              {editingEmployee.role === 'Senior Manager' && (
+                <div className="bg-amber-50/80 border border-amber-200 rounded-2xl p-4 space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="font-bold text-amber-950 text-xs block mb-1">
+                        Regional Jurisdiction Name
+                      </label>
+                      <select
+                        value={editAssignedRegion}
+                        onChange={e => {
+                          const reg = e.target.value;
+                          setEditAssignedRegion(reg);
+                          if (reg === 'North Region') {
+                            setEditRegionCenterIds(
+                              centers.filter(c => c.region === 'North' || c.code.startsWith('RJ') || c.code.startsWith('DL')).map(c => c.id)
+                            );
+                          } else if (reg === 'West Region') {
+                            setEditRegionCenterIds(
+                              centers.filter(c => c.region === 'West' || c.code.startsWith('MH')).map(c => c.id)
+                            );
+                          } else if (reg === 'North & West Region') {
+                            setEditRegionCenterIds(smAssignedCenterIds);
+                          } else if (reg === 'Pan-India Command') {
+                            setEditRegionCenterIds(centers.map(c => c.id));
+                          }
+                        }}
+                        className="w-full p-2.5 rounded-xl border border-amber-300 text-xs bg-white font-medium"
+                      >
+                        <option value="North & West Region">North & West Region (Command Area)</option>
+                        <option value="North Region">North Region Only</option>
+                        <option value="West Region">West Region Only</option>
+                        <option value="Pan-India Command">Pan-India Command (All Centers)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="font-bold text-amber-950 text-xs block mb-1">
+                        Auditing Scope Overview
+                      </label>
+                      <div className="p-2.5 rounded-xl bg-amber-100/70 text-amber-950 text-xs flex items-center justify-between font-semibold">
+                        <span>{editRegionCenterIds.length} Hubs in Scope</span>
+                        <button
+                          type="button"
+                          onClick={() => setEditRegionCenterIds(smAssignedCenterIds)}
+                          className="px-2 py-0.5 rounded bg-amber-200 hover:bg-amber-300 text-amber-900 text-[10px] font-bold"
+                        >
+                          Default N&W
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="font-bold text-amber-950 text-[11px] block">
+                        Customizable Regional Hubs in SM Queue ({editRegionCenterIds.length} Selected)
+                      </label>
+                      <div className="flex items-center gap-1 text-[10px]">
+                        <button
+                          type="button"
+                          onClick={() => setEditRegionCenterIds(centers.map(c => c.id))}
+                          className="px-2 py-0.5 rounded bg-amber-200 text-amber-900 font-bold"
+                        >
+                          All Hubs
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditRegionCenterIds([])}
+                          className="px-2 py-0.5 rounded bg-white border border-amber-300 text-amber-900 font-bold"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-52 overflow-y-auto pr-1">
+                      {centers.map(center => {
+                        const isChecked = editRegionCenterIds.includes(center.id) || editRegionCenterIds.includes(center.code);
+                        return (
+                          <label
+                            key={center.id}
+                            className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
+                              isChecked
+                                ? 'bg-amber-800 text-white border-amber-900 shadow-xs'
+                                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                if (isChecked) {
+                                  setEditRegionCenterIds(prev => prev.filter(id => id !== center.id && id !== center.code));
+                                } else {
+                                  setEditRegionCenterIds(prev => [...prev, center.id, center.code]);
+                                }
+                              }}
+                              className="rounded text-amber-600 focus:ring-amber-500 w-3.5 h-3.5 shrink-0"
+                            />
+                            <div className="truncate min-w-0">
+                              <span className="font-bold block truncate">{center.name}</span>
+                              <span className={`block text-[10px] ${isChecked ? 'text-amber-200' : 'text-slate-400'}`}>
+                                {center.code} • {center.city} ({center.region || 'North/West'})
+                              </span>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-3 border-t border-slate-200 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingEmployee(null)}
+                  className="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 font-semibold text-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-teal-800 hover:bg-teal-900 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  Save Hub Allocations
                 </button>
               </div>
             </form>

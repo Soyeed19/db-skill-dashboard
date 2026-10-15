@@ -42,8 +42,15 @@ export const SeniorManagerConsole: React.FC<SeniorManagerConsoleProps> = () => {
   } = useApp();
 
   // 1. Regional Centers Mapping for Senior Manager (Siddharth Nair)
-  // Maps all relevant centers across North & West commands (Jodhpur, Jaipur, Mumbai, Pune, etc.)
+  // Maps all relevant centers across North & West commands or dynamic GM allocation
   const smCenters = useMemo(() => {
+    const dynamicRegionIds = currentPersona?.regionCenterIds;
+    if (dynamicRegionIds && dynamicRegionIds.length > 0) {
+      const list = centers.filter(
+        c => dynamicRegionIds.includes(c.id) || dynamicRegionIds.includes(c.code)
+      );
+      if (list.length > 0) return list;
+    }
     const list = centers.filter(c =>
       smAssignedCenterIds.includes(c.id) ||
       smAssignedCenterIds.includes(c.code) ||
@@ -52,7 +59,7 @@ export const SeniorManagerConsole: React.FC<SeniorManagerConsoleProps> = () => {
       c.region === 'West'
     );
     return list.length > 0 ? list : centers;
-  }, [centers]);
+  }, [centers, currentPersona]);
 
   const smRegion = currentPersona?.region || 'North & West';
 
@@ -81,14 +88,19 @@ export const SeniorManagerConsole: React.FC<SeniorManagerConsoleProps> = () => {
 
       if (!isPendingReview) return false;
 
-      // 2. Check center match - DO NOT hide candidates due to mismatched regional string tags
+      // 2. Check center match - dynamic region hubs from GM configuration
+      const currentSmRegionHubs =
+        currentPersona?.regionCenterIds && currentPersona.regionCenterIds.length > 0
+          ? currentPersona.regionCenterIds
+          : smAssignedCenterIds;
+
       const matchesCenter =
         selectedCenterFilter === 'ALL' ||
         selectedCenterFilter === 'all' ||
         !selectedCenterFilter ||
         candidate.centerId === selectedCenterFilter ||
         centers.find(c => c.id === candidate.centerId)?.code === selectedCenterFilter ||
-        smAssignedCenterIds.includes(candidate.centerId) ||
+        currentSmRegionHubs.includes(candidate.centerId) ||
         isCenterAssignedToSM(candidate.centerId);
 
       if (!matchesCenter) return false;

@@ -13,6 +13,7 @@ import {
 import { useApp } from '../../context/AppContext';
 import { Candidate, AuditQuery } from '../../types';
 import { AuditInspectionWorkspace } from './AuditInspectionWorkspace';
+import { smAssignedCenterIds, isCenterAssignedToSM } from '../../data/hubs';
 
 export interface PoAuditDeskProps {
   initialCenterId?: string;
@@ -42,6 +43,27 @@ export const PoAuditDesk: React.FC<PoAuditDeskProps> = ({ initialCenterId }) => 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCenterId, setFilterCenterId] = useState<string>(initialCenterId || 'all');
 
+  // Accessible centers for active persona based on dynamic allocations
+  const accessibleCenters = useMemo(() => {
+    if (isSeniorManager) {
+      const smHubs =
+        currentPersona?.regionCenterIds && currentPersona.regionCenterIds.length > 0
+          ? currentPersona.regionCenterIds
+          : smAssignedCenterIds;
+      const list = centers.filter(
+        c => smHubs.includes(c.id) || smHubs.includes(c.code) || isCenterAssignedToSM(c.id)
+      );
+      return list.length > 0 ? list : centers;
+    }
+    // Program Officer (or Trainer)
+    const poHubs = currentPersona?.assignedCenterIds;
+    if (poHubs && poHubs.length > 0) {
+      const list = centers.filter(c => poHubs.includes(c.id) || poHubs.includes(c.code));
+      return list.length > 0 ? list : centers;
+    }
+    return centers;
+  }, [centers, currentPersona, isSeniorManager]);
+
   // Selected candidate state
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
 
@@ -49,7 +71,34 @@ export const PoAuditDesk: React.FC<PoAuditDeskProps> = ({ initialCenterId }) => 
   const queue = useMemo(() => {
     return candidates.filter(c => {
       // Center scoping filter
-      if (filterCenterId !== 'all' && c.centerId !== filterCenterId) return false;
+      if (filterCenterId !== 'all') {
+        const matchesSpecific =
+          c.centerId === filterCenterId ||
+          centers.find(cen => cen.id === c.centerId)?.code === filterCenterId;
+        if (!matchesSpecific) return false;
+      } else {
+        // Scoped to user's assigned/accessible hubs
+        if (isSeniorManager) {
+          const smHubs =
+            currentPersona?.regionCenterIds && currentPersona.regionCenterIds.length > 0
+              ? currentPersona.regionCenterIds
+              : smAssignedCenterIds;
+          const matchesSm =
+            smHubs.includes(c.centerId) ||
+            smHubs.includes(centers.find(cen => cen.id === c.centerId)?.code || '') ||
+            isCenterAssignedToSM(c.centerId);
+          if (!matchesSm) return false;
+        } else {
+          // Program Officer dynamic multi-center allocation check
+          const poHubs = currentPersona?.assignedCenterIds;
+          if (poHubs && poHubs.length > 0) {
+            const matchesPo =
+              poHubs.includes(c.centerId) ||
+              poHubs.includes(centers.find(cen => cen.id === c.centerId)?.code || '');
+            if (!matchesPo) return false;
+          }
+        }
+      }
 
       // Status filter dynamically routed by role:
       // Senior Manager reviews candidates approved by PO (PENDING_SM_REVIEW / Green Signal)
@@ -386,10 +435,14 @@ export const PoAuditDesk: React.FC<PoAuditDeskProps> = ({ initialCenterId }) => 
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1 text-xs text-slate-700 font-medium focus:outline-none"
                 >
                   <option value="all">
-                    {isSeniorManager ? 'All Regional Centers Under Command' : 'All Regional Centers'}
+                    {isSeniorManager
+                      ? `All Assigned Regional Hubs (${accessibleCenters.length})`
+                      : `All My Allocated Hubs (${accessibleCenters.length})`}
                   </option>
-                  {centers.map(c => (
-                    <option key={c.id} value={c.id}>{c.name} ({c.code})</option>
+                  {accessibleCenters.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({c.code})
+                    </option>
                   ))}
                 </select>
               </div>

@@ -40,8 +40,31 @@ import {
   safeSaveCandidates,
   sanitizeCandidateListForStorage
 } from '../utils/safeStorage';
+import {
+  checkSupabaseConnection,
+  SupabaseConnectionStatus,
+  SUPABASE_PROJECT_ID,
+  SUPABASE_DEFAULT_URL
+} from '../lib/supabase';
+import {
+  fetchCandidatesFromSupabase,
+  upsertCandidateToSupabase,
+  upsertCandidatesBulk,
+  deleteCandidateFromSupabase,
+  fetchBatchesFromSupabase,
+  upsertBatchToSupabase,
+  purgeAllDataFromSupabase,
+  setupSupabaseRealtime
+} from '../services/supabaseService';
 
 interface AppContextType {
+  // Cloud Database (Supabase)
+  supabaseStatus: SupabaseConnectionStatus;
+  supabaseMessage: string;
+  isCloudSyncing: boolean;
+  refreshFromSupabase: () => Promise<void>;
+  seedCloudDatabase: () => Promise<void>;
+
   // Auth & Personas & Centers
   isLoggedIn: boolean;
   loginAsPersona: (persona: UserPersona) => void;
@@ -110,6 +133,7 @@ interface AppContextType {
   employees: Employee[];
   performCheckIn: (employeeId: string) => boolean;
   onboardEmployee: (employeeData: Omit<Employee, 'id' | 'empCode' | 'tenureMonths' | 'casualLeaveBalance' | 'compOffBalance'>) => Employee;
+  updateEmployee: (id: string, updates: Partial<Employee>) => void;
   attendancePunches: AttendancePunch[];
   attendanceLogs: AttendancePunch[];
   recordSelfPunch: (punchData: Omit<AttendancePunch, 'id'>) => AttendancePunch;
@@ -242,14 +266,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const loginAsPersona = (persona: UserPersona) => {
-    setCurrentPersona(persona);
+    const matchedEmployee = employees.find(e => e.id === persona.id || e.name === persona.name);
+    const enrichedPersona: UserPersona = {
+      ...persona,
+      assignedCenterIds: persona.assignedCenterIds || matchedEmployee?.assignedCenterIds,
+      assignedRegion: persona.assignedRegion || matchedEmployee?.assignedRegion,
+      regionCenterIds: persona.regionCenterIds || matchedEmployee?.regionCenterIds
+    };
+    setCurrentPersona(enrichedPersona);
     setIsLoggedIn(true);
     safeLocalStorageSet('dbs_logged_in', 'true');
-    safeLocalStorageSet('dbs_persona', JSON.stringify(persona));
-    if (persona.centerId) {
-      setSelectedCenterId(persona.centerId);
+    safeLocalStorageSet('dbs_persona', JSON.stringify(enrichedPersona));
+    if (enrichedPersona.centerId) {
+      setSelectedCenterId(enrichedPersona.centerId);
     }
-    showToast(`Logged in as: ${persona.role} - ${persona.name}`);
+    showToast(`Logged in as: ${enrichedPersona.role} - ${enrichedPersona.name}`);
   };
 
   // Employee Users for Dual-Credential Auth & Password Reset
@@ -477,6 +508,151 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     safeLocalStorageSet('dbs_batches', JSON.stringify(batches));
   }, [batches]);
 
+  // --- SUPABASE CLOUD DATABASE INTEGRATION ---
+  const [supabaseStatus, setSupabaseStatus] = useState<SupabaseConnectionStatus>('checking');
+  const [supabaseMessage, setSupabaseMessage] = useState<string>('Connecting to Supabase cloud database...');
+  const [isCloudSyncing, setIsCloudSyncing] = useState<boolean>(false);
+
+  // Initialize and synchronize with Supabase Cloud Database on startup
+  useEffect(() => {
+    let unsubscribeRealtime: (() => void) | undefined;
+    let isMounted = true;
+
+    const initCloudDatabase = async () => {
+      setIsCloudSyncing(true);
+      try {
+        const health = await checkSupabaseConnection();
+        if (!isMounted) return;
+
+        setSupabaseStatus(health.status);
+        setSupabaseMessage(health.message);
+
+        if (health.tablesReady) {
+          // 1. Fetch remote candidates from Supabase
+          const cloudCandidates = await fetchCandidatesFromSupabase();
+          if (!isMounted) return;
+
+          if (cloudCandidates && cloudCandidates.length > 0) {
+            console.log(`[Supabase Realtime] Synchronized ${cloudCandidates.length} candidate dossiers from cloud.`);
+            setCandidates(cloudCandidates);
+            safeSaveCandidates(cloudCandidates);
+          } else if (cloudCandidates && cloudCandidates.length === 0) {
+            // Cloud table exists but empty - seed demo candidates if local has them
+            console.log('[Supabase] Connected to empty cloud database. Seeding initial candidate dossiers...');
+            await upsertCandidatesBulk(INITIAL_CANDIDATES);
+          }
+
+          // 2. Fetch remote batches from Supabase
+          const cloudBatches = await fetchBatchesFromSupabase();
+          if (!isMounted) return;
+
+          if (cloudBatches && cloudBatches.length > 0) {
+            setBatches(cloudBatches);
+            safeLocalStorageSet('dbs_batches', JSON.stringify(cloudBatches));
+          } else if (cloudBatches && cloudBatches.length === 0) {
+            // Seed initial batches
+            for (const b of INITIAL_BATCHES) {
+              await upsertBatchToSupabase(b);
+            }
+          }
+
+          // 3. Setup Supabase Realtime multi-device synchronization
+          unsubscribeRealtime = setupSupabaseRealtime({
+            onCandidateInsert: (newCand) => {
+              setCandidates(prev => {
+                if (prev.some(c => c.id === newCand.id)) return prev;
+                const next = [newCand, ...prev];
+                safeSaveCandidates(next);
+                return next;
+              });
+              showToast(`[Cloud Sync] New candidate ${newCand.fullName} received from cloud.`);
+            },
+            onCandidateUpdate: (updatedCand) => {
+              setCandidates(prev => {
+                const next = prev.map(c => c.id === updatedCand.id ? updatedCand : c);
+                safeSaveCandidates(next);
+                return next;
+              });
+            },
+            onCandidateDelete: (deletedId) => {
+              setCandidates(prev => {
+                const next = prev.filter(c => c.id !== deletedId);
+                safeSaveCandidates(next);
+                return next;
+              });
+            },
+            onBatchChange: async () => {
+              const freshBatches = await fetchBatchesFromSupabase();
+              if (freshBatches && freshBatches.length > 0) {
+                setBatches(freshBatches);
+              }
+            }
+          });
+        }
+      } catch (err: any) {
+        console.warn('[Supabase] Initialization caught error:', err);
+      } finally {
+        if (isMounted) setIsCloudSyncing(false);
+      }
+    };
+
+    initCloudDatabase();
+
+    return () => {
+      isMounted = false;
+      if (unsubscribeRealtime) unsubscribeRealtime();
+    };
+  }, []);
+
+  const refreshFromSupabase = async () => {
+    setIsCloudSyncing(true);
+    try {
+      const health = await checkSupabaseConnection();
+      setSupabaseStatus(health.status);
+      setSupabaseMessage(health.message);
+
+      if (health.tablesReady) {
+        const cloudCandidates = await fetchCandidatesFromSupabase();
+        if (cloudCandidates) {
+          setCandidates(cloudCandidates);
+          safeSaveCandidates(cloudCandidates);
+          showToast(`Successfully refreshed ${cloudCandidates.length} candidates from Supabase!`);
+        }
+        const cloudBatches = await fetchBatchesFromSupabase();
+        if (cloudBatches) {
+          setBatches(cloudBatches);
+        }
+      } else {
+        showToast(health.message);
+      }
+    } catch (e: any) {
+      showToast(`Sync error: ${e?.message || 'Failed'}`);
+    } finally {
+      setIsCloudSyncing(false);
+    }
+  };
+
+  const seedCloudDatabase = async () => {
+    setIsCloudSyncing(true);
+    showToast('Uploading all candidates & batches to Supabase cloud...');
+    try {
+      const candOk = await upsertCandidatesBulk(candidates);
+      for (const b of batches) {
+        await upsertBatchToSupabase(b);
+      }
+      if (candOk) {
+        setSupabaseStatus('connected');
+        showToast('All candidates and batches successfully uploaded to Supabase!');
+      } else {
+        showToast('Database error: Please ensure SQL tables are created in Supabase SQL editor.');
+      }
+    } catch (e: any) {
+      showToast(`Upload failed: ${e?.message || 'Error'}`);
+    } finally {
+      setIsCloudSyncing(false);
+    }
+  };
+
   // Consumables
   const [consumables, setConsumables] = useState<ConsumableItem[]>(() => {
     const saved = localStorage.getItem('dbs_consumables');
@@ -622,10 +798,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setCandidates(prev => [newCandidate, ...prev]);
 
+    // Asynchronously synchronize with Supabase Cloud Database
+    upsertCandidateToSupabase(newCandidate).catch(err => {
+      console.warn('[Supabase] Candidate sync warning:', err);
+    });
+
     // Update batch enrolled count
-    setBatches(prev =>
-      prev.map(b => (b.id === newCandidate.batchId ? { ...b, enrolledCount: b.enrolledCount + 1 } : b))
-    );
+    setBatches(prev => {
+      const next = prev.map(b => (b.id === newCandidate.batchId ? { ...b, enrolledCount: b.enrolledCount + 1 } : b));
+      const targetBatch = next.find(b => b.id === newCandidate.batchId);
+      if (targetBatch) {
+        upsertBatchToSupabase(targetBatch).catch(() => {});
+      }
+      return next;
+    });
 
     // Update employee achievement for current persona if OSE
     setEmployees(prev =>
@@ -637,9 +823,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateCandidate = (id: string, updates: Partial<Candidate>) => {
-    setCandidates(prev =>
-      prev.map(c => (c.id === id ? { ...c, ...updates } : c))
-    );
+    setCandidates(prev => {
+      const next = prev.map(c => (c.id === id ? { ...c, ...updates } : c));
+      const target = next.find(c => c.id === id);
+      if (target) {
+        upsertCandidateToSupabase(target).catch(err => {
+          console.warn('[Supabase] Candidate update sync warning:', err);
+        });
+      }
+      return next;
+    });
   };
 
   const uploadCertificatePhotos = (
@@ -647,18 +840,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     holdingPhotoUrl: string,
     handoverPhotoUrl: string
   ) => {
-    setCandidates(prev =>
-      prev.map(c => {
+    setCandidates(prev => {
+      const next = prev.map(c => {
         if (c.id === candidateId) {
-          return {
+          const updated = {
             ...c,
             certificateHoldingPhotoUrl: holdingPhotoUrl,
             certificateHandoverPhotoUrl: handoverPhotoUrl
           };
+          upsertCandidateToSupabase(updated).catch(err => {
+            console.warn('[Supabase] Certificate photo sync warning:', err);
+          });
+          return updated;
         }
         return c;
-      })
-    );
+      });
+      return next;
+    });
     showToast('Certificate photos attached! Candidate verified for evening PO batch dispatch.');
   };
 
@@ -1148,6 +1346,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return newEmp;
   };
 
+  const updateEmployee = (id: string, updates: Partial<Employee>) => {
+    setEmployees(prev => {
+      const updated = prev.map(emp => (emp.id === id ? { ...emp, ...updates } : emp));
+      safeLocalStorageSet('dbs_employees', JSON.stringify(updated));
+      return updated;
+    });
+
+    // If currently active persona matches this employee, update active persona state too
+    setCurrentPersona(prev => {
+      if (prev.id === id || prev.name === updates.name) {
+        const next = {
+          ...prev,
+          ...(updates.assignedCenterIds ? { assignedCenterIds: updates.assignedCenterIds } : {}),
+          ...(updates.assignedRegion ? { assignedRegion: updates.assignedRegion } : {}),
+          ...(updates.regionCenterIds ? { regionCenterIds: updates.regionCenterIds } : {}),
+          ...(updates.centerId ? { centerId: updates.centerId } : {}),
+          ...(updates.centerName ? { centerName: updates.centerName } : {})
+        };
+        safeLocalStorageSet('dbs_persona', JSON.stringify(next));
+        return next;
+      }
+      return prev;
+    });
+
+    showToast('Employee allocations and mappings updated successfully!');
+  };
+
   const recordSelfPunch = (punchData: Omit<AttendancePunch, 'id'>): AttendancePunch => {
     const newPunch: AttendancePunch = {
       ...punchData,
@@ -1523,12 +1748,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTours(INITIAL_TOURS);
     setExpenseClaims(INITIAL_EXPENSE_CLAIMS);
 
+    // Also purge Supabase cloud database
+    purgeAllDataFromSupabase().catch(err => {
+      console.warn('[Supabase] Cloud purge on reset error:', err);
+    });
+
     showToast('System data reset to initial demo configuration.');
   };
 
   return (
     <AppContext.Provider
       value={{
+        supabaseStatus,
+        supabaseMessage,
+        isCloudSyncing,
+        refreshFromSupabase,
+        seedCloudDatabase,
         isLoggedIn,
         loginAsPersona,
         loginWithCredentials,
@@ -1569,6 +1804,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         employees,
         performCheckIn,
         onboardEmployee,
+        updateEmployee,
         attendancePunches,
         attendanceLogs: attendancePunches,
         recordSelfPunch,
