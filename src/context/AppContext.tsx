@@ -157,7 +157,10 @@ interface AppContextType {
   rejectTicketByPo: (ticketId: string, poName: string, reason: string) => void;
   resolveTicketByApm: (ticketId: string, apmName: string, remarks: string) => void;
 
-  // System
+  // System & Theme
+  theme: 'light' | 'dark';
+  toggleTheme: () => void;
+  setTheme: (theme: 'light' | 'dark') => void;
   resetAllData: () => void;
   toastMessage: string | null;
   showToast: (msg: string) => void;
@@ -250,6 +253,34 @@ export const generateDefaultAuditTrail = (claim: ExpenseClaim): ExpenseAuditLog[
 };
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Theme State ('light' | 'dark')
+  const [theme, setThemeState] = useState<'light' | 'dark'>(() => {
+    const savedTheme = localStorage.getItem('dbs_theme');
+    if (savedTheme === 'dark' || savedTheme === 'light') return savedTheme;
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      return 'dark';
+    }
+    return 'light';
+  });
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+    safeLocalStorageSet('dbs_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setThemeState(prev => (prev === 'dark' ? 'light' : 'dark'));
+  };
+
+  const setTheme = (newTheme: 'light' | 'dark') => {
+    setThemeState(newTheme);
+  };
+
   // Authentication & Landing Flow
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
     return localStorage.getItem('dbs_logged_in') === 'true';
@@ -1911,6 +1942,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         endorseTicketByPo,
         rejectTicketByPo,
         resolveTicketByApm,
+        theme,
+        toggleTheme,
+        setTheme,
         resetAllData,
         toastMessage,
         showToast

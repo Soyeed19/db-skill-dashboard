@@ -28,6 +28,7 @@ import { EmployeeSelfAttendanceModal } from '../attendance/EmployeeSelfAttendanc
 import { DbSkillsLogo } from '../common/DbSkillsLogo';
 import { CreateHubModal, isAuthorizedForHubCreation } from '../CreateHubModal';
 import { SupabaseStatusModal } from '../common/SupabaseStatusModal';
+import { ThemeToggle } from '../common/ThemeToggle';
 
 interface NavbarProps {
   currentTab: string;
@@ -347,6 +348,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             )}
 
+            {/* Theme Toggle Button */}
+            <ThemeToggle />
+
             {/* Persona Switcher & Exit to Landing */}
             <div className="relative">
               <button
@@ -379,6 +383,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                     >
                       Exit to Portal
                     </button>
+                  </div>
+
+                  <div className="px-3 py-2 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+                    <span className="text-[11px] font-bold text-slate-700">Interface Theme</span>
+                    <ThemeToggle variant="button" />
                   </div>
 
                   {personas.map((p) => (

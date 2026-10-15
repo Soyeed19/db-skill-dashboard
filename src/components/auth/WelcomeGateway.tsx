@@ -16,6 +16,7 @@ import {
 import { useApp } from '../../context/AppContext';
 import { UserPersona, UserRole } from '../../types';
 import { DbSkillsLogo } from '../common/DbSkillsLogo';
+import { ThemeToggle } from '../common/ThemeToggle';
 
 export const WelcomeGateway: React.FC = () => {
   const { personas, loginAsPersona } = useApp();
@@ -139,13 +140,12 @@ export const WelcomeGateway: React.FC = () => {
             </div>
           </div>
 
-          <div className="hidden sm:flex items-center gap-3 text-xs text-slate-400 font-mono">
-            <span className="flex items-center gap-1.5">
+          <div className="flex items-center gap-3 text-xs text-slate-400 font-mono">
+            <span className="hidden sm:flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               Production RBAC System Active
             </span>
-            <span>•</span>
-            <span>5 Authorized Personas</span>
+            <ThemeToggle variant="button" />
           </div>
         </div>
       </div>

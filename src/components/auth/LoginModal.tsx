@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { DbSkillsLogo } from '../common/DbSkillsLogo';
+import { ThemeToggle } from '../common/ThemeToggle';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -89,13 +90,16 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, initial
       <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
         {/* Top Header */}
         <div className="bg-gradient-to-r from-dbs-green-dark via-dbs-green to-[#072428] text-white p-6 relative">
-          <button
-            type="button"
-            onClick={onClose}
-            className="absolute top-5 right-5 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="absolute top-5 right-5 flex items-center gap-2">
+            <ThemeToggle />
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
 
           <div className="flex items-center gap-3">
             <DbSkillsLogo className="h-10 w-auto" />
