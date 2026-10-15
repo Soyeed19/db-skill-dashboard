@@ -590,27 +590,6 @@ export const CeoDashboard: React.FC = () => {
 
         {/* Right: Primary Master Action Button: Export .xlsx */}
         <div className="flex items-center gap-2 shrink-0">
-          {isHubCreationAllowed && (
-            <button
-              type="button"
-              onClick={() => setIsCreateHubOpen(true)}
-              className="px-3.5 py-2.5 rounded-xl bg-[#007A3D] hover:bg-[#005C2E] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer"
-              title="Create New Training Hub"
-            >
-              <Plus className="w-4 h-4 text-emerald-200" />
-              <span>+ Create Hub</span>
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={handleExecuteDataPurge}
-            disabled={isPurgingData}
-            className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer active:scale-95 disabled:opacity-50"
-            title="Trigger backend API endpoint /api/admin/purge-all-data to truncate all transactional database records and initialize zero-state"
-          >
-            <AlertTriangle className="w-4 h-4 text-rose-200" />
-            <span>{isPurgingData ? 'Purging Database...' : '🗑️ Erase All Data (Backend DB Wipe)'}</span>
-          </button>
           <button
             type="button"
             onClick={handleExportDossier}
