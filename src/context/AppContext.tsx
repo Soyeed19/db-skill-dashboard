@@ -498,7 +498,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     // 2. Send 6-digit Email OTP via supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } })
-    const { error } = await supabase.auth.signInWithOtp({
+    // No emailRedirectTo is passed, forcing Supabase to generate and dispatch a 6-digit numeric token
+    const { data, error } = await supabase.auth.signInWithOtp({
       email: cleanEmail,
       options: {
         shouldCreateUser: false
@@ -515,23 +516,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // If the staff member IS provisioned in public.profiles (or is root CEO soyeed12@gmail.com)
       // and their auth.users record has not been initialized yet, initialize their OTP identity
       if (isAuthorizedProfile && isUserNotCreatedInAuthYet) {
-        const retryRes = await supabase.auth.signInWithOtp({
+        const { data: retryData, error: retryError } = await supabase.auth.signInWithOtp({
           email: cleanEmail,
           options: {
             shouldCreateUser: true
           }
         });
 
-        if (retryRes.error) {
+        if (retryError) {
           return {
             success: false,
-            message: retryRes.error.message || 'Failed to dispatch OTP email.'
+            message: retryError.message || 'Failed to dispatch OTP email.'
           };
         }
 
         return {
           success: true,
-          message: `6-digit verification code sent to ${cleanEmail}.`
+          message: `6-digit verification code token sent to ${cleanEmail}.`
         };
       }
 

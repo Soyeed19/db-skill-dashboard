@@ -224,6 +224,9 @@ export const HomePage: React.FC = () => {
                       className="w-full pl-10 pr-3.5 py-3 bg-slate-50 border border-slate-300 rounded-xl text-base font-mono tracking-[0.25em] font-bold text-slate-900 focus:bg-white focus:border-[#007A3D] focus:ring-1 focus:ring-[#007A3D] outline-none transition-all"
                     />
                   </div>
+                  <p className="text-[11px] text-slate-500 mt-1.5">
+                    Enter the 6-digit verification code token sent to your email inbox. No redirect link is required.
+                  </p>
                 </div>
 
                 <button
