@@ -1,6 +1,5 @@
 import {
   Center,
-  UserPersona,
   Candidate,
   Batch,
   ConsumableItem,
@@ -209,107 +208,6 @@ export const INITIAL_CENTERS: Center[] = [
     poName: 'Kavitha Reddy',
     apmName: 'Siddharth Nair',
     region: 'South'
-  }
-];
-
-export const INITIAL_PERSONAS: UserPersona[] = [
-  {
-    id: 'usr-ceo-1',
-    name: 'Gopal Mani',
-    role: 'CEO',
-    level: 'Level 1',
-    title: 'Chief Executive Officer / Managing Director',
-    centerId: 'ctr-delhi',
-    centerName: 'National Command HQ',
-    email: 'gopal.mani@dbskills.in',
-    phone: '+91 98111 00001',
-    avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=256&q=80',
-    designation: 'CEO - National Command',
-    region: 'National'
-  },
-  {
-    id: 'usr-ose-1',
-    name: 'Ramesh Sharma',
-    role: 'OSE',
-    level: 'Level 4',
-    title: 'Operation Support Executive',
-    centerId: 'ctr-jodhpur',
-    centerName: 'Jodhpur Transport Skill Hub',
-    email: 'ramesh.sharma@dbskills.in',
-    phone: '+91 98290 11442',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80',
-    designation: 'Operation Support Executive',
-    region: 'North'
-  },
-  {
-    id: 'usr-trainer-1',
-    name: 'Vikram Singh Rathore',
-    role: 'Trainer',
-    level: 'Level 4',
-    title: 'Senior Master Road Safety Trainer',
-    centerId: 'ctr-jodhpur',
-    centerName: 'Jodhpur Transport Skill Hub',
-    email: 'vikram.rathore@dbskills.in',
-    phone: '+91 94141 88921',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=256&q=80',
-    designation: 'Senior Master Road Safety Trainer',
-    region: 'North'
-  },
-  {
-    id: 'usr-po-1',
-    name: 'Pooja Verma',
-    role: 'PO',
-    level: 'Level 3',
-    title: 'Program Officer (North Region)',
-    centerId: 'ctr-jodhpur',
-    centerName: 'Jodhpur & Delhi South',
-    email: 'pooja.verma@dbskills.in',
-    phone: '+91 98112 33451',
-    avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=256&q=80',
-    designation: 'Program Officer (North Region)',
-    region: 'North',
-    assignedCenterIds: ['ctr-jodhpur', 'ctr-jaipur', 'ctr-delhi', 'RJ-01', 'RJ-02', 'DL-02']
-  },
-  {
-    id: 'usr-apm-1',
-    name: 'Siddharth Nair',
-    role: 'Senior Manager',
-    level: 'Level 3',
-    title: 'Senior Manager (Quality & QC)',
-    centerId: 'ctr-mumbai',
-    centerName: 'National QC & Ops',
-    email: 'siddharth.nair@dbskills.in',
-    phone: '+91 99201 44552',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=256&q=80',
-    designation: 'Senior Manager',
-    region: 'North & West',
-    assignedRegion: 'North & West Region',
-    regionCenterIds: [
-      'ctr-jodhpur', 'RJ-01',
-      'ctr-jaipur', 'RJ-02',
-      'ctr-mumbai', 'MH-03',
-      'ctr-pune', 'MH-01',
-      'ctr-nashik', 'MH-04',
-      'ctr-kota', 'RJ-03',
-      'ctr-udaipur', 'RJ-04',
-      'ctr-delhi', 'DL-02',
-      'ctr-delhi-north', 'DL-01',
-      'ctr-nagpur', 'MH-02'
-    ]
-  },
-  {
-    id: 'usr-gm-1',
-    name: 'Col. Rajesh Mehta (Retd.)',
-    role: 'GM',
-    level: 'Level 1',
-    title: 'General Manager - National Operations',
-    centerId: 'ctr-delhi',
-    centerName: 'Corporate Headquarters',
-    email: 'rajesh.mehta@dbskills.in',
-    phone: '+91 98100 22334',
-    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=256&q=80',
-    designation: 'General Manager - National Operations',
-    region: 'National'
   }
 ];
 

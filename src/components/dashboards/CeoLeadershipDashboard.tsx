@@ -50,6 +50,7 @@ import { ExpenseAuditTrailModal } from '../travel/ExpenseAuditTrailModal';
 import { TrainingEfficacyChart } from './TrainingEfficacyChart';
 import { CreateHubModal, isAuthorizedForHubCreation } from '../CreateHubModal';
 import { SM_ASSIGNED_HUBS, smAssignedCenterIds } from '../../data/hubs';
+import { ProvisionStaffPanel } from '../auth/ProvisionStaffModal';
 
 export const CeoLeadershipDashboard: React.FC = () => {
   const {
@@ -57,7 +58,6 @@ export const CeoLeadershipDashboard: React.FC = () => {
     candidates,
     batches,
     employees,
-    employeeUsers,
     consumables,
     tours,
     leaves,
@@ -72,7 +72,6 @@ export const CeoLeadershipDashboard: React.FC = () => {
     approveExpenseClaim,
     rejectExpenseClaim,
     settleExpenseClaim,
-    gmResetPassword,
     attendanceLogs,
     showToast
   } = useApp();
@@ -139,30 +138,6 @@ export const CeoLeadershipDashboard: React.FC = () => {
   const [editAssignedCenterIds, setEditAssignedCenterIds] = useState<string[]>([]);
   const [editAssignedRegion, setEditAssignedRegion] = useState<string>('North & West Region');
   const [editRegionCenterIds, setEditRegionCenterIds] = useState<string[]>([]);
-
-  // Password Reset Token Modal State (GM Authority)
-  const [resetResultModal, setResetResultModal] = useState<{
-    isOpen: boolean;
-    empName: string;
-    empId: string;
-    email: string;
-    newPassword: string;
-  } | null>(null);
-  const [copiedToken, setCopiedToken] = useState<boolean>(false);
-
-  const handleGmIssuePassword = (userId: string, empName: string, empId: string, email: string) => {
-    const res = gmResetPassword(userId);
-    if (res.success) {
-      setCopiedToken(false);
-      setResetResultModal({
-        isOpen: true,
-        empName,
-        empId,
-        email,
-        newPassword: res.newPasswordGenerated
-      });
-    }
-  };
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -393,6 +368,9 @@ export const CeoLeadershipDashboard: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* DOWNSTREAM ROLE PROVISIONING (+ Provision Staff Member: CEO -> GM / GM -> SM) */}
+      <ProvisionStaffPanel />
 
       {/* PAN-INDIA MASTER SUMMARY METRICS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -713,106 +691,10 @@ export const CeoLeadershipDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 3: EMPLOYEE MANAGEMENT, CREDENTIAL RESET & ONBOARDING */}
+      {/* TAB 3: EMPLOYEE MANAGEMENT & PROVISIONING */}
       {activeTab === 'employees' && (
         <div className="space-y-6">
-          {/* GM Credential Governance & Password Reset Section */}
-          {(() => {
-            const pendingResetUsers = employeeUsers.filter(u => u.resetRequested);
-            return (
-              <div className="space-y-4">
-                {pendingResetUsers.length > 0 ? (
-                  <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-3xl p-6 shadow-xs">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 border-b border-amber-200">
-                      <div className="flex items-center gap-3">
-                        <div className="p-3 bg-amber-500 text-white rounded-2xl shadow-sm">
-                          <KeyRound className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold uppercase tracking-wider text-amber-800">
-                              GM Credential Recovery Authority
-                            </span>
-                            <span className="px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 font-extrabold text-[10px]">
-                              {pendingResetUsers.length} Action Required
-                            </span>
-                          </div>
-                          <h3 className="text-base font-extrabold text-slate-900">
-                            Pending Password Reset Requests
-                          </h3>
-                        </div>
-                      </div>
-                      <p className="text-xs text-amber-900/80 font-medium max-w-sm">
-                        Personnel who encountered login barriers and initiated recovery tickets via the homepage portal.
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
-                      {pendingResetUsers.map((user) => (
-                        <div
-                          key={user.id}
-                          className="bg-white rounded-2xl border border-amber-200 p-4 shadow-2xs flex flex-col justify-between gap-3"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-center gap-3">
-                              <img
-                                src={user.photoUrl || 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=256&q=80'}
-                                alt={user.name}
-                                className="w-11 h-11 rounded-xl object-cover border border-amber-300"
-                              />
-                              <div>
-                                <h4 className="font-bold text-slate-900 text-sm">{user.name}</h4>
-                                <div className="flex items-center gap-2 text-[11px] text-slate-500">
-                                  <span className="font-mono font-semibold text-teal-800">{user.empId}</span>
-                                  <span>•</span>
-                                  <span>{user.role}</span>
-                                </div>
-                                <p className="text-[11px] text-slate-400">{user.email}</p>
-                              </div>
-                            </div>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200 shrink-0">
-                              Reset Requested
-                            </span>
-                          </div>
-
-                          <div className="bg-amber-50/60 rounded-xl p-2.5 text-[11px] text-slate-600 flex items-center justify-between">
-                            <span>Hub: <strong className="text-slate-800">{user.assignedCenterName}</strong></span>
-                            {user.resetRequestedAt && (
-                              <span className="text-slate-400 font-mono text-[10px]">{user.resetRequestedAt}</span>
-                            )}
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={() => handleGmIssuePassword(user.id, user.name, user.empId, user.email)}
-                            className="w-full py-2.5 rounded-xl bg-dbs-green hover:bg-dbs-green-dark text-white font-bold text-xs flex items-center justify-center gap-2 shadow-2xs transition-colors cursor-pointer"
-                          >
-                            <KeyRound className="w-3.5 h-3.5 text-emerald-200" />
-                            <span>Issue New Secure Password</span>
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-4 flex items-center justify-between gap-3 text-xs">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-emerald-600 text-white rounded-xl">
-                        <ShieldCheck className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-slate-900">All Personnel Credentials Active & Secure</h4>
-                        <p className="text-[11px] text-slate-500">Zero pending employee password reset requests across all national hubs.</p>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 font-mono">
-                      100% Operational
-                    </span>
-                  </div>
-                )}
-              </div>
-            );
-          })()}
+          <ProvisionStaffPanel />
 
           <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs space-y-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -2517,98 +2399,6 @@ export const CeoLeadershipDashboard: React.FC = () => {
           setAuditTrailClaim(null);
         }}
       />
-
-      {/* GM ISSUED PASSWORD RESET MODAL */}
-      {resetResultModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-5 animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2.5 bg-dbs-green-light text-dbs-green-dark rounded-2xl">
-                  <KeyRound className="w-5 h-5 text-dbs-green" />
-                </div>
-                <div>
-                  <h3 className="font-extrabold text-slate-900 text-sm">
-                    Temporary Credential Issued
-                  </h3>
-                  <span className="text-[10px] font-bold text-dbs-green uppercase tracking-wider">
-                    GM Sanction Complete
-                  </span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setResetResultModal(null)}
-                className="p-1 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100 text-xs space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Employee Name:</span>
-                  <span className="font-bold text-slate-900">{resetResultModal.empName}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Employee ID:</span>
-                  <span className="font-mono font-bold text-teal-800">{resetResultModal.empId}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Official Email:</span>
-                  <span className="font-mono text-slate-600">{resetResultModal.email}</span>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block mb-1.5">
-                  Generated Temporary Password
-                </label>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 bg-amber-50 border-2 border-amber-300 rounded-2xl px-4 py-3 font-mono text-lg font-black text-amber-900 tracking-wider select-all text-center">
-                    {resetResultModal.newPassword}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(resetResultModal.newPassword);
-                      setCopiedToken(true);
-                      showToast('Copied password to clipboard');
-                      setTimeout(() => setCopiedToken(false), 2500);
-                    }}
-                    className="p-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center transition-colors cursor-pointer"
-                    title="Copy Password"
-                  >
-                    {copiedToken ? (
-                      <Check className="w-5 h-5 text-emerald-400" />
-                    ) : (
-                      <Copy className="w-5 h-5" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-900 leading-relaxed flex items-start gap-2">
-                <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <span>
-                  The employee's recovery ticket is cleared. They can now authenticate using either their <strong>{resetResultModal.empId}</strong> or official email and this temporary password on the Staff Login modal.
-                </span>
-              </div>
-            </div>
-
-            <div className="pt-2 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setResetResultModal(null)}
-                className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition-colors cursor-pointer"
-              >
-                Close & Return to Roster
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* GM Attendance Watermark Inspection Modal */}
       {inspectGmPunch && (

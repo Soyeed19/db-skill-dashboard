@@ -21,7 +21,9 @@ import { ShieldCheck, Info } from 'lucide-react';
 
 const AppContent: React.FC = () => {
   const {
+    isAuthLoading,
     isLoggedIn,
+    authSession,
     currentPersona,
     activeCenter,
     toastMessage,
@@ -43,15 +45,26 @@ const AppContent: React.FC = () => {
   const [isClassroomOpen, setIsClassroomOpen] = useState(false);
   const [isAttendanceOpen, setIsAttendanceOpen] = useState(false);
 
-  // Sync tab when persona switches
+  // Sync tab when authenticated role resolves
   useEffect(() => {
     if (currentPersona?.role) {
       setCurrentTab(getDefaultTabForRole(currentPersona.role));
     }
   }, [currentPersona?.role]);
 
-  // If user is not logged in / at initial root view, render the Enterprise Public Landing Page
-  if (!isLoggedIn) {
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="flex items-center gap-2.5 text-xs font-bold text-slate-600">
+          <ShieldCheck className="w-4 h-4 text-[#007A3D] animate-pulse" />
+          <span>Verifying Supabase Session...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Strict Authentication Gate: If supabase.auth.getSession() is null, render ONLY the Login screen.
+  if (!isLoggedIn || !authSession) {
     return <HomePage />;
   }
 
@@ -59,7 +72,7 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans selection:bg-teal-700 selection:text-white">
-      {/* Top Navigation & Persona Switcher */}
+      {/* Top Navigation */}
       <Navbar
         currentTab={currentTab}
         onTabChange={setCurrentTab}
@@ -72,16 +85,16 @@ const AppContent: React.FC = () => {
         <div className="w-full max-w-[98%] xl:max-w-[1850px] mx-auto px-3 sm:px-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-xs bg-[#62B548]" />
-            <span className="font-semibold">Logged in as: {currentPersona.role}</span>
+            <span className="font-semibold">Authenticated Role: {currentPersona.role}</span>
             <span className="text-emerald-200 font-mono font-bold">[{currentPersona.level}]</span>
             <span className="text-white/40">•</span>
-            <span className="text-white/90">{currentPersona.name} ({currentPersona.title}) at {activeCenter.name}</span>
+            <span className="text-white/90">{currentPersona.name} ({currentPersona.email}) at {activeCenter.name}</span>
           </div>
 
           <div className="flex items-center gap-2 text-[11px] text-emerald-100">
-            <span>Daily Batch: <strong className="text-white font-mono">{currentBatch?.batchCode}</strong></span>
+            <span>Daily Batch: <strong className="text-white font-mono">{currentBatch?.batchCode || 'N/A'}</strong></span>
             <span>•</span>
-            <span>Target: {currentBatch?.enrolledCount}/{currentBatch?.targetCount}</span>
+            <span>Target: {currentBatch?.enrolledCount ?? 0}/{currentBatch?.targetCount ?? 30}</span>
           </div>
         </div>
       </div>

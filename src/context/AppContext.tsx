@@ -1,6 +1,9 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import { Session } from '@supabase/supabase-js';
 import {
   UserPersona,
+  UserRole,
+  UserLevel,
   Candidate,
   Batch,
   ConsumableItem,
@@ -17,14 +20,10 @@ import {
   AttendancePunch,
   DeploymentRecord,
   CenterIssueTicket,
-  ExpenseAuditLog,
-  EmployeeUser
+  ExpenseAuditLog
 } from '../types';
 import {
   INITIAL_CENTERS,
-  INITIAL_PERSONAS,
-  INITIAL_BATCHES,
-  INITIAL_CANDIDATES,
   INITIAL_CONSUMABLES,
   INITIAL_TRANSACTIONS,
   INITIAL_EMPLOYEES,
@@ -34,27 +33,50 @@ import {
   INITIAL_ATTENDANCE_PUNCHES,
   INITIAL_MAINTENANCE_TICKETS
 } from '../data/initialData';
-import { INITIAL_EMPLOYEE_USERS } from '../data/initialAuthData';
 import {
   safeLocalStorageSet
 } from '../utils/safeStorage';
 import {
+  supabase,
   checkSupabaseConnection,
-  SupabaseConnectionStatus,
-  SUPABASE_PROJECT_ID,
-  SUPABASE_DEFAULT_URL
+  SupabaseConnectionStatus
 } from '../lib/supabase';
 import {
+  StaffProfile,
+  ROOT_CEO_EMAIL,
+  ROOT_CEO_NAME,
+  INITIAL_ROOT_CEO_PROFILE,
+  normalizeProfileRole,
+  fetchProfilesFromSupabase,
+  fetchProfileByEmail,
+  ensureRootCeoProfileInSupabase,
+  syncAuthenticatedProfileId,
+  provisionStaffProfileInSupabase,
   fetchCandidatesFromSupabase,
   insertCandidateToSupabase,
   upsertCandidateToSupabase,
+  updateCandidateFieldsInSupabase,
   upsertCandidatesBulk,
-  deleteCandidateFromSupabase,
   fetchBatchesFromSupabase,
   upsertBatchToSupabase,
   purgeAllDataFromSupabase,
   setupSupabaseRealtime
 } from '../services/supabaseService';
+
+const DEFAULT_EXECUTIVE_PERSONA: UserPersona = {
+  id: INITIAL_ROOT_CEO_PROFILE.id,
+  name: ROOT_CEO_NAME,
+  role: 'CEO',
+  level: 'Level 1',
+  title: 'Chief Executive Officer (Executive Admin)',
+  centerId: 'ctr-delhi',
+  centerName: 'National Command HQ',
+  email: ROOT_CEO_EMAIL,
+  phone: '+91 98111 00001',
+  avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=256&q=80',
+  designation: 'CEO - National Command',
+  region: 'National'
+};
 
 interface AppContextType {
   // Cloud Database (Supabase)
@@ -64,17 +86,24 @@ interface AppContextType {
   refreshFromSupabase: () => Promise<void>;
   seedCloudDatabase: () => Promise<void>;
 
-  // Auth & Personas & Centers
+  // Production Email OTP Auth & Profiles
+  isAuthLoading: boolean;
   isLoggedIn: boolean;
-  loginAsPersona: (persona: UserPersona) => void;
-  loginWithCredentials: (credential: string, password: string) => { success: boolean; message: string };
-  requestPasswordReset: (identifier: string) => { success: boolean; message: string };
-  gmResetPassword: (userId: string, newPassword?: string) => { success: boolean; newPasswordGenerated: string };
-  logoutToLanding: () => void;
+  authSession: Session | null;
+  sendEmailOtp: (email: string) => Promise<{ success: boolean; message: string }>;
+  verifyEmailOtp: (email: string, token: string) => Promise<{ success: boolean; message: string }>;
+  logoutToLanding: () => Promise<void>;
   currentPersona: UserPersona;
-  setCurrentPersona: (persona: UserPersona) => void;
-  personas: UserPersona[];
-  employeeUsers: EmployeeUser[];
+  profiles: StaffProfile[];
+  provisionStaffMember: (params: {
+    email: string;
+    fullName: string;
+    role: UserRole | 'SM';
+    centerId?: string | null;
+    regionalCluster?: string | null;
+  }) => Promise<{ success: boolean; message: string }>;
+
+  // Centers
   centers: Center[];
   selectedCenterId: string;
   setSelectedCenterId: (centerId: string) => void;
@@ -175,7 +204,6 @@ export const generateDefaultAuditTrail = (claim: ExpenseClaim): ExpenseAuditLog[
   const logs: ExpenseAuditLog[] = [];
   const subDate = claim.submissionDate || claim.claimDate || '2026-09-20';
 
-  // 1. Submitted
   logs.push({
     id: `audit-${claim.id}-sub`,
     stage: 'Submitted',
@@ -187,7 +215,6 @@ export const generateDefaultAuditTrail = (claim: ExpenseClaim): ExpenseAuditLog[
     remarks: `Filed ${claim.items?.length || 0} expense line items for official tour (${claim.tourDates || 'Sanctioned Tour'}).`
   });
 
-  // 2. SM Verified (if passed initial pending state or reviewed)
   if (claim.status !== 'Pending Senior Manager Review') {
     logs.push({
       id: `audit-${claim.id}-sm`,
@@ -202,7 +229,6 @@ export const generateDefaultAuditTrail = (claim: ExpenseClaim): ExpenseAuditLog[
     });
   }
 
-  // 3. Returned by GM / SM
   if (claim.status === 'Returned by GM for Correction' || claim.status === 'Returned by Senior Manager') {
     logs.push({
       id: `audit-${claim.id}-ret`,
@@ -215,7 +241,6 @@ export const generateDefaultAuditTrail = (claim: ExpenseClaim): ExpenseAuditLog[
     });
   }
 
-  // 4. GM Sanctioned
   if (
     claim.status === 'Approved by GM - Ready for Bank Disbursement' ||
     claim.status === 'Approved by GM' ||
@@ -235,7 +260,6 @@ export const generateDefaultAuditTrail = (claim: ExpenseClaim): ExpenseAuditLog[
     });
   }
 
-  // 5. Disbursed / Settled
   if (claim.status === 'Settled via Bank Transfer' || claim.status === 'Disbursed') {
     logs.push({
       id: `audit-${claim.id}-disb`,
@@ -281,148 +305,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setThemeState(newTheme);
   };
 
-  // Authentication & Landing Flow
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
-    return localStorage.getItem('dbs_logged_in') === 'true';
-  });
-
-  // Current Persona
-  const [currentPersona, setCurrentPersona] = useState<UserPersona>(() => {
-    const saved = localStorage.getItem('dbs_persona');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { console.error(e); }
-    }
-    return INITIAL_PERSONAS[0]; // Ramesh Sharma (OSE)
-  });
-
-  const loginAsPersona = (persona: UserPersona) => {
-    const matchedEmployee = employees.find(e => e.id === persona.id || e.name === persona.name);
-    const enrichedPersona: UserPersona = {
-      ...persona,
-      assignedCenterIds: persona.assignedCenterIds || matchedEmployee?.assignedCenterIds,
-      assignedRegion: persona.assignedRegion || matchedEmployee?.assignedRegion,
-      regionCenterIds: persona.regionCenterIds || matchedEmployee?.regionCenterIds
-    };
-    setCurrentPersona(enrichedPersona);
-    setIsLoggedIn(true);
-    safeLocalStorageSet('dbs_logged_in', 'true');
-    safeLocalStorageSet('dbs_persona', JSON.stringify(enrichedPersona));
-    if (enrichedPersona.centerId) {
-      setSelectedCenterId(enrichedPersona.centerId);
-    }
-    showToast(`Logged in as: ${enrichedPersona.role} - ${enrichedPersona.name}`);
-  };
-
-  // Employee Users for Dual-Credential Auth & Password Reset
-  const [employeeUsers, setEmployeeUsers] = useState<EmployeeUser[]>(() => {
-    const saved = localStorage.getItem('dbs_employee_users');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { console.error(e); }
-    }
-    return INITIAL_EMPLOYEE_USERS;
-  });
-
-  useEffect(() => {
-    safeLocalStorageSet('dbs_employee_users', JSON.stringify(employeeUsers));
-  }, [employeeUsers]);
-
-  const loginWithCredentials = (credential: string, password: string): { success: boolean; message: string } => {
-    const cleanCred = credential.trim().toLowerCase();
-    const user = employeeUsers.find(u => 
-      u.email.toLowerCase() === cleanCred || u.empId.toLowerCase() === cleanCred
-    );
-
-    if (!user) {
-      return { success: false, message: 'Invalid Employee ID or Official Email address.' };
-    }
-
-    if (user.status === 'Suspended') {
-      return { success: false, message: 'Your account is suspended. Contact General Manager (GM).' };
-    }
-
-    if (user.passwordHash !== password) {
-      return { success: false, message: 'Incorrect password. Check credentials or request a GM reset.' };
-    }
-
-    // Match or create persona for logged in user
-    const matchedPersona = INITIAL_PERSONAS.find(p => p.role === user.role) || {
-      id: user.id,
-      name: user.name,
-      role: user.role,
-      level: user.role === 'CEO' || user.role === 'GM' ? 'Level 1' : user.role === 'PO' || user.role === 'Senior Manager' ? 'Level 3' : 'Level 4',
-      title: user.role,
-      centerId: user.assignedCenterId,
-      centerName: user.assignedCenterName,
-      email: user.email,
-      phone: user.phone,
-      avatar: user.photoUrl
-    };
-
-    loginAsPersona(matchedPersona);
-    return { success: true, message: `Welcome back, ${user.name}` };
-  };
-
-  const requestPasswordReset = (identifier: string): { success: boolean; message: string } => {
-    const clean = identifier.trim().toLowerCase();
-    const user = employeeUsers.find(u => 
-      u.email.toLowerCase() === clean || u.empId.toLowerCase() === clean
-    );
-
-    if (!user) {
-      return { success: false, message: 'No registered personnel found matching this Employee ID or Email.' };
-    }
-
-    const now = new Date().toLocaleString('en-IN', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
-
-    setEmployeeUsers(prev => prev.map(u => {
-      if (u.id === user.id) {
-        return {
-          ...u,
-          resetRequested: true,
-          resetRequestedAt: now
-        };
-      }
-      return u;
-    }));
-
-    showToast(`Password reset ticket created for ${user.name}. Routed to GM Command.`);
-    return {
-      success: true,
-      message: `Reset request submitted. The General Manager (Col. Rajesh Mehta) has been notified to generate a secure recovery token.`
-    };
-  };
-
-  const gmResetPassword = (userId: string, newPassword?: string): { success: boolean; newPasswordGenerated: string } => {
-    const genPassword = newPassword || `DBS@${Math.floor(1000 + Math.random() * 9000)}`;
-    
-    let targetName = '';
-    setEmployeeUsers(prev => prev.map(u => {
-      if (u.id === userId) {
-        targetName = u.name;
-        return {
-          ...u,
-          passwordHash: genPassword,
-          resetRequested: false,
-          resetRequestedAt: undefined
-        };
-      }
-      return u;
-    }));
-
-    showToast(`Temporary password for ${targetName} reset to: ${genPassword}`);
-    return { success: true, newPasswordGenerated: genPassword };
-  };
-
-  const logoutToLanding = () => {
-    setIsLoggedIn(false);
-    localStorage.removeItem('dbs_logged_in');
-    showToast('Logged out to DB Skills Enterprise Homepage');
+  // Toast
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3500);
   };
 
   // Centers
@@ -438,17 +325,378 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     safeLocalStorageSet('dbs_centers', JSON.stringify(centers));
   }, [centers]);
 
-  const [selectedCenterId, setSelectedCenterId] = useState<string>(() => {
-    return currentPersona.centerId || 'ctr-jodhpur';
-  });
+  const [selectedCenterId, setSelectedCenterId] = useState<string>('ctr-jodhpur');
 
-  // Keep center aligned when persona changes if not 'all'
-  useEffect(() => {
-    safeLocalStorageSet('dbs_persona', JSON.stringify(currentPersona));
-    if (currentPersona.centerId && selectedCenterId !== 'all') {
-      setSelectedCenterId(currentPersona.centerId);
+  // Helper to convert a StaffProfile row from public.profiles into a UserPersona
+  const buildPersonaFromProfile = (profile: StaffProfile, centerList: Center[]): UserPersona => {
+    const role = normalizeProfileRole(profile.role);
+    const level: UserLevel =
+      role === 'CEO' || role === 'GM'
+        ? 'Level 1'
+        : role === 'Senior Manager' || role === 'PO'
+        ? 'Level 3'
+        : 'Level 4';
+
+    const matchedCenter = profile.center_id
+      ? centerList.find(
+          c =>
+            c.code.toUpperCase() === profile.center_id!.toUpperCase() ||
+            c.id.toLowerCase() === profile.center_id!.toLowerCase()
+        )
+      : undefined;
+
+    const resolvedCenterId = matchedCenter?.id || (role === 'CEO' || role === 'GM' ? 'ctr-delhi' : 'ctr-jodhpur');
+    const resolvedCenterName =
+      matchedCenter?.name ||
+      (role === 'CEO'
+        ? 'National Command HQ'
+        : role === 'GM'
+        ? 'Corporate Headquarters'
+        : profile.regional_cluster || 'Regional Command');
+
+    const titleMap: Record<UserRole, string> = {
+      CEO: 'Chief Executive Officer (Executive Admin)',
+      GM: 'General Manager - National Operations',
+      'Senior Manager': 'Senior Manager - Regional Quality & QC',
+      PO: 'Program Officer',
+      OSE: 'Operation Support Executive',
+      Trainer: 'Master Road Safety Trainer'
+    };
+
+    return {
+      id: profile.id,
+      name: profile.full_name,
+      role,
+      level,
+      title: titleMap[role] || role,
+      centerId: resolvedCenterId,
+      centerName: resolvedCenterName,
+      email: profile.email,
+      phone: '+91 98111 00001',
+      avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=256&q=80',
+      designation: titleMap[role] || role,
+      region: profile.regional_cluster || matchedCenter?.region || 'National',
+      assignedRegion: profile.regional_cluster || undefined,
+      assignedCenterIds: matchedCenter ? [matchedCenter.id, matchedCenter.code] : undefined
+    };
+  };
+
+  // --- STRICT SUPABASE SESSION & EMAIL OTP AUTHENTICATION ---
+  const [authSession, setAuthSession] = useState<Session | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
+  const [profiles, setProfiles] = useState<StaffProfile[]>([INITIAL_ROOT_CEO_PROFILE]);
+  const [currentPersona, setCurrentPersona] = useState<UserPersona>(DEFAULT_EXECUTIVE_PERSONA);
+
+  // Strict check: user is logged in ONLY when an active Supabase session exists
+  const isLoggedIn = Boolean(authSession?.user);
+
+  // Resolve session user against public.profiles
+  const resolveSessionProfile = async (session: Session | null) => {
+    if (!session?.user?.email) {
+      setAuthSession(null);
+      return;
     }
-  }, [currentPersona]);
+
+    const email = session.user.email.trim().toLowerCase();
+    // Sync auth.users.id with public.profiles
+    await syncAuthenticatedProfileId(email, session.user.id);
+    const { profile } = await fetchProfileByEmail(email);
+
+    if (!profile && email !== ROOT_CEO_EMAIL) {
+      // Unregistered email in session -> force sign out
+      await supabase.auth.signOut();
+      setAuthSession(null);
+      showToast('Access Denied: Unregistered email address.');
+      return;
+    }
+
+    const effectiveProfile: StaffProfile = profile || {
+      ...INITIAL_ROOT_CEO_PROFILE,
+      id: session.user.id
+    };
+
+    const persona = buildPersonaFromProfile(effectiveProfile, centers);
+    setCurrentPersona(persona);
+    if (persona.centerId) {
+      setSelectedCenterId(persona.centerId);
+    }
+    setAuthSession(session);
+  };
+
+  // Initialize Supabase Auth session listener on mount
+  useEffect(() => {
+    let isMounted = true;
+
+    // Purge any legacy mock auth storage keys
+    try {
+      localStorage.removeItem('dbs_logged_in');
+      localStorage.removeItem('dbs_persona');
+      localStorage.removeItem('dbs_employee_users');
+    } catch {}
+
+    const initSession = async () => {
+      setIsAuthLoading(true);
+      try {
+        // Seed/verify root CEO profile in public.profiles
+        await ensureRootCeoProfileInSupabase();
+        const loadedProfiles = await fetchProfilesFromSupabase();
+        if (isMounted) {
+          setProfiles(loadedProfiles);
+        }
+
+        const { data } = await supabase.auth.getSession();
+        if (!isMounted) return;
+
+        if (data?.session) {
+          await resolveSessionProfile(data.session);
+        } else {
+          setAuthSession(null);
+        }
+      } catch (err) {
+        console.warn('[Supabase Auth] Session check error:', err);
+        if (isMounted) setAuthSession(null);
+      } finally {
+        if (isMounted) setIsAuthLoading(false);
+      }
+    };
+
+    initSession();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!isMounted) return;
+      if (!session) {
+        setAuthSession(null);
+      } else {
+        resolveSessionProfile(session);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      authListener?.subscription.unsubscribe();
+    };
+  }, []);
+
+  /**
+   * Step 1: Send 6-Digit Email OTP
+   * - Validates email against public.profiles (and root CEO soyeed12@gmail.com)
+   * - Calls supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } })
+   * - If unregistered, immediately returns "Access Denied: Unregistered email address."
+   */
+  const sendEmailOtp = async (email: string): Promise<{ success: boolean; message: string }> => {
+    const cleanEmail = email.trim().toLowerCase();
+
+    // 1. Check if email is registered in public.profiles (or is Root CEO soyeed12@gmail.com)
+    const { profile } = await fetchProfileByEmail(cleanEmail);
+    const isAuthorizedProfile = Boolean(profile) || cleanEmail === ROOT_CEO_EMAIL;
+
+    if (!isAuthorizedProfile) {
+      return {
+        success: false,
+        message: 'Access Denied: Unregistered email address.'
+      };
+    }
+
+    // 2. Send 6-digit Email OTP via supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } })
+    const { error } = await supabase.auth.signInWithOtp({
+      email: cleanEmail,
+      options: {
+        shouldCreateUser: false
+      }
+    });
+
+    if (error) {
+      const errMsg = (error.message || '').toLowerCase();
+      const isUserNotCreatedInAuthYet =
+        error.code === 'otp_disabled' ||
+        errMsg.includes('signups not allowed') ||
+        errMsg.includes('user not found');
+
+      // If the staff member IS provisioned in public.profiles (or is root CEO soyeed12@gmail.com)
+      // and their auth.users record has not been initialized yet, initialize their OTP identity
+      if (isAuthorizedProfile && isUserNotCreatedInAuthYet) {
+        const retryRes = await supabase.auth.signInWithOtp({
+          email: cleanEmail,
+          options: {
+            shouldCreateUser: true
+          }
+        });
+
+        if (retryRes.error) {
+          return {
+            success: false,
+            message: retryRes.error.message || 'Failed to dispatch OTP email.'
+          };
+        }
+
+        return {
+          success: true,
+          message: `6-digit verification code sent to ${cleanEmail}.`
+        };
+      }
+
+      if (isUserNotCreatedInAuthYet) {
+        return {
+          success: false,
+          message: 'Access Denied: Unregistered email address.'
+        };
+      }
+
+      return {
+        success: false,
+        message: error.message || 'Failed to send verification OTP.'
+      };
+    }
+
+    return {
+      success: true,
+      message: `6-digit verification code sent to ${cleanEmail}.`
+    };
+  };
+
+  /**
+   * Step 2: Verify 6-Digit Email OTP
+   * - Calls supabase.auth.verifyOtp({ email, token, type: 'email' })
+   */
+  const verifyEmailOtp = async (
+    email: string,
+    token: string
+  ): Promise<{ success: boolean; message: string }> => {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanToken = token.trim();
+
+    const { data, error } = await supabase.auth.verifyOtp({
+      email: cleanEmail,
+      token: cleanToken,
+      type: 'email'
+    });
+
+    if (error || !data?.session || !data?.user) {
+      return {
+        success: false,
+        message: error?.message || 'Invalid or expired 6-digit OTP token.'
+      };
+    }
+
+    await resolveSessionProfile(data.session);
+    const updatedProfiles = await fetchProfilesFromSupabase();
+    setProfiles(updatedProfiles);
+
+    showToast(`Authenticated as ${cleanEmail}`);
+    return {
+      success: true,
+      message: 'OTP verified! Mounting secure workspace.'
+    };
+  };
+
+  /**
+   * Downstream Role Provisioning:
+   * - CEO can add GM (Email, Name)
+   * - GM can add SM (Email, Name, Regional Cluster)
+   * - SM can add PO and OSE (Email, Name, Center ID e.g., 'RJ-01')
+   */
+  const provisionStaffMember = async (params: {
+    email: string;
+    fullName: string;
+    role: UserRole | 'SM';
+    centerId?: string | null;
+    regionalCluster?: string | null;
+  }): Promise<{ success: boolean; message: string }> => {
+    const cleanEmail = params.email.trim().toLowerCase();
+    const cleanName = params.fullName.trim();
+
+    // Enforce hierarchical RBAC rules
+    const actorRole = currentPersona.role;
+    if (actorRole === 'CEO' && params.role !== 'GM') {
+      return { success: false, message: 'CEO provisioning authority is scoped to adding General Managers (GM).' };
+    }
+    if (actorRole === 'GM' && params.role !== 'Senior Manager' && params.role !== 'SM') {
+      return { success: false, message: 'GM provisioning authority is scoped to adding Senior Managers (SM).' };
+    }
+    if (actorRole === 'Senior Manager' && params.role !== 'PO' && params.role !== 'OSE') {
+      return { success: false, message: 'SM provisioning authority is scoped to adding PO and OSE staff.' };
+    }
+
+    const res = await provisionStaffProfileInSupabase({
+      email: cleanEmail,
+      fullName: cleanName,
+      role: params.role,
+      centerId: params.centerId || null,
+      regionalCluster: params.regionalCluster || null
+    });
+
+    if (!res.success) {
+      return {
+        success: false,
+        message: `Supabase profiles insert failed: ${res.error || 'Please ensure public.profiles table is created via SQL Setup.'}`
+      };
+    }
+
+    // Refresh profiles list from Supabase
+    const latestProfiles = await fetchProfilesFromSupabase();
+    setProfiles(latestProfiles);
+
+    // Also add/sync in employees directory so they appear in operational rosters
+    const normalizedRole = normalizeProfileRole(params.role);
+    const matchedCenter = params.centerId
+      ? centers.find(c => c.code.toUpperCase() === params.centerId!.toUpperCase() || c.id === params.centerId)
+      : centers[0];
+
+    setEmployees(prev => {
+      if (prev.some(e => e.email.toLowerCase() === cleanEmail)) {
+        return prev;
+      }
+      const newEmp: Employee = {
+        id: res.data?.id || `emp-${Date.now()}`,
+        empCode: `DBS-EMP-${String(Math.floor(1000 + Math.random() * 9000))}`,
+        name: cleanName,
+        role: normalizedRole,
+        level: normalizedRole === 'GM' ? 'Level 1' : normalizedRole === 'Senior Manager' || normalizedRole === 'PO' ? 'Level 3' : 'Level 4',
+        designation:
+          normalizedRole === 'GM'
+            ? 'General Manager - Operations'
+            : normalizedRole === 'Senior Manager'
+            ? `Senior Manager (${params.regionalCluster || 'Regional'})`
+            : normalizedRole === 'PO'
+            ? `Program Officer (${params.centerId || matchedCenter?.code})`
+            : `Operation Support Executive (${params.centerId || matchedCenter?.code})`,
+        centerId: matchedCenter?.id || 'ctr-jodhpur',
+        centerName: matchedCenter?.name || params.regionalCluster || 'National HQ',
+        reportingOfficer: `${currentPersona.name} (${currentPersona.role})`,
+        dateOfJoining: new Date().toISOString().split('T')[0],
+        tenureMonths: 1,
+        phone: '+91 98100 00000',
+        email: cleanEmail,
+        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80',
+        monthlyTarget: 450,
+        monthlyAchieved: 0,
+        casualLeaveBalance: 12,
+        compOffBalance: 0,
+        assignedRegion: params.regionalCluster || undefined,
+        assignedCenterIds: matchedCenter ? [matchedCenter.id, matchedCenter.code] : undefined,
+        status: 'Active'
+      };
+      const updated = [newEmp, ...prev];
+      safeLocalStorageSet('dbs_employees', JSON.stringify(updated));
+      return updated;
+    });
+
+    const scopeLabel = params.centerId
+      ? `Center ${params.centerId}`
+      : params.regionalCluster || 'National Scope';
+
+    showToast(`✓ Provisioned ${cleanName} (${params.role}) in public.profiles!`);
+    return {
+      success: true,
+      message: `${cleanName} (${cleanEmail}) provisioned as ${params.role} [${scopeLabel}] in public.profiles. They can now log in on any device via Email OTP.`
+    };
+  };
+
+  const logoutToLanding = async () => {
+    await supabase.auth.signOut();
+    setAuthSession(null);
+    showToast('Signed out of Supabase session.');
+  };
 
   const activeCenter = centers.find(c => c.id === selectedCenterId) || centers[0];
 
@@ -498,17 +746,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast(`Staff mobilization: Employee reassigned to ${targetCenter.name} (${targetCenter.code}) effective ${effectiveDate}.`);
   };
 
-  // Toast
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
-  };
-
   // Candidates: STRICTLY CLOUD-NATIVE (Supabase PostgreSQL Database)
-  // Zero reading from or writing to browser localStorage.
-  // Real-time synchronization guarantees cross-device parity.
-  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [allCandidates, setCandidates] = useState<Candidate[]>([]);
+
+  // Enforce center-scoped read for center-bound roles (PO, OSE, Trainer) in addition to PostgreSQL RLS
+  const candidates = useMemo(() => {
+    if (['CEO', 'GM', 'Senior Manager'].includes(currentPersona.role)) {
+      return allCandidates;
+    }
+    const allowedSet = new Set<string>([
+      currentPersona.centerId,
+      activeCenter.id,
+      activeCenter.code,
+      ...(currentPersona.assignedCenterIds || [])
+    ].filter(Boolean));
+
+    return allCandidates.filter(c => allowedSet.has(c.centerId));
+  }, [allCandidates, currentPersona, activeCenter]);
 
   // Batches
   const [batches, setBatches] = useState<Batch[]>(() => {
@@ -528,18 +782,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [supabaseMessage, setSupabaseMessage] = useState<string>('Connecting to Supabase cloud database...');
   const [isCloudSyncing, setIsCloudSyncing] = useState<boolean>(false);
 
-  // Direct fetch function querying Supabase candidates & batches
   const syncFromCloud = async (isInitial = false) => {
     if (isInitial) setIsCloudSyncing(true);
     try {
-      const cloudCandidates = await fetchCandidatesFromSupabase();
+      const [cloudCandidates, cloudBatches, cloudProfiles] = await Promise.all([
+        fetchCandidatesFromSupabase(),
+        fetchBatchesFromSupabase(),
+        fetchProfilesFromSupabase()
+      ]);
       if (cloudCandidates !== null) {
         setCandidates(cloudCandidates);
       }
-      const cloudBatches = await fetchBatchesFromSupabase();
       if (cloudBatches !== null) {
         setBatches(cloudBatches);
         safeLocalStorageSet('dbs_batches', JSON.stringify(cloudBatches));
+      }
+      if (cloudProfiles && cloudProfiles.length > 0) {
+        setProfiles(cloudProfiles);
       }
     } catch (err) {
       console.warn('[Supabase Cloud Sync Notice]:', err);
@@ -548,13 +807,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  // Initialize and synchronize with Supabase Cloud Database on startup
   useEffect(() => {
     let unsubscribeRealtime: (() => void) | undefined;
     let isMounted = true;
     let pollTimer: ReturnType<typeof setInterval> | undefined;
 
-    // Purge any stale legacy local cache key from browser
     try {
       localStorage.removeItem('dbs_candidates');
       localStorage.removeItem('dbsl_candidates');
@@ -571,25 +828,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSupabaseMessage(health.message);
 
         if (health.tablesReady) {
-          // 1. Initial direct cloud query: SELECT * FROM candidates
-          const cloudCandidates = await fetchCandidatesFromSupabase();
+          await syncFromCloud(false);
           if (!isMounted) return;
 
-          if (cloudCandidates !== null) {
-            console.log(`[Supabase Cloud] Synchronized ${cloudCandidates.length} candidate dossiers from cloud database.`);
-            setCandidates(cloudCandidates);
-          }
-
-          // 2. Fetch remote batches from Supabase
-          const cloudBatches = await fetchBatchesFromSupabase();
-          if (!isMounted) return;
-
-          if (cloudBatches !== null) {
-            setBatches(cloudBatches);
-            safeLocalStorageSet('dbs_batches', JSON.stringify(cloudBatches));
-          }
-
-          // 3. Setup Supabase Realtime multi-device synchronization
           unsubscribeRealtime = setupSupabaseRealtime({
             onCandidateInsert: (newCand) => {
               setCandidates(prev => {
@@ -599,9 +840,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               showToast(`[Cloud Sync] New candidate ${newCand.fullName} received from cloud.`);
             },
             onCandidateUpdate: (updatedCand) => {
-              setCandidates(prev => {
-                return prev.map(c => c.id === updatedCand.id ? updatedCand : c);
-              });
+              setCandidates(prev => prev.map(c => c.id === updatedCand.id ? updatedCand : c));
             },
             onCandidateDelete: (deletedId) => {
               setCandidates(prev => prev.filter(c => c.id !== deletedId));
@@ -613,6 +852,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 safeLocalStorageSet('dbs_batches', JSON.stringify(freshBatches));
               }
             },
+            onProfileChange: async () => {
+              const freshProfiles = await fetchProfilesFromSupabase();
+              if (freshProfiles && isMounted) {
+                setProfiles(freshProfiles);
+              }
+            },
             onPurge: () => {
               setCandidates([]);
               setBatches([]);
@@ -621,7 +866,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
           });
 
-          // 4. Background Polling Guard: Re-sync every 5s across all devices
           pollTimer = setInterval(() => {
             if (isMounted) syncFromCloud(false);
           }, 5000);
@@ -635,7 +879,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     initCloudDatabase();
 
-    // 5. Re-sync immediately on browser tab focus or device wake
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && isMounted) {
         syncFromCloud(false);
@@ -665,15 +908,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSupabaseMessage(health.message);
 
       if (health.tablesReady) {
-        const cloudCandidates = await fetchCandidatesFromSupabase();
-        if (cloudCandidates) {
-          setCandidates(cloudCandidates);
-          showToast(`Successfully refreshed ${cloudCandidates.length} candidates from Supabase cloud database!`);
-        }
-        const cloudBatches = await fetchBatchesFromSupabase();
-        if (cloudBatches) {
-          setBatches(cloudBatches);
-        }
+        await syncFromCloud(false);
+        showToast('Synchronized candidates, batches & profiles from Supabase cloud!');
       } else {
         showToast(health.message);
       }
@@ -686,17 +922,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const seedCloudDatabase = async () => {
     setIsCloudSyncing(true);
-    showToast('Uploading all candidates & batches to Supabase cloud...');
+    showToast('Uploading candidates, batches & root profile to Supabase cloud...');
     try {
-      const candOk = await upsertCandidatesBulk(candidates);
+      await ensureRootCeoProfileInSupabase(authSession?.user?.id);
+      const candOk = await upsertCandidatesBulk(allCandidates);
       for (const b of batches) {
         await upsertBatchToSupabase(b);
       }
       if (candOk) {
         setSupabaseStatus('connected');
-        showToast('All candidates and batches successfully uploaded to Supabase!');
+        showToast('All data successfully synchronized to Supabase!');
       } else {
-        showToast('Database error: Please ensure SQL tables are created in Supabase SQL editor.');
+        showToast('Database error: Please ensure SQL tables & RLS are configured in Supabase SQL editor.');
       }
     } catch (e: any) {
       showToast(`Upload failed: ${e?.message || 'Error'}`);
@@ -795,7 +1032,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addCandidate = (candidateData: Partial<Candidate>): Candidate => {
     const centerObj = centers.find(c => c.id === (candidateData.centerId || activeCenter.id)) || activeCenter;
     const centerCodeClean = centerObj.code.replace('-', '');
-    const serial = String(candidates.length + 140).padStart(4, '0');
+    const serial = String(allCandidates.length + 140).padStart(4, '0');
     const regNo = `DBS/2026/${centerCodeClean}/${serial}`;
     const newId = `cand-${Date.now()}`;
 
@@ -848,10 +1085,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       queries: []
     };
 
-    // Optimistic local state update
     setCandidates(prev => [newCandidate, ...prev]);
 
-    // DIRECT CLOUD DATABASE WRITE: Executed immediately to Supabase
     insertCandidateToSupabase(newCandidate).then(res => {
       if (res.success && res.data) {
         setCandidates(prev => {
@@ -865,15 +1100,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
         showToast(`✓ Candidate ${newCandidate.fullName} saved to Supabase cloud!`);
       } else {
-        console.warn('[Supabase Cloud Warning]', res.error);
         showToast(`⚠️ Cloud Warning: ${res.error || 'Failed to save to Supabase'}`);
       }
     }).catch(err => {
-      console.error('[Supabase Cloud Write Error]', err);
       showToast(`⚠️ Could not reach Supabase cloud: ${err?.message || 'Network error'}`);
     });
 
-    // Update batch enrolled count
     setBatches(prev => {
       const next = prev.map(b => (b.id === newCandidate.batchId ? { ...b, enrolledCount: b.enrolledCount + 1 } : b));
       const targetBatch = next.find(b => b.id === newCandidate.batchId);
@@ -883,7 +1115,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return next;
     });
 
-    // Update employee achievement for current persona if OSE
     setEmployees(prev =>
       prev.map(emp => (emp.id === currentPersona.id ? { ...emp, monthlyAchieved: emp.monthlyAchieved + 1 } : emp))
     );
@@ -896,7 +1127,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const next = prev.map(c => (c.id === id ? { ...c, ...updates } : c));
       const target = next.find(c => c.id === id);
       if (target) {
-        upsertCandidateToSupabase(target).catch(err => {
+        updateCandidateFieldsInSupabase(id, target).catch(err => {
           console.warn('[Supabase] Candidate update sync warning:', err);
         });
       }
@@ -917,7 +1148,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             certificateHoldingPhotoUrl: holdingPhotoUrl,
             certificateHandoverPhotoUrl: handoverPhotoUrl
           };
-          upsertCandidateToSupabase(updated).catch(err => {
+          updateCandidateFieldsInSupabase(candidateId, updated).catch(err => {
             console.warn('[Supabase] Certificate photo sync warning:', err);
           });
           return updated;
@@ -930,7 +1161,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const submitBatchToPo = (centerId: string, candidateIds?: string[]) => {
-    const targetCandidates = candidates.filter(c => {
+    const targetCandidates = allCandidates.filter(c => {
       const matchCenter = c.centerId === centerId;
       const matchId = candidateIds ? candidateIds.includes(c.id) : true;
       return matchCenter && matchId && c.status === 'Draft';
@@ -969,14 +1200,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       })
     );
 
-    // Direct Cloud Write: Sync dispatched batch candidates to Supabase
     if (dispatched.length > 0) {
       upsertCandidatesBulk(dispatched).catch(err => {
         console.warn('[Supabase] Dispatch sync warning:', err);
       });
     }
 
-    // Update batch status to Audit Underway
     setBatches(prev =>
       prev.map(b => (b.centerId === centerId ? { ...b, status: 'Audit Underway' } : b))
     );
@@ -1009,7 +1238,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             poCorrectionRemarks: comment,
             queries: [newQuery, ...c.queries]
           };
-          upsertCandidateToSupabase(updated).catch(err => {
+          updateCandidateFieldsInSupabase(candidateId, updated).catch(err => {
             console.warn('[Supabase] Query sync warning:', err);
           });
           return updated;
@@ -1043,7 +1272,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             isLocked: !hasRemainingOpen,
             poCorrectionRemarks: hasRemainingOpen ? c.poCorrectionRemarks : undefined
           };
-          upsertCandidateToSupabase(updated).catch(err => {
+          updateCandidateFieldsInSupabase(candidateId, updated).catch(err => {
             console.warn('[Supabase] Resolve query sync warning:', err);
           });
           return updated;
@@ -1074,7 +1303,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             greenSignalBy: `${reviewerName} (${currentPersona?.role || 'PO'})`,
             greenSignalAt: nowFormatted
           };
-          upsertCandidateToSupabase(updated).catch(err => {
+          updateCandidateFieldsInSupabase(candidateId, updated).catch(err => {
             console.warn('[Supabase] Green signal sync warning:', err);
           });
           return updated;
@@ -1095,7 +1324,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             apmApprovedBy: `${currentPersona.name} (Senior Manager)`,
             apmApprovedAt: new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })
           };
-          upsertCandidateToSupabase(updated).catch(err => {
+          updateCandidateFieldsInSupabase(candidateId, updated).catch(err => {
             console.warn('[Supabase] APM QC sync warning:', err);
           });
           return updated;
@@ -1120,7 +1349,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             certificateIssuedDate: today,
             dispatchedAt: new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })
           };
-          upsertCandidateToSupabase(updated).catch(err => {
+          updateCandidateFieldsInSupabase(candidateId, updated).catch(err => {
             console.warn('[Supabase] Dispatch sync warning:', err);
           });
           return updated;
@@ -1197,7 +1426,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         prev.map(c => {
           if (c.id === candidateId) {
             const updated = { ...c, driverHoldingIdUrl: photoUrl };
-            upsertCandidateToSupabase(updated).catch(() => {});
+            updateCandidateFieldsInSupabase(candidateId, updated).catch(() => {});
             return updated;
           }
           return c;
@@ -1296,13 +1525,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // --- LEAVE MANAGEMENT METHODS ---
   const applyLeave = (leaveData: Omit<LeaveRecord, 'id' | 'status' | 'appliedAt' | 'approverTarget'>): boolean => {
-    // Check DB Skills Policy:
-    // OSE / Trainer -> routed to PO
-    // PO / RMT / Senior Manager -> routed to GM
     const isLevel4 = leaveData.employeeRole === 'OSE' || leaveData.employeeRole === 'Trainer';
     const targetApprover = isLevel4 ? 'PO' : 'GM';
 
-    // Rule check: max 3 days per month for Casual/Sick
     if (leaveData.leaveType === 'Casual/Sick Leave' && leaveData.daysCount > 3) {
       showToast('Policy Limit: Casual/Sick leave cannot exceed 3 days per month.');
       return false;
@@ -1337,7 +1562,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       })
     );
 
-    // If approved, deduct leave balance
     if (action === 'Approved') {
       const targetLeave = leaves.find(l => l.id === leaveId);
       if (targetLeave) {
@@ -1367,7 +1591,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // --- EMPLOYEES & GEOFENCE ---
   const performCheckIn = (employeeId: string): boolean => {
-    // Generate simulated coordinates near center (within 35 meters)
     const latOffset = (Math.random() - 0.5) * 0.0003;
     const lngOffset = (Math.random() - 0.5) * 0.0003;
     const distance = Math.floor(15 + Math.random() * 40);
@@ -1478,10 +1701,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return updated;
     });
 
-    // If currently active persona matches this employee, update active persona state too
     setCurrentPersona(prev => {
       if (prev.id === id || prev.name === updates.name) {
-        const next = {
+        return {
           ...prev,
           ...(updates.assignedCenterIds ? { assignedCenterIds: updates.assignedCenterIds } : {}),
           ...(updates.assignedRegion ? { assignedRegion: updates.assignedRegion } : {}),
@@ -1489,8 +1711,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           ...(updates.centerId ? { centerId: updates.centerId } : {}),
           ...(updates.centerName ? { centerName: updates.centerName } : {})
         };
-        safeLocalStorageSet('dbs_persona', JSON.stringify(next));
-        return next;
       }
       return prev;
     });
@@ -1582,7 +1802,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const submitExpenseClaim = (claimData: Omit<ExpenseClaim, 'id' | 'claimNumber' | 'status'> & { status?: ExpenseClaimStatus }) => {
     const claimNo = `EXP/DBS/2026/09/${Math.floor(100 + Math.random() * 899)}`;
-    // Step A: Employee Submits Claim -> Initial Status: Pending Senior Manager Review
     const targetStatus: ExpenseClaimStatus = claimData.status || 'Pending Senior Manager Review';
     const nowStr = new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
 
@@ -1619,7 +1838,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return updated;
     });
 
-    // Update tour status
     if (claimData.tourId) {
       setTours(prev =>
         prev.map(t => (t.id === claimData.tourId ? { ...t, status: 'Expense Claim Filed' } : t))
@@ -1629,7 +1847,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast(`Expense claim ${claimNo} filed! Routed to Senior Manager (SM) for physical tour verification.`);
   };
 
-  // Step B: Senior Manager (SM) Action -> Verify & Endorse Claim -> Pending GM Review
   const endorseExpenseClaim = (claimId: string, remarks?: string) => {
     const nowStr = new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
 
@@ -1669,7 +1886,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast('Claim verified & endorsed by Senior Manager! Forwarded to General Manager for financial sanction.');
   };
 
-  // Step C: General Manager (GM) Action -> Sanction & Grant Reimbursement
   const approveExpenseClaim = (claimId: string, approvedTotal: number, remarks: string) => {
     const nowStr = new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
 
@@ -1713,7 +1929,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const rejectExpenseClaim = (claimId: string, remarks: string) => {
     const nowStr = new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
     const isSm = currentPersona.role === 'Senior Manager';
-    // If SM rejects -> Status updates to 'Returned by Senior Manager'. If GM -> 'Returned by GM for Correction'
     const newStatus: ExpenseClaimStatus = isSm ? 'Returned by Senior Manager' : 'Returned by GM for Correction';
 
     setExpenseClaims(prev => {
@@ -1752,7 +1967,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast(isSm ? 'Claim returned by Senior Manager with verification remarks.' : 'Claim returned by General Manager for correction.');
   };
 
-  // Maintenance Tickets Handlers
   const createCenterTicket = (ticketData: Omit<CenterIssueTicket, "id" | "createdAt" | "status">) => {
     const newTicket: CenterIssueTicket = {
       id: `tkt-mnt-${Math.floor(100 + Math.random() * 899)}`,
@@ -1852,11 +2066,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const resetAllData = () => {
-    localStorage.clear();
-    sessionStorage.clear();
-    safeLocalStorageSet('dbs_batches', JSON.stringify([]));
+    // Only CEO role in profiles can execute system purge
+    if (currentPersona.role !== 'CEO') {
+      showToast('Access Denied: Only users with role = CEO in profiles can execute system purge queries.');
+      return;
+    }
 
-    setCurrentPersona(INITIAL_PERSONAS[0]);
+    safeLocalStorageSet('dbs_batches', JSON.stringify([]));
     setCandidates([]);
     setBatches([]);
     setConsumables(INITIAL_CONSUMABLES);
@@ -1866,7 +2082,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTours(INITIAL_TOURS);
     setExpenseClaims(INITIAL_EXPENSE_CLAIMS);
 
-    // Also purge Supabase cloud database
     purgeAllDataFromSupabase().catch(err => {
       console.warn('[Supabase] Cloud purge on reset error:', err);
     });
@@ -1882,16 +2097,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         isCloudSyncing,
         refreshFromSupabase,
         seedCloudDatabase,
+        isAuthLoading,
         isLoggedIn,
-        loginAsPersona,
-        loginWithCredentials,
-        requestPasswordReset,
-        gmResetPassword,
+        authSession,
+        sendEmailOtp,
+        verifyEmailOtp,
         logoutToLanding,
         currentPersona,
-        setCurrentPersona,
-        personas: INITIAL_PERSONAS,
-        employeeUsers,
+        profiles,
+        provisionStaffMember,
         centers,
         selectedCenterId,
         setSelectedCenterId,

@@ -27,7 +27,8 @@ export const SupabaseStatusModal: React.FC<SupabaseStatusModalProps> = ({ isOpen
     isCloudSyncing,
     refreshFromSupabase,
     seedCloudDatabase,
-    candidates
+    candidates,
+    profiles
   } = useApp();
 
   const [copied, setCopied] = useState(false);
@@ -37,11 +38,124 @@ export const SupabaseStatusModal: React.FC<SupabaseStatusModalProps> = ({ isOpen
 
   const sqlCode = `-- ==============================================================================
 -- DB Skills Commercial Driver Training & Operational Governance Portal
--- Supabase PostgreSQL Schema & Realtime Setup
+-- Production-Grade Supabase PostgreSQL Schema, Auth Seed & RLS Policies
 -- Project ID: ${SUPABASE_PROJECT_ID}
 -- ==============================================================================
 
--- 1. Candidates Table
+-- 1. Profiles Table (Production RBAC & Downstream Staff Provisioning)
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email TEXT UNIQUE NOT NULL,
+  full_name TEXT NOT NULL,
+  role TEXT NOT NULL,
+  center_id TEXT DEFAULT NULL,
+  regional_cluster TEXT DEFAULT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS regional_cluster TEXT DEFAULT NULL;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
+-- 2. Trigger to Map public.profiles.id <-> auth.users.id for Email OTP
+CREATE OR REPLACE FUNCTION public.sync_profile_with_auth_users()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+DECLARE
+  v_auth_id UUID;
+BEGIN
+  NEW.email := LOWER(TRIM(NEW.email));
+
+  SELECT id INTO v_auth_id
+  FROM auth.users
+  WHERE LOWER(email) = NEW.email
+  LIMIT 1;
+
+  IF v_auth_id IS NULL THEN
+    v_auth_id := COALESCE(NEW.id, gen_random_uuid());
+    INSERT INTO auth.users (
+      instance_id,
+      id,
+      aud,
+      role,
+      email,
+      encrypted_password,
+      email_confirmed_at,
+      raw_app_meta_data,
+      raw_user_meta_data,
+      created_at,
+      updated_at,
+      confirmation_token,
+      email_change,
+      email_change_token_new,
+      recovery_token
+    ) VALUES (
+      '00000000-0000-0000-0000-000000000000',
+      v_auth_id,
+      'authenticated',
+      'authenticated',
+      NEW.email,
+      '',
+      NOW(),
+      '{"provider":"email","providers":["email"]}'::jsonb,
+      jsonb_build_object('full_name', NEW.full_name, 'role', NEW.role, 'center_id', NEW.center_id),
+      NOW(),
+      NOW(),
+      '',
+      '',
+      '',
+      ''
+    );
+  END IF;
+
+  NEW.id := v_auth_id;
+  NEW.updated_at := NOW();
+  RETURN NEW;
+EXCEPTION
+  WHEN OTHERS THEN
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_sync_profile_with_auth_users ON public.profiles;
+CREATE TRIGGER trg_sync_profile_with_auth_users
+BEFORE INSERT OR UPDATE ON public.profiles
+FOR EACH ROW
+EXECUTE FUNCTION public.sync_profile_with_auth_users();
+
+-- 3. Seed Test Run Root Administrator (CEO: soyeed12@gmail.com)
+DO $$
+DECLARE
+  v_ceo_id UUID;
+BEGIN
+  SELECT id INTO v_ceo_id
+  FROM auth.users
+  WHERE LOWER(email) = 'soyeed12@gmail.com'
+  LIMIT 1;
+
+  INSERT INTO public.profiles (id, email, full_name, role, center_id, regional_cluster, updated_at)
+  VALUES (
+    COALESCE(v_ceo_id, gen_random_uuid()),
+    'soyeed12@gmail.com',
+    'Soyeed Ahmed (Executive Admin)',
+    'CEO',
+    NULL,
+    'National Command',
+    NOW()
+  )
+  ON CONFLICT (email) DO UPDATE SET
+    id = COALESCE(v_ceo_id, public.profiles.id),
+    full_name = 'Soyeed Ahmed (Executive Admin)',
+    role = 'CEO',
+    center_id = NULL,
+    updated_at = NOW();
+END $$;
+
+-- 4. Candidates & Batches Tables
 CREATE TABLE IF NOT EXISTS public.candidates (
   id TEXT PRIMARY KEY,
   registration_number TEXT,
@@ -93,7 +207,6 @@ CREATE TABLE IF NOT EXISTS public.candidates (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2. Batches Table
 CREATE TABLE IF NOT EXISTS public.batches (
   id TEXT PRIMARY KEY,
   batch_code TEXT UNIQUE NOT NULL,
@@ -111,26 +224,163 @@ CREATE TABLE IF NOT EXISTS public.batches (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 3. Row Level Security (RLS) & Policies
+-- 5. Helper Function for Center Code <-> Center ID equivalence in RLS
+CREATE OR REPLACE FUNCTION public.center_matches(profile_center TEXT, record_center TEXT)
+RETURNS BOOLEAN
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT
+    profile_center IS NULL
+    OR LOWER(profile_center) = LOWER(record_center)
+    OR (UPPER(profile_center) = 'RJ-01' AND record_center = 'ctr-jodhpur')
+    OR (UPPER(profile_center) = 'RJ-02' AND record_center = 'ctr-jaipur')
+    OR (UPPER(profile_center) = 'RJ-03' AND record_center = 'ctr-kota')
+    OR (UPPER(profile_center) = 'RJ-04' AND record_center = 'ctr-udaipur')
+    OR (UPPER(profile_center) = 'DL-01' AND record_center = 'ctr-delhi-north')
+    OR (UPPER(profile_center) = 'DL-02' AND record_center = 'ctr-delhi')
+    OR (UPPER(profile_center) = 'DL-03' AND record_center = 'ctr-gurugram')
+    OR (UPPER(profile_center) = 'MH-01' AND record_center = 'ctr-pune')
+    OR (UPPER(profile_center) = 'MH-02' AND record_center = 'ctr-nagpur')
+    OR (UPPER(profile_center) = 'MH-03' AND record_center = 'ctr-mumbai')
+    OR (UPPER(profile_center) = 'MH-04' AND record_center = 'ctr-nashik')
+    OR (UPPER(profile_center) = 'KA-01' AND record_center = 'ctr-mysuru')
+    OR (UPPER(profile_center) = 'KA-02' AND record_center = 'ctr-hubballi')
+    OR (UPPER(profile_center) = 'KA-04' AND record_center = 'ctr-bengaluru');
+$$;
+
+-- 6. Row Level Security (RLS) on profiles, candidates & batches
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.candidates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.batches ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Public Full Access on candidates" ON public.candidates;
 DROP POLICY IF EXISTS "Public Full Access on batches" ON public.batches;
+DROP POLICY IF EXISTS "Profiles read access" ON public.profiles;
+DROP POLICY IF EXISTS "Profiles write access" ON public.profiles;
+DROP POLICY IF EXISTS "Profiles update access" ON public.profiles;
+DROP POLICY IF EXISTS "Profiles delete CEO only" ON public.profiles;
+DROP POLICY IF EXISTS "Candidates center-scoped read" ON public.candidates;
+DROP POLICY IF EXISTS "Candidates center-scoped insert" ON public.candidates;
+DROP POLICY IF EXISTS "Candidates center-scoped update" ON public.candidates;
+DROP POLICY IF EXISTS "Candidates purge CEO only" ON public.candidates;
+DROP POLICY IF EXISTS "Batches authenticated read" ON public.batches;
+DROP POLICY IF EXISTS "Batches authenticated write" ON public.batches;
+DROP POLICY IF EXISTS "Batches purge CEO only" ON public.batches;
 
-CREATE POLICY "Public Full Access on candidates" ON public.candidates FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Public Full Access on batches" ON public.batches FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Profiles read access" ON public.profiles FOR SELECT USING (true);
 
--- 4. Enable Realtime Sync
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
-    CREATE PUBLICATION supabase_realtime;
-  END IF;
-END $$;
+CREATE POLICY "Profiles write access" ON public.profiles FOR INSERT TO authenticated
+WITH CHECK (
+  LOWER(email) = 'soyeed12@gmail.com'
+  OR EXISTS (
+    SELECT 1 FROM public.profiles p
+    WHERE (p.id = auth.uid() OR LOWER(p.email) = LOWER(auth.jwt() ->> 'email'))
+      AND p.role IN ('CEO', 'GM', 'Senior Manager', 'SM')
+  )
+);
 
-ALTER PUBLICATION supabase_realtime ADD TABLE public.candidates;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.batches;
+CREATE POLICY "Profiles update access" ON public.profiles FOR UPDATE TO authenticated
+USING (
+  id = auth.uid()
+  OR LOWER(email) = LOWER(auth.jwt() ->> 'email')
+  OR EXISTS (
+    SELECT 1 FROM public.profiles p
+    WHERE (p.id = auth.uid() OR LOWER(p.email) = LOWER(auth.jwt() ->> 'email'))
+      AND p.role IN ('CEO', 'GM', 'Senior Manager', 'SM')
+  )
+);
+
+CREATE POLICY "Profiles delete CEO only" ON public.profiles FOR DELETE TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles p
+    WHERE (p.id = auth.uid() OR LOWER(p.email) = LOWER(auth.jwt() ->> 'email'))
+      AND p.role = 'CEO'
+  )
+);
+
+CREATE POLICY "Candidates center-scoped read" ON public.candidates FOR SELECT TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles p
+    WHERE (p.id = auth.uid() OR LOWER(p.email) = LOWER(auth.jwt() ->> 'email'))
+      AND (
+        p.role IN ('CEO', 'GM', 'Senior Manager', 'SM')
+        OR public.center_matches(p.center_id, candidates.center_id)
+      )
+  )
+);
+
+CREATE POLICY "Candidates center-scoped insert" ON public.candidates FOR INSERT TO authenticated
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM public.profiles p
+    WHERE (p.id = auth.uid() OR LOWER(p.email) = LOWER(auth.jwt() ->> 'email'))
+      AND (
+        p.role IN ('CEO', 'GM', 'Senior Manager', 'SM')
+        OR public.center_matches(p.center_id, candidates.center_id)
+      )
+  )
+);
+
+CREATE POLICY "Candidates center-scoped update" ON public.candidates FOR UPDATE TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles p
+    WHERE (p.id = auth.uid() OR LOWER(p.email) = LOWER(auth.jwt() ->> 'email'))
+      AND (
+        p.role IN ('CEO', 'GM', 'Senior Manager', 'SM')
+        OR public.center_matches(p.center_id, candidates.center_id)
+      )
+  )
+);
+
+CREATE POLICY "Candidates purge CEO only" ON public.candidates FOR DELETE TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles p
+    WHERE (p.id = auth.uid() OR LOWER(p.email) = LOWER(auth.jwt() ->> 'email'))
+      AND p.role = 'CEO'
+  )
+);
+
+CREATE POLICY "Batches authenticated read" ON public.batches FOR SELECT TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles p
+    WHERE (p.id = auth.uid() OR LOWER(p.email) = LOWER(auth.jwt() ->> 'email'))
+      AND (
+        p.role IN ('CEO', 'GM', 'Senior Manager', 'SM')
+        OR public.center_matches(p.center_id, batches.center_id)
+      )
+  )
+);
+
+CREATE POLICY "Batches authenticated write" ON public.batches FOR ALL TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles p
+    WHERE (p.id = auth.uid() OR LOWER(p.email) = LOWER(auth.jwt() ->> 'email'))
+      AND p.role IN ('CEO', 'GM', 'Senior Manager', 'SM', 'PO', 'OSE', 'Trainer')
+  )
+)
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM public.profiles p
+    WHERE (p.id = auth.uid() OR LOWER(p.email) = LOWER(auth.jwt() ->> 'email'))
+      AND p.role IN ('CEO', 'GM', 'Senior Manager', 'SM', 'PO', 'OSE', 'Trainer')
+  )
+);
+
+CREATE POLICY "Batches purge CEO only" ON public.batches FOR DELETE TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles p
+    WHERE (p.id = auth.uid() OR LOWER(p.email) = LOWER(auth.jwt() ->> 'email'))
+      AND p.role = 'CEO'
+  )
+);
 `;
 
   const handleCopySql = () => {
@@ -150,13 +400,13 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.batches;
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold text-white">Supabase Cloud Database</h3>
+                <h3 className="text-base font-bold text-white">Supabase Cloud Database & RLS</h3>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-400/20 text-emerald-300 border border-emerald-400/30">
                   {SUPABASE_PROJECT_ID}
                 </span>
               </div>
               <p className="text-xs text-slate-300">
-                Centralized PostgreSQL storage & real-time multi-device synchronization
+                Centralized PostgreSQL storage, Email OTP Auth & Row Level Security
               </p>
             </div>
           </div>
@@ -191,7 +441,7 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.batches;
             }`}
           >
             <Code2 className="w-3.5 h-3.5" />
-            SQL Schema Migration
+            SQL Schema & RLS Migration
           </button>
         </div>
 
@@ -219,7 +469,7 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.batches;
                     {supabaseStatus === 'connected'
                       ? 'Cloud Database Connected & Ready'
                       : supabaseStatus === 'tables_missing'
-                      ? 'Supabase Connected (Tables Pending Setup)'
+                      ? 'Supabase Connected (Profiles / RLS Pending Setup)'
                       : 'Connection Pending / Checking'}
                   </h4>
                   <p className="text-xs mt-1 leading-relaxed opacity-90">{supabaseMessage}</p>
@@ -237,41 +487,14 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.batches;
                   <span className="font-mono text-teal-800">{SUPABASE_DEFAULT_URL}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Client Realtime Engine:</span>
-                  <span className="font-bold text-emerald-700">Active (WebSockets enabled)</span>
+                  <span className="text-slate-500">Provisioned Staff Profiles:</span>
+                  <span className="font-mono font-bold text-emerald-700">{profiles?.length || 1} authorized profiles</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Local Active Candidates:</span>
+                  <span className="text-slate-500">Cloud Candidate Dossiers:</span>
                   <span className="font-mono font-bold text-slate-900">{candidates.length} dossiers</span>
                 </div>
               </div>
-
-              {/* Quick instructions if tables missing */}
-              {supabaseStatus === 'tables_missing' && (
-                <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-4 border border-amber-200 space-y-2.5">
-                  <h5 className="font-bold text-amber-950 flex items-center gap-1.5">
-                    <span>⚡ 1-Step Setup in Supabase Dashboard</span>
-                  </h5>
-                  <p className="text-[11px] text-amber-900 leading-relaxed">
-                    The Supabase connection credentials are active. To enable multi-device sync, create the tables in your Supabase project:
-                  </p>
-                  <ol className="list-decimal list-inside space-y-1 text-[11px] text-amber-950 font-medium">
-                    <li>
-                      Open your project at{' '}
-                      <a
-                        href={`https://supabase.com/dashboard/project/${SUPABASE_PROJECT_ID}/sql`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="underline text-teal-800 font-bold inline-flex items-center gap-1"
-                      >
-                        Supabase SQL Editor <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </li>
-                    <li>Click the <strong>"Copy SQL Migration Script"</strong> button below.</li>
-                    <li>Paste into the SQL Editor and click <strong>"RUN"</strong>.</li>
-                  </ol>
-                </div>
-              )}
 
               {/* Actions */}
               <div className="flex flex-wrap items-center gap-2 pt-2">
@@ -291,7 +514,7 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.batches;
                   className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-2 transition-colors cursor-pointer shadow-xs"
                 >
                   {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copied ? 'SQL Script Copied!' : 'Copy SQL Schema Script'}</span>
+                  <span>{copied ? 'SQL Script Copied!' : 'Copy SQL Schema & RLS Script'}</span>
                 </button>
 
                 {supabaseStatus === 'connected' && (
@@ -316,9 +539,9 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.batches;
                     href={`https://supabase.com/dashboard/project/${SUPABASE_PROJECT_ID}/sql`}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-teal-700 font-bold underline"
+                    className="text-teal-700 font-bold underline inline-flex items-center gap-1"
                   >
-                    Supabase SQL Editor
+                    Supabase SQL Editor <ExternalLink className="w-3 h-3" />
                   </a>:
                 </p>
                 <button

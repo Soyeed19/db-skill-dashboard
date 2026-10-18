@@ -1,9 +1,40 @@
 import { supabase } from '../lib/supabase';
-import { Candidate, Batch, AttendancePunch, LeaveRecord, TourRequest, ExpenseClaim, Employee } from '../types';
+import { Candidate, Batch, UserRole } from '../types';
 
 const FALLBACK_AVATAR = 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=256&q=80';
-const FALLBACK_AADHAAR = 'https://images.unsplash.com/photo-1589330694653-dad6bc0140fa?auto=format&fit=crop&w=600&q=80';
-const FALLBACK_DL = 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=600&q=80';
+
+export const ROOT_CEO_EMAIL = 'soyeed12@gmail.com';
+export const ROOT_CEO_NAME = 'Soyeed Ahmed (Executive Admin)';
+
+export interface StaffProfile {
+  id: string;
+  email: string;
+  full_name: string;
+  role: UserRole | 'SM';
+  center_id: string | null;
+  regional_cluster?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export const INITIAL_ROOT_CEO_PROFILE: StaffProfile = {
+  id: '00000000-0000-4000-8000-000000000001',
+  email: ROOT_CEO_EMAIL,
+  full_name: ROOT_CEO_NAME,
+  role: 'CEO',
+  center_id: null,
+  regional_cluster: 'National Command'
+};
+
+export function normalizeProfileRole(role: string): UserRole {
+  const upper = (role || '').trim().toUpperCase();
+  if (upper === 'CEO') return 'CEO';
+  if (upper === 'GM') return 'GM';
+  if (upper === 'SM' || upper === 'SENIOR MANAGER') return 'Senior Manager';
+  if (upper === 'PO') return 'PO';
+  if (upper === 'TRAINER') return 'Trainer';
+  return 'OSE';
+}
 
 function safeCloudUrl(url: string | null | undefined): string | null {
   if (!url) return null;
@@ -13,6 +44,297 @@ function safeCloudUrl(url: string | null | undefined): string | null {
   }
   return url;
 }
+
+// ============================================================================
+// PROFILES & RBAC PROVISIONING (public.profiles)
+// ============================================================================
+
+/**
+ * Ensure the single initial testing administrator (CEO: soyeed12@gmail.com) exists in public.profiles
+ */
+export async function ensureRootCeoProfileInSupabase(authUserId?: string): Promise<StaffProfile> {
+  const targetId = authUserId || INITIAL_ROOT_CEO_PROFILE.id;
+  try {
+    const { data: existing, error: fetchErr } = await supabase
+      .from('profiles')
+      .select('*')
+      .ilike('email', ROOT_CEO_EMAIL)
+      .maybeSingle();
+
+    if (fetchErr && fetchErr.code === 'PGRST205') {
+      // Table not yet created in Supabase SQL editor
+      return { ...INITIAL_ROOT_CEO_PROFILE, id: targetId };
+    }
+
+    if (existing) {
+      // Update if authUserId is now known and differs, or if role/full_name needs enforcement
+      if ((authUserId && existing.id !== authUserId) || existing.role !== 'CEO') {
+        const { data: updated } = await supabase
+          .from('profiles')
+          .update({
+            id: authUserId || existing.id,
+            full_name: ROOT_CEO_NAME,
+            role: 'CEO',
+            center_id: null
+          })
+          .ilike('email', ROOT_CEO_EMAIL)
+          .select()
+          .maybeSingle();
+        if (updated) return updated as StaffProfile;
+      }
+      return existing as StaffProfile;
+    }
+
+    // Insert root CEO seed into public.profiles
+    const payload: Record<string, any> = {
+      id: targetId,
+      email: ROOT_CEO_EMAIL,
+      full_name: ROOT_CEO_NAME,
+      role: 'CEO',
+      center_id: null
+    };
+
+    const { data: inserted, error: insertErr } = await supabase
+      .from('profiles')
+      .upsert(payload, { onConflict: 'email' })
+      .select()
+      .maybeSingle();
+
+    if (!insertErr && inserted) {
+      return inserted as StaffProfile;
+    }
+  } catch (err) {
+    console.warn('[Supabase] ensureRootCeoProfileInSupabase notice:', err);
+  }
+  return { ...INITIAL_ROOT_CEO_PROFILE, id: targetId };
+}
+
+/**
+ * Fetch all authorized staff profiles from public.profiles
+ */
+export async function fetchProfilesFromSupabase(): Promise<StaffProfile[]> {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      if (error.code !== 'PGRST205') {
+        console.warn('[Supabase] Profiles fetch error:', error.message);
+      }
+      return [INITIAL_ROOT_CEO_PROFILE];
+    }
+
+    const list: StaffProfile[] = (data || []).map((row: any) => ({
+      id: row.id,
+      email: (row.email || '').toLowerCase(),
+      full_name: row.full_name || 'Authorized Staff',
+      role: row.role || 'OSE',
+      center_id: row.center_id ?? null,
+      regional_cluster: row.regional_cluster ?? null,
+      created_at: row.created_at,
+      updated_at: row.updated_at
+    }));
+
+    const hasRoot = list.some(p => p.email.toLowerCase() === ROOT_CEO_EMAIL);
+    if (!hasRoot) {
+      // Automatically seed root CEO if table exists and is empty
+      const seeded = await ensureRootCeoProfileInSupabase();
+      return [seeded, ...list];
+    }
+
+    return list;
+  } catch (err) {
+    console.warn('[Supabase] Profiles fetch exception:', err);
+    return [INITIAL_ROOT_CEO_PROFILE];
+  }
+}
+
+/**
+ * Look up a single authorized profile by email in public.profiles
+ */
+export async function fetchProfileByEmail(email: string): Promise<{
+  profile: StaffProfile | null;
+  tableMissing: boolean;
+}> {
+  const cleanEmail = email.trim().toLowerCase();
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .ilike('email', cleanEmail)
+      .maybeSingle();
+
+    if (error) {
+      if (error.code === 'PGRST205' || error.message?.includes('schema cache')) {
+        if (cleanEmail === ROOT_CEO_EMAIL) {
+          return { profile: INITIAL_ROOT_CEO_PROFILE, tableMissing: true };
+        }
+        return { profile: null, tableMissing: true };
+      }
+      if (cleanEmail === ROOT_CEO_EMAIL) {
+        return { profile: INITIAL_ROOT_CEO_PROFILE, tableMissing: false };
+      }
+      return { profile: null, tableMissing: false };
+    }
+
+    if (data) {
+      return {
+        profile: {
+          id: data.id,
+          email: (data.email || cleanEmail).toLowerCase(),
+          full_name: data.full_name || 'Authorized Staff',
+          role: data.role || 'OSE',
+          center_id: data.center_id ?? null,
+          regional_cluster: data.regional_cluster ?? null,
+          created_at: data.created_at,
+          updated_at: data.updated_at
+        },
+        tableMissing: false
+      };
+    }
+
+    // If root CEO logs in when public.profiles was just created, seed it automatically
+    if (cleanEmail === ROOT_CEO_EMAIL) {
+      const seeded = await ensureRootCeoProfileInSupabase();
+      return { profile: seeded, tableMissing: false };
+    }
+
+    return { profile: null, tableMissing: false };
+  } catch (err) {
+    if (cleanEmail === ROOT_CEO_EMAIL) {
+      return { profile: INITIAL_ROOT_CEO_PROFILE, tableMissing: false };
+    }
+    return { profile: null, tableMissing: false };
+  }
+}
+
+/**
+ * Sync public.profiles.id with auth.users.id after OTP verification
+ */
+export async function syncAuthenticatedProfileId(
+  email: string,
+  authUserId: string
+): Promise<StaffProfile | null> {
+  const cleanEmail = email.trim().toLowerCase();
+  if (cleanEmail === ROOT_CEO_EMAIL) {
+    return ensureRootCeoProfileInSupabase(authUserId);
+  }
+
+  try {
+    const { data: existing } = await supabase
+      .from('profiles')
+      .select('*')
+      .ilike('email', cleanEmail)
+      .maybeSingle();
+
+    if (!existing) return null;
+
+    if (existing.id !== authUserId) {
+      const { data: updated } = await supabase
+        .from('profiles')
+        .update({ id: authUserId })
+        .ilike('email', cleanEmail)
+        .select()
+        .maybeSingle();
+      if (updated) return updated as StaffProfile;
+    }
+
+    return existing as StaffProfile;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Provision a downstream staff member into public.profiles
+ * - CEO can add GM (Email, Name)
+ * - GM can add SM (Email, Name, Regional Cluster)
+ * - SM can add PO and OSE (Email, Name, Center ID e.g., 'RJ-01')
+ */
+export async function provisionStaffProfileInSupabase(params: {
+  email: string;
+  fullName: string;
+  role: UserRole | 'SM';
+  centerId: string | null;
+  regionalCluster?: string | null;
+}): Promise<{ success: boolean; data?: StaffProfile; error?: string }> {
+  const cleanEmail = params.email.trim().toLowerCase();
+  const cleanName = params.fullName.trim();
+  const generatedId = typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `00000000-0000-4000-8000-${Date.now().toString().slice(-12).padStart(12, '0')}`;
+
+  try {
+    // Try full insert including regional_cluster
+    const fullRow: Record<string, any> = {
+      id: generatedId,
+      email: cleanEmail,
+      full_name: cleanName,
+      role: params.role,
+      center_id: params.centerId || null,
+      regional_cluster: params.regionalCluster || null
+    };
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .upsert(fullRow, { onConflict: 'email' })
+      .select()
+      .single();
+
+    if (error) {
+      // Fallback if regional_cluster column is not present on custom profiles table
+      const coreRow: Record<string, any> = {
+        id: generatedId,
+        email: cleanEmail,
+        full_name: cleanName,
+        role: params.role,
+        center_id: params.centerId || null
+      };
+
+      const { data: fallbackData, error: fallbackErr } = await supabase
+        .from('profiles')
+        .upsert(coreRow, { onConflict: 'email' })
+        .select()
+        .single();
+
+      if (fallbackErr) {
+        return { success: false, error: fallbackErr.message };
+      }
+
+      return {
+        success: true,
+        data: {
+          id: fallbackData.id,
+          email: fallbackData.email,
+          full_name: fallbackData.full_name,
+          role: fallbackData.role,
+          center_id: fallbackData.center_id,
+          regional_cluster: params.regionalCluster || null
+        }
+      };
+    }
+
+    return {
+      success: true,
+      data: {
+        id: data.id,
+        email: data.email,
+        full_name: data.full_name,
+        role: data.role,
+        center_id: data.center_id,
+        regional_cluster: data.regional_cluster ?? params.regionalCluster ?? null
+      }
+    };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Failed to insert row into public.profiles' };
+  }
+}
+
+// ============================================================================
+// CANDIDATES & BATCHES MAPPING & CRUD
+// ============================================================================
 
 // Map Candidate domain object to Supabase row format
 export function mapCandidateToRow(c: Candidate): Record<string, any> {
@@ -181,7 +503,7 @@ export function mapRowToBatch(row: Record<string, any>): Batch {
 }
 
 /**
- * Fetch all candidates from Supabase
+ * Fetch candidates from Supabase
  */
 export async function fetchCandidatesFromSupabase(): Promise<Candidate[] | null> {
   try {
@@ -259,6 +581,31 @@ export async function upsertCandidateToSupabase(
   } catch (err: any) {
     console.warn('[Supabase] Upsert candidate exception:', err);
     return { success: false, error: err?.message || 'Exception during upsert' };
+  }
+}
+
+/**
+ * Direct Cloud Update: Execute .update() on Supabase candidates table
+ */
+export async function updateCandidateFieldsInSupabase(
+  candidateId: string,
+  candidateSnapshot: Candidate
+): Promise<{ success: boolean; data?: Candidate; error?: string }> {
+  try {
+    const row = mapCandidateToRow(candidateSnapshot);
+    const { data, error } = await supabase
+      .from('candidates')
+      .update(row)
+      .eq('id', candidateId)
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      return upsertCandidateToSupabase(candidateSnapshot);
+    }
+    return { success: true, data: data ? mapRowToCandidate(data) : candidateSnapshot };
+  } catch {
+    return upsertCandidateToSupabase(candidateSnapshot);
   }
 }
 
@@ -348,17 +695,37 @@ export async function upsertBatchToSupabase(batch: Batch): Promise<boolean> {
 }
 
 /**
- * Purge all data in Supabase (Used by CEO Erase All Data)
+ * Purge all data in Supabase (Strictly restricted to authenticated CEO role in public.profiles)
  */
 export async function purgeAllDataFromSupabase(): Promise<{ success: boolean; message: string }> {
   try {
-    // Delete candidates, batches, punches, leaves, tours, expense claims
+    // Verify active Supabase session and CEO role in profiles
+    const { data: sessionData } = await supabase.auth.getSession();
+    const sessionEmail = sessionData?.session?.user?.email?.toLowerCase();
+
+    if (!sessionEmail) {
+      return {
+        success: false,
+        message: 'Access Denied: Active Supabase session required to execute system purge.'
+      };
+    }
+
+    const { profile } = await fetchProfileByEmail(sessionEmail);
+    const isCeo = (profile && normalizeProfileRole(profile.role) === 'CEO') || sessionEmail === ROOT_CEO_EMAIL;
+
+    if (!isCeo) {
+      return {
+        success: false,
+        message: 'Access Denied: Only users with role = CEO in public.profiles can execute system purge queries.'
+      };
+    }
+
+    // Execute SQL wipe across candidates and batches in Supabase
     const [candRes, batchRes] = await Promise.all([
       supabase.from('candidates').delete().neq('id', '___non_existent___'),
       supabase.from('batches').delete().neq('id', '___non_existent___')
     ]);
 
-    // Optional tables
     try { await supabase.from('attendance_punches').delete().neq('id', '___non_existent___'); } catch {}
     try { await supabase.from('leaves').delete().neq('id', '___non_existent___'); } catch {}
     try { await supabase.from('tours').delete().neq('id', '___non_existent___'); } catch {}
@@ -367,10 +734,13 @@ export async function purgeAllDataFromSupabase(): Promise<{ success: boolean; me
     if (candRes.error && candRes.error.code !== 'PGRST205') {
       return { success: false, message: candRes.error.message };
     }
+    if (batchRes.error && batchRes.error.code !== 'PGRST205') {
+      return { success: false, message: batchRes.error.message };
+    }
 
     return {
       success: true,
-      message: 'Supabase cloud database successfully purged. Tables reset to zero state.'
+      message: 'Supabase cloud database successfully purged across candidates and batches.'
     };
   } catch (err: any) {
     return { success: false, message: err?.message || 'Purge failed' };
@@ -385,6 +755,7 @@ export function setupSupabaseRealtime(handlers: {
   onCandidateUpdate?: (candidate: Candidate) => void;
   onCandidateDelete?: (id: string) => void;
   onBatchChange?: () => void;
+  onProfileChange?: () => void;
   onPurge?: () => void;
 }) {
   const channelName = `dbs-realtime-channel-${Math.random().toString(36).slice(2, 7)}`;
@@ -408,6 +779,13 @@ export function setupSupabaseRealtime(handlers: {
       { event: '*', schema: 'public', table: 'batches' },
       () => {
         handlers.onBatchChange?.();
+      }
+    )
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'profiles' },
+      () => {
+        handlers.onProfileChange?.();
       }
     )
     .subscribe(status => {

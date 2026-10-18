@@ -36,6 +36,7 @@ import { Center } from '../../types';
 import { exportNationalMasterAuditDossier, NationalLeagueItem } from '../../utils/excelExporter';
 import { CreateHubModal, isAuthorizedForHubCreation } from '../CreateHubModal';
 import { purgeAllDataFromSupabase } from '../../services/supabaseService';
+import { ProvisionStaffPanel } from '../auth/ProvisionStaffModal';
 
 export const CeoDashboard: React.FC = () => {
   const {
@@ -394,7 +395,7 @@ export const CeoDashboard: React.FC = () => {
           quarter: selectedQuarter,
           stateFilter: selectedState
         },
-        exportedBy: 'Gopal Mani (CEO / Managing Director)'
+        exportedBy: `${currentPersona.name} (${currentPersona.role})`
       });
       showToast(`Exported: ${fileName}`);
     } catch (err) {
@@ -408,7 +409,8 @@ export const CeoDashboard: React.FC = () => {
   const [isPurgingData, setIsPurgingData] = useState(false);
 
   const handleExecuteDataPurge = async () => {
-    if (!window.confirm('CRITICAL ACTION: Are you sure you want to execute platform-wide database purge? All transactional data (candidates, batches, claims, attendance logs, audits) will be permanently truncated. This action cannot be undone.')) {
+    const input = window.prompt('CRITICAL ACTION: Type PURGE-CLOUD-DATA to confirm permanent platform-wide database wipe:');
+    if (input?.trim() !== 'PURGE-CLOUD-DATA') {
       return;
     }
 
@@ -459,8 +461,6 @@ export const CeoDashboard: React.FC = () => {
     }
 
     try {
-      localStorage.clear();
-      sessionStorage.clear();
       localStorage.setItem('dbsl_candidates', JSON.stringify([]));
       localStorage.setItem('dbs_candidates', JSON.stringify([]));
       localStorage.setItem('dbs_batches', JSON.stringify([]));
@@ -469,12 +469,7 @@ export const CeoDashboard: React.FC = () => {
       console.warn('Notice clearing storage:', e);
     }
 
-    showToast('✓ Platform-wide database and transactional records wiped successfully. Reloading zero-state...');
-    
-    setTimeout(() => {
-      window.location.reload();
-    }, 1200);
-
+    showToast('✓ Platform-wide database and transactional records wiped successfully.');
     setIsPurgingData(false);
   };
 
@@ -498,27 +493,30 @@ export const CeoDashboard: React.FC = () => {
             </p>
           </div>
 
-          {/* Persona Signature & Security Rating */}
+          {/* Authenticated Executive Profile */}
           <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 flex flex-col gap-2 shrink-0 text-xs">
             <div className="flex items-center gap-3">
               <img
-                src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=256&q=80"
-                alt="Gopal Mani"
+                src={currentPersona.avatar || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=256&q=80'}
+                alt={currentPersona.name}
                 className="w-10 h-10 rounded-xl object-cover ring-2 ring-emerald-400"
               />
               <div>
-                <span className="font-bold text-white block">Gopal Mani</span>
-                <span className="text-[11px] text-emerald-300 font-medium">CEO / Managing Director</span>
+                <span className="font-bold text-white block">{currentPersona.name}</span>
+                <span className="text-[11px] text-emerald-300 font-medium">{currentPersona.email}</span>
               </div>
             </div>
             <div className="pt-2 border-t border-white/10 flex items-center justify-between gap-3 text-[11px] text-emerald-100 font-mono">
-              <span>Authority: Pan-India Command</span>
+              <span>Role: {currentPersona.role}</span>
               <span>•</span>
               <span className="text-emerald-300">Level 1 Active</span>
             </div>
           </div>
         </div>
       </div>
+
+      {/* 1B. Downstream Role Provisioning (+ Provision Staff Member: CEO -> GM) */}
+      <ProvisionStaffPanel />
 
       {/* 2. Executive Action Bar with Filters & 1-Click Excel Export */}
       <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">

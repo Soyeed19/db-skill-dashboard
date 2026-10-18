@@ -49,6 +49,7 @@ import { exportCandidatesToExcel } from '../../utils/excelExporter';
 import { EmployeeSelfAttendanceModal } from '../attendance/EmployeeSelfAttendanceModal';
 import { ExpenseAuditTrailModal } from '../travel/ExpenseAuditTrailModal';
 import { SeniorManagerConsole } from './SeniorManagerConsole';
+import { ProvisionStaffPanel } from '../auth/ProvisionStaffModal';
 
 export const ApmDashboard: React.FC = () => {
   const {
@@ -548,6 +549,9 @@ Date: ${formattedDate}`;
           </button>
         </div>
       </div>
+
+      {/* DOWNSTREAM ROLE PROVISIONING (+ Provision Staff Member: SM -> PO & OSE with Center ID e.g., 'RJ-01') */}
+      <ProvisionStaffPanel />
 
       {/* ==================================================== */}
       {/* 5-SUBTAB WORKSPACE ARCHITECTURE (STRICT CHRONOLOGY)  */}

@@ -12,6 +12,7 @@ import {
   Navigation
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { ProvisionStaffPanel } from '../auth/ProvisionStaffModal';
 
 export const EmployeeDirectory: React.FC = () => {
   const { employees, activeCenter, currentPersona, performCheckIn } = useApp();
@@ -54,6 +55,9 @@ export const EmployeeDirectory: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Downstream Role Provisioning (+ Provision Staff Member) */}
+      <ProvisionStaffPanel />
 
       {/* Center Filter Tabs */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1">
