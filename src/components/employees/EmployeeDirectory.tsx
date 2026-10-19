@@ -15,7 +15,7 @@ import { useApp } from '../../context/AppContext';
 import { ProvisionStaffPanel } from '../auth/ProvisionStaffModal';
 
 export const EmployeeDirectory: React.FC = () => {
-  const { employees, activeCenter, currentPersona, performCheckIn } = useApp();
+  const { employees, activeCenter, currentPersona, performCheckIn, centers } = useApp();
   const [filterCenter, setFilterCenter] = useState<string>('all');
 
   const filteredEmployees = employees.filter(emp =>
@@ -71,41 +71,35 @@ export const EmployeeDirectory: React.FC = () => {
         >
           All Locations ({employees.length})
         </button>
-        <button
-          onClick={() => setFilterCenter('ctr-jodhpur')}
-          className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
-            filterCenter === 'ctr-jodhpur'
-              ? 'bg-teal-800 text-white border-teal-800 shadow-xs'
-              : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-          }`}
-        >
-          Jodhpur Hub
-        </button>
-        <button
-          onClick={() => setFilterCenter('ctr-delhi')}
-          className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
-            filterCenter === 'ctr-delhi'
-              ? 'bg-teal-800 text-white border-teal-800 shadow-xs'
-              : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-          }`}
-        >
-          Delhi South
-        </button>
-        <button
-          onClick={() => setFilterCenter('ctr-mumbai')}
-          className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
-            filterCenter === 'ctr-mumbai'
-              ? 'bg-teal-800 text-white border-teal-800 shadow-xs'
-              : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-          }`}
-        >
-          Mumbai Logistics
-        </button>
+        {centers.map(ctr => (
+          <button
+            key={ctr.id}
+            onClick={() => setFilterCenter(ctr.id)}
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
+              filterCenter === ctr.id
+                ? 'bg-teal-800 text-white border-teal-800 shadow-xs'
+                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            {ctr.name} ({ctr.code})
+          </button>
+        ))}
       </div>
 
       {/* Personnel Record Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {filteredEmployees.map(emp => {
+      {filteredEmployees.length === 0 ? (
+        <div className="flex flex-col items-center justify-center p-12 bg-white border border-slate-200 rounded-2xl text-center">
+          <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-3">
+            <Users className="w-6 h-6" />
+          </div>
+          <h3 className="text-base font-bold text-slate-800">No Staff Members Found</h3>
+          <p className="text-xs text-slate-500 mt-1 max-w-sm">
+            No active employee records currently provisioned for this view.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filteredEmployees.map(emp => {
           const targetPct = Math.min(100, Math.round((emp.monthlyAchieved / emp.monthlyTarget) * 100));
           const isCurrent = emp.id === currentPersona.id;
 
@@ -228,6 +222,7 @@ export const EmployeeDirectory: React.FC = () => {
           );
         })}
       </div>
+      )}
     </div>
   );
 };

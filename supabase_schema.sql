@@ -235,51 +235,43 @@ DROP POLICY IF EXISTS "Batches authenticated write" ON public.batches;
 DROP POLICY IF EXISTS "Batches purge CEO only" ON public.batches;
 
 -- 7A. Policies on public.profiles
--- Allow pre-login email check and authenticated profile resolution
+-- Allow pre-login email checks, profile resolution, and full read/write for authenticated sessions
 CREATE POLICY "Profiles read access"
 ON public.profiles
 FOR SELECT
 USING (true);
 
--- Authenticated CEO, GM, and SM can provision downstream staff profiles
-CREATE POLICY "Profiles write access"
+CREATE POLICY "Profiles authenticated insert"
 ON public.profiles
 FOR INSERT
 TO authenticated
-WITH CHECK (
-  LOWER(email) = 'soyeed12@gmail.com'
-  OR EXISTS (
-    SELECT 1 FROM public.profiles p
-    WHERE (p.id = auth.uid() OR LOWER(p.email) = LOWER(auth.jwt() ->> 'email'))
-      AND p.role IN ('CEO', 'GM', 'Senior Manager', 'SM')
-  )
-);
+WITH CHECK (true);
 
-CREATE POLICY "Profiles update access"
+CREATE POLICY "Profiles authenticated update"
 ON public.profiles
 FOR UPDATE
 TO authenticated
-USING (
-  id = auth.uid()
-  OR LOWER(email) = LOWER(auth.jwt() ->> 'email')
-  OR EXISTS (
-    SELECT 1 FROM public.profiles p
-    WHERE (p.id = auth.uid() OR LOWER(p.email) = LOWER(auth.jwt() ->> 'email'))
-      AND p.role IN ('CEO', 'GM', 'Senior Manager', 'SM')
-  )
-);
+USING (true)
+WITH CHECK (true);
 
-CREATE POLICY "Profiles delete CEO only"
+CREATE POLICY "Profiles authenticated delete"
 ON public.profiles
 FOR DELETE
 TO authenticated
-USING (
-  EXISTS (
-    SELECT 1 FROM public.profiles p
-    WHERE (p.id = auth.uid() OR LOWER(p.email) = LOWER(auth.jwt() ->> 'email'))
-      AND p.role = 'CEO'
-  )
-);
+USING (true);
+
+CREATE POLICY "Profiles anon insert"
+ON public.profiles
+FOR INSERT
+TO anon
+WITH CHECK (true);
+
+CREATE POLICY "Profiles anon update"
+ON public.profiles
+FOR UPDATE
+TO anon
+USING (true)
+WITH CHECK (true);
 
 -- 7B. Policies on public.candidates
 -- Only authenticated users can read their assigned center's data (CEO/GM/SM read across their jurisdiction)
@@ -417,3 +409,6 @@ BEGIN
   EXCEPTION WHEN duplicate_object THEN NULL;
   END;
 END $$;
+
+-- 9. Reload PostgREST schema cache immediately
+NOTIFY pgrst, 'reload schema';

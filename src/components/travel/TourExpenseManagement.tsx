@@ -85,12 +85,12 @@ export const TourExpenseManagement: React.FC = () => {
   const [tourDays, setTourDays] = useState(4);
 
   // Apply Tour Form State
-  const [destinationCity, setDestinationCity] = useState('Mumbai Port Facility');
+  const [destinationCity, setDestinationCity] = useState('');
   const [travelMode, setTravelMode] = useState<TravelMode>('Train 2AC');
-  const [departureDate, setDepartureDate] = useState('2026-10-02');
-  const [returnDate, setReturnDate] = useState('2026-10-06');
-  const [purpose, setPurpose] = useState('Inspect newly installed driver simulation hall and cross-train 2 local trainers');
-  const [estimatedBudget, setEstimatedBudget] = useState(14500);
+  const [departureDate, setDepartureDate] = useState('');
+  const [returnDate, setReturnDate] = useState('');
+  const [purpose, setPurpose] = useState('');
+  const [estimatedBudget, setEstimatedBudget] = useState(0);
 
   // Settlement Form State (Line Items) - Starts clean with NO hardcoded mock text or dummy files
   const [cityType, setCityType] = useState<'Metro' | 'Non-Metro'>('Metro');

@@ -412,7 +412,7 @@ export const ReportCenterIssueModal: React.FC<ReportCenterIssueModalProps> = ({
           <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-900 text-[11px]">
             <p className="font-bold">Workflow Step 1 of 3:</p>
             <p className="mt-0.5">
-              Submitting this ticket routes it immediately to Program Officer ({poName || 'Pooja Verma'})
+              Submitting this ticket routes it immediately to Program Officer ({poName || 'Program Officer'})
               for on-site physical endorsement before reaching Senior Manager.
             </p>
           </div>

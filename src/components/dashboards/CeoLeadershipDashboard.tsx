@@ -49,7 +49,6 @@ import { generateExpenseClaimPdf } from '../../utils/pdfGenerator';
 import { ExpenseAuditTrailModal } from '../travel/ExpenseAuditTrailModal';
 import { TrainingEfficacyChart } from './TrainingEfficacyChart';
 import { CreateHubModal, isAuthorizedForHubCreation } from '../CreateHubModal';
-import { SM_ASSIGNED_HUBS, smAssignedCenterIds } from '../../data/hubs';
 import { ProvisionStaffPanel } from '../auth/ProvisionStaffModal';
 
 export const CeoLeadershipDashboard: React.FC = () => {
@@ -102,7 +101,7 @@ export const CeoLeadershipDashboard: React.FC = () => {
 
   // Drilldown Selected Center (defaults to activeCenter)
   const [drilldownCenterId, setDrilldownCenterId] = useState<string>(activeCenter.id);
-  const selectedCenter = centers.find(c => c.id === drilldownCenterId) || centers[0];
+  const selectedCenter = centers.find(c => c.id === drilldownCenterId) || centers[0] || activeCenter;
 
   // Candidates at the drilled-down center
   const centerCandidates = candidates.filter(c => c.centerId === drilldownCenterId);
@@ -120,14 +119,14 @@ export const CeoLeadershipDashboard: React.FC = () => {
   const [newEmpRole, setNewEmpRole] = useState<UserRole>('Trainer');
   const [newEmpLevel, setNewEmpLevel] = useState<UserLevel>('Level 4');
   const [newEmpDesignation, setNewEmpDesignation] = useState('Assistant Road Safety Trainer');
-  const [newEmpCenterId, setNewEmpCenterId] = useState(centers[0]?.id || 'ctr-jodhpur');
-  const [newEmpAssignedCenterIds, setNewEmpAssignedCenterIds] = useState<string[]>([centers[0]?.id || 'ctr-jodhpur']);
-  const [newEmpAssignedRegion, setNewEmpAssignedRegion] = useState<string>('North & West Region');
-  const [newEmpRegionCenterIds, setNewEmpRegionCenterIds] = useState<string[]>(smAssignedCenterIds);
+  const [newEmpCenterId, setNewEmpCenterId] = useState(centers[0]?.id || '');
+  const [newEmpAssignedCenterIds, setNewEmpAssignedCenterIds] = useState<string[]>(centers[0]?.id ? [centers[0].id] : []);
+  const [newEmpAssignedRegion, setNewEmpAssignedRegion] = useState<string>('National Command');
+  const [newEmpRegionCenterIds, setNewEmpRegionCenterIds] = useState<string[]>([]);
   const [newEmpPhone, setNewEmpPhone] = useState('+91 98');
   const [newEmpEmail, setNewEmpEmail] = useState('');
   const [newEmpDoj, setNewEmpDoj] = useState('2026-09-23');
-  const [newEmpReporting, setNewEmpReporting] = useState('Pooja Verma (PO)');
+  const [newEmpReporting, setNewEmpReporting] = useState('Authorized Supervisor');
   const [newEmpTarget, setNewEmpTarget] = useState(600);
   const [newEmpPhoto, setNewEmpPhoto] = useState<string>('');
   const [newEmpStatus, setNewEmpStatus] = useState<'Active' | 'On Leave' | 'Suspended'>('Active');
@@ -162,31 +161,30 @@ export const CeoLeadershipDashboard: React.FC = () => {
     if (role === 'OSE') {
       setNewEmpLevel('Level 4');
       setNewEmpDesignation('Operation Support Executive');
-      setNewEmpReporting('Pooja Verma (PO)');
+      setNewEmpReporting('Program Officer');
       setNewEmpTarget(600);
-      setNewEmpAssignedCenterIds([newEmpCenterId]);
+      setNewEmpAssignedCenterIds(newEmpCenterId ? [newEmpCenterId] : []);
     } else if (role === 'Trainer') {
       setNewEmpLevel('Level 4');
       setNewEmpDesignation('Commercial Vehicle Driver Trainer');
-      setNewEmpReporting('Pooja Verma (PO)');
+      setNewEmpReporting('Program Officer');
       setNewEmpTarget(600);
-      setNewEmpAssignedCenterIds([newEmpCenterId]);
+      setNewEmpAssignedCenterIds(newEmpCenterId ? [newEmpCenterId] : []);
     } else if (role === 'PO') {
       setNewEmpLevel('Level 3');
       setNewEmpDesignation('Program Officer (Regional Ops)');
-      setNewEmpReporting('Col. Rajesh Mehta (GM)');
+      setNewEmpReporting('General Manager');
       setNewEmpTarget(1200);
-      // Default to multiple northern centers
       setNewEmpAssignedCenterIds(
-        centers.filter(c => c.region === 'North' || c.code.startsWith('RJ') || c.code.startsWith('DL')).map(c => c.id)
+        centers.map(c => c.id)
       );
     } else if (role === 'Senior Manager') {
       setNewEmpLevel('Level 3');
       setNewEmpDesignation('Senior Manager (Quality & QC)');
-      setNewEmpReporting('Col. Rajesh Mehta (GM)');
+      setNewEmpReporting('General Manager');
       setNewEmpTarget(1500);
-      setNewEmpAssignedRegion('North & West Region');
-      setNewEmpRegionCenterIds(smAssignedCenterIds);
+      setNewEmpAssignedRegion('Regional Cluster');
+      setNewEmpRegionCenterIds(centers.map(c => c.id));
     }
   };
 
@@ -232,9 +230,8 @@ export const CeoLeadershipDashboard: React.FC = () => {
     setNewEmpPhone('+91 98');
     setNewEmpEmail('');
     setNewEmpPhoto('');
-    setNewEmpStatus('Active');
-    setNewEmpAssignedCenterIds([centers[0]?.id || 'ctr-jodhpur']);
-    setNewEmpRegionCenterIds(smAssignedCenterIds);
+    setNewEmpAssignedCenterIds(centers[0]?.id ? [centers[0].id] : []);
+    setNewEmpRegionCenterIds([]);
   };
 
   const handleOpenEditAllocation = (emp: Employee) => {
@@ -243,13 +240,13 @@ export const CeoLeadershipDashboard: React.FC = () => {
     setEditAssignedCenterIds(
       emp.assignedCenterIds && emp.assignedCenterIds.length > 0
         ? emp.assignedCenterIds
-        : emp.centerId ? [emp.centerId] : [centers[0]?.id || 'ctr-jodhpur']
+        : emp.centerId ? [emp.centerId] : (centers[0]?.id ? [centers[0].id] : [])
     );
-    setEditAssignedRegion(emp.assignedRegion || emp.region || 'North & West Region');
+    setEditAssignedRegion(emp.assignedRegion || emp.region || 'Regional Command');
     setEditRegionCenterIds(
       emp.regionCenterIds && emp.regionCenterIds.length > 0
         ? emp.regionCenterIds
-        : smAssignedCenterIds
+        : []
     );
   };
 
@@ -488,51 +485,63 @@ export const CeoLeadershipDashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {centers.map((center) => {
-                const centerTrainees = candidates.filter(c => c.centerId === center.id);
-                const isSelected = center.id === drilldownCenterId;
-                return (
-                  <div
-                    key={center.id}
-                    onClick={() => {
-                      setDrilldownCenterId(center.id);
-                      setSelectedCenterId(center.id);
-                    }}
-                    className={`cursor-pointer rounded-2xl p-4.5 border transition-all duration-200 ${
-                      isSelected
-                        ? 'border-teal-700 bg-teal-50/60 ring-2 ring-teal-600/30 shadow-md'
-                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/80 shadow-xs'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <span className="font-mono text-xs font-extrabold px-2 py-0.5 rounded-md bg-slate-100 text-slate-800">
-                        {center.code}
-                      </span>
-                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full border border-emerald-300">
-                        Active Hub
-                      </span>
-                    </div>
-
-                    <h4 className="font-bold text-slate-900 text-sm mt-2.5 leading-snug line-clamp-1">
-                      {center.name}
-                    </h4>
-                    <p className="text-xs text-slate-500 mt-0.5">{center.city}, {center.state}</p>
-
-                    <div className="mt-3.5 pt-3 border-t border-slate-200/70 flex items-center justify-between text-xs">
-                      <div>
-                        <span className="text-[10px] text-slate-400 block">Enrolled Trainees</span>
-                        <strong className="text-slate-900 text-sm font-extrabold">{centerTrainees.length}</strong>
+            {centers.length === 0 ? (
+              <div className="flex flex-col items-center justify-center p-12 bg-white border border-slate-200 rounded-2xl text-center">
+                <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-3">
+                  <Building2 className="w-6 h-6 text-slate-500" />
+                </div>
+                <h3 className="text-base font-bold text-slate-800">No hubs currently provisioned</h3>
+                <p className="text-xs text-slate-500 mt-1 max-w-sm">
+                  Click "Create Training Hub" above to commission the first regional operations center.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {centers.map((center) => {
+                  const centerTrainees = candidates.filter(c => c.centerId === center.id);
+                  const isSelected = center.id === drilldownCenterId;
+                  return (
+                    <div
+                      key={center.id}
+                      onClick={() => {
+                        setDrilldownCenterId(center.id);
+                        setSelectedCenterId(center.id);
+                      }}
+                      className={`cursor-pointer rounded-2xl p-4.5 border transition-all duration-200 ${
+                        isSelected
+                          ? 'border-teal-700 bg-teal-50/60 ring-2 ring-teal-600/30 shadow-md'
+                          : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/80 shadow-xs'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <span className="font-mono text-xs font-extrabold px-2 py-0.5 rounded-md bg-slate-100 text-slate-800">
+                          {center.code}
+                        </span>
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full border border-emerald-300">
+                          Active Hub
+                        </span>
                       </div>
-                      <div className="text-right">
-                        <span className="text-[10px] text-slate-400 block">Assigned PO</span>
-                        <strong className="text-slate-700 text-xs font-semibold">{center.poName}</strong>
+
+                      <h4 className="font-bold text-slate-900 text-sm mt-2.5 leading-snug line-clamp-1">
+                        {center.name}
+                      </h4>
+                      <p className="text-xs text-slate-500 mt-0.5">{center.city}, {center.state}</p>
+
+                      <div className="mt-3.5 pt-3 border-t border-slate-200/70 flex items-center justify-between text-xs">
+                        <div>
+                          <span className="text-[10px] text-slate-400 block">Enrolled Trainees</span>
+                          <strong className="text-slate-900 text-sm font-extrabold">{centerTrainees.length}</strong>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[10px] text-slate-400 block">Assigned PO</span>
+                          <strong className="text-slate-700 text-xs font-semibold">{center.poName}</strong>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* DEEP DRILLDOWN 1: CONSUMABLES STOCK LEDGER */}
@@ -543,7 +552,7 @@ export const CeoLeadershipDashboard: React.FC = () => {
                   Center Consumables Stock Ledger
                 </span>
                 <h3 className="text-base font-bold text-slate-900">
-                  {selectedCenter.name} ({selectedCenter.code}) — Real-Time Inventory Count
+                  {selectedCenter?.name || 'Center'} ({selectedCenter?.code || '—'}) — Real-Time Inventory Count
                 </h3>
               </div>
               <span className="text-xs font-mono text-slate-500">
@@ -551,47 +560,55 @@ export const CeoLeadershipDashboard: React.FC = () => {
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
-              {centerConsumables.map((item) => {
-                const isLow = item.quantityOnHand < item.minimumThreshold;
-                return (
-                  <div
-                    key={item.id}
-                    className={`p-4 rounded-2xl border ${
-                      isLow
-                        ? 'border-rose-300 bg-rose-50/60'
-                        : 'border-slate-200 bg-slate-50/60'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                        {item.itemType}
-                      </span>
-                      {isLow && (
-                        <span className="text-[10px] font-bold text-rose-700 bg-rose-100 px-1.5 py-0.5 rounded">
-                          Low Stock
+            {centerConsumables.length === 0 ? (
+              <div className="flex flex-col items-center justify-center p-8 bg-slate-50 border border-slate-200 rounded-2xl text-center">
+                <Package className="w-6 h-6 text-slate-400 mb-2" />
+                <p className="text-xs font-bold text-slate-700">No inventory records found</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">No consumable stock currently registered for this center.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+                {centerConsumables.map((item) => {
+                  const isLow = item.quantityOnHand < item.minimumThreshold;
+                  return (
+                    <div
+                      key={item.id}
+                      className={`p-4 rounded-2xl border ${
+                        isLow
+                          ? 'border-rose-300 bg-rose-50/60'
+                          : 'border-slate-200 bg-slate-50/60'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                          {item.itemType}
                         </span>
+                        {isLow && (
+                          <span className="text-[10px] font-bold text-rose-700 bg-rose-100 px-1.5 py-0.5 rounded">
+                            Low Stock
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-2 flex items-baseline gap-1.5">
+                        <span className="text-2xl font-extrabold text-slate-900">
+                          {item.quantityOnHand}
+                        </span>
+                        <span className="text-xs text-slate-500">{item.unit}</span>
+                      </div>
+
+                      {item.sizeBreakdown && (
+                        <div className="mt-2 pt-2 border-t border-slate-200/80 grid grid-cols-4 gap-1 text-[10px] text-center font-mono">
+                          <div>M: {item.sizeBreakdown.M}</div>
+                          <div>L: {item.sizeBreakdown.L}</div>
+                          <div>XL: {item.sizeBreakdown.XL}</div>
+                          <div>XXL: {item.sizeBreakdown.XXL}</div>
+                        </div>
                       )}
                     </div>
-                    <div className="mt-2 flex items-baseline gap-1.5">
-                      <span className="text-2xl font-extrabold text-slate-900">
-                        {item.quantityOnHand}
-                      </span>
-                      <span className="text-xs text-slate-500">{item.unit}</span>
-                    </div>
-
-                    {item.sizeBreakdown && (
-                      <div className="mt-2 pt-2 border-t border-slate-200/80 grid grid-cols-4 gap-1 text-[10px] text-center font-mono">
-                        <div>M: {item.sizeBreakdown.M}</div>
-                        <div>L: {item.sizeBreakdown.L}</div>
-                        <div>XL: {item.sizeBreakdown.XL}</div>
-                        <div>XXL: {item.sizeBreakdown.XXL}</div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* DEEP DRILLDOWN 2: ENROLLED CANDIDATES REGISTRY */}
@@ -602,7 +619,7 @@ export const CeoLeadershipDashboard: React.FC = () => {
                   Center Trainee Registry
                 </span>
                 <h3 className="text-base font-bold text-slate-900">
-                  {selectedCenter.name} — Enrolled Candidates & Certification Records ({centerCandidates.length})
+                  {selectedCenter?.name || 'Center'} — Enrolled Candidates & Certification Records ({centerCandidates.length})
                 </h3>
               </div>
               <span className="text-xs text-slate-500">
@@ -624,55 +641,65 @@ export const CeoLeadershipDashboard: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {centerCandidates.map((candidate) => (
-                    <tr key={candidate.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-3 px-4 font-mono font-bold text-teal-800">
-                        {candidate.registrationNumber}
-                      </td>
-                      <td className="py-3 px-4">
-                        <p className="font-bold text-slate-900">{candidate.fullName}</p>
-                        <p className="text-[10px] text-slate-400">S/O {candidate.fatherName}</p>
-                      </td>
-                      <td className="py-3 px-4 font-mono">
-                        <p className="text-slate-800">{candidate.idCardNumber.replace(/(\d{4})(\d{4})(\d{4})/, '$1-$2-$3')}</p>
-                        <p className="text-[10px] text-teal-700">{candidate.dlNumber}</p>
-                      </td>
-                      <td className="py-3 px-4 text-slate-600 font-mono">
-                        {candidate.enrolledAt}
-                      </td>
-                      <td className="py-3 px-4">
-                        {candidate.trainingDate ? (
-                          <span className="font-mono text-slate-800 font-medium">
-                            {candidate.trainingDate}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400 italic">In 1-Day Session</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span
-                          className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                            candidate.status === 'Certified & Dispatched'
-                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                              : candidate.status === 'Green Signal (Video Call)'
-                              ? 'bg-teal-100 text-teal-800 border border-teal-300'
-                              : 'bg-slate-100 text-slate-700'
-                          }`}
-                        >
-                          {candidate.status}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <button
-                          onClick={() => setInspectCandidateId(candidate.id)}
-                          className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 inline-flex items-center gap-1"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                          View Dossier
-                        </button>
+                  {centerCandidates.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-12 text-center text-slate-500">
+                        <Users className="w-6 h-6 mx-auto mb-2 text-slate-400" />
+                        <p className="font-bold text-slate-700 text-xs">No active records found</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">No driver enrollments or certification records for this center yet.</p>
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    centerCandidates.map((candidate) => (
+                      <tr key={candidate.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="py-3 px-4 font-mono font-bold text-teal-800">
+                          {candidate.registrationNumber}
+                        </td>
+                        <td className="py-3 px-4">
+                          <p className="font-bold text-slate-900">{candidate.fullName}</p>
+                          <p className="text-[10px] text-slate-400">S/O {candidate.fatherName}</p>
+                        </td>
+                        <td className="py-3 px-4 font-mono">
+                          <p className="text-slate-800">{candidate.idCardNumber.replace(/(\d{4})(\d{4})(\d{4})/, '$1-$2-$3')}</p>
+                          <p className="text-[10px] text-teal-700">{candidate.dlNumber}</p>
+                        </td>
+                        <td className="py-3 px-4 text-slate-600 font-mono">
+                          {candidate.enrolledAt}
+                        </td>
+                        <td className="py-3 px-4">
+                          {candidate.trainingDate ? (
+                            <span className="font-mono text-slate-800 font-medium">
+                              {candidate.trainingDate}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 italic">In 1-Day Session</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span
+                            className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                              candidate.status === 'Certified & Dispatched'
+                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                : candidate.status === 'Green Signal (Video Call)'
+                                ? 'bg-teal-100 text-teal-800 border border-teal-300'
+                                : 'bg-slate-100 text-slate-700'
+                            }`}
+                          >
+                            {candidate.status}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <button
+                            onClick={() => setInspectCandidateId(candidate.id)}
+                            className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 inline-flex items-center gap-1"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            View Dossier
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -781,7 +808,7 @@ export const CeoLeadershipDashboard: React.FC = () => {
                                 <span>{emp.assignedRegion || 'North & West Command'}</span>
                               </span>
                               <p className="text-[10px] text-slate-500">
-                                {(emp.regionCenterIds?.length || smAssignedCenterIds.length)} Hubs under Jurisdiction
+                                {(emp.regionCenterIds?.length || centers.length)} Hubs under Jurisdiction
                               </p>
                             </div>
                           ) : (
@@ -1991,17 +2018,17 @@ export const CeoLeadershipDashboard: React.FC = () => {
                               centers.filter(c => c.region === 'West' || c.code.startsWith('MH')).map(c => c.id)
                             );
                           } else if (reg === 'North & West Region') {
-                            setNewEmpRegionCenterIds(smAssignedCenterIds);
+                            setNewEmpRegionCenterIds(centers.map(c => c.id));
                           } else if (reg === 'Pan-India Command') {
                             setNewEmpRegionCenterIds(centers.map(c => c.id));
                           }
                         }}
                         className="w-full p-2 rounded-xl border border-amber-300 text-xs bg-white font-medium"
                       >
-                        <option value="North & West Region">North & West Region (Command Area)</option>
-                        <option value="North Region">North Region Only (Rajasthan & Delhi)</option>
-                        <option value="West Region">West Region Only (Maharashtra)</option>
                         <option value="Pan-India Command">Pan-India Command (All Centers)</option>
+                        <option value="North Region">North Region Only</option>
+                        <option value="West Region">West Region Only</option>
+                        <option value="North & West Region">North & West Region (Command Area)</option>
                       </select>
                     </div>
                     <div>
@@ -2012,10 +2039,10 @@ export const CeoLeadershipDashboard: React.FC = () => {
                         <span>{newEmpRegionCenterIds.length} Hubs in Scope</span>
                         <button
                           type="button"
-                          onClick={() => setNewEmpRegionCenterIds(smAssignedCenterIds)}
+                          onClick={() => setNewEmpRegionCenterIds(centers.map(c => c.id))}
                           className="px-2 py-0.5 rounded bg-amber-200 hover:bg-amber-300 text-amber-900 text-[10px] font-bold"
                         >
-                          Default N&W
+                          Select All
                         </button>
                       </div>
                     </div>
@@ -2269,17 +2296,17 @@ export const CeoLeadershipDashboard: React.FC = () => {
                               centers.filter(c => c.region === 'West' || c.code.startsWith('MH')).map(c => c.id)
                             );
                           } else if (reg === 'North & West Region') {
-                            setEditRegionCenterIds(smAssignedCenterIds);
+                            setEditRegionCenterIds(centers.map(c => c.id));
                           } else if (reg === 'Pan-India Command') {
                             setEditRegionCenterIds(centers.map(c => c.id));
                           }
                         }}
                         className="w-full p-2.5 rounded-xl border border-amber-300 text-xs bg-white font-medium"
                       >
-                        <option value="North & West Region">North & West Region (Command Area)</option>
+                        <option value="Pan-India Command">Pan-India Command (All Centers)</option>
                         <option value="North Region">North Region Only</option>
                         <option value="West Region">West Region Only</option>
-                        <option value="Pan-India Command">Pan-India Command (All Centers)</option>
+                        <option value="North & West Region">North & West Region (Command Area)</option>
                       </select>
                     </div>
                     <div>
@@ -2290,10 +2317,10 @@ export const CeoLeadershipDashboard: React.FC = () => {
                         <span>{editRegionCenterIds.length} Hubs in Scope</span>
                         <button
                           type="button"
-                          onClick={() => setEditRegionCenterIds(smAssignedCenterIds)}
+                          onClick={() => setEditRegionCenterIds(centers.map(c => c.id))}
                           className="px-2 py-0.5 rounded bg-amber-200 hover:bg-amber-300 text-amber-900 text-[10px] font-bold"
                         >
-                          Default N&W
+                          Select All
                         </button>
                       </div>
                     </div>

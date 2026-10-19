@@ -41,24 +41,21 @@ export const SeniorManagerConsole: React.FC<SeniorManagerConsoleProps> = () => {
     showToast
   } = useApp();
 
-  // 1. Regional Centers Mapping for Senior Manager (Siddharth Nair)
-  // Maps all relevant centers across North & West commands or dynamic GM allocation
+  // 1. Regional Centers Mapping for Senior Manager
   const smCenters = useMemo(() => {
-    const dynamicRegionIds = currentPersona?.regionCenterIds;
+    const dynamicRegionIds = currentPersona?.regionCenterIds || currentPersona?.assignedCenterIds;
     if (dynamicRegionIds && dynamicRegionIds.length > 0) {
       const list = centers.filter(
         c => dynamicRegionIds.includes(c.id) || dynamicRegionIds.includes(c.code)
       );
       if (list.length > 0) return list;
     }
-    const list = centers.filter(c =>
-      smAssignedCenterIds.includes(c.id) ||
-      smAssignedCenterIds.includes(c.code) ||
-      c.apmName?.toLowerCase().includes('nair') ||
-      c.region === 'North' ||
-      c.region === 'West'
-    );
-    return list.length > 0 ? list : centers;
+    if (currentPersona?.assignedRegion || currentPersona?.region) {
+      const targetRegion = currentPersona.assignedRegion || currentPersona.region;
+      const list = centers.filter(c => c.region === targetRegion);
+      if (list.length > 0) return list;
+    }
+    return centers;
   }, [centers, currentPersona]);
 
   const smRegion = currentPersona?.region || 'North & West';
@@ -130,7 +127,7 @@ export const SeniorManagerConsole: React.FC<SeniorManagerConsoleProps> = () => {
 
       if (!map.has(key)) {
         map.set(key, {
-          centerName: centerObj?.name || (cand.centerId === 'RJ-01' ? 'Jodhpur Transport Skill Hub' : cand.centerId === 'MH-03' ? 'Mumbai Central Logistics Hub' : 'Regional Hub'),
+          centerName: centerObj?.name || cand.centerId || 'Regional Hub',
           centerCode: centerObj?.code || cand.centerId || 'REG',
           batchCode: batchObj?.batchCode || "Today's Foundation Batch",
           items: []
@@ -180,7 +177,7 @@ export const SeniorManagerConsole: React.FC<SeniorManagerConsoleProps> = () => {
   const handleSmFinalApproval = (candidateIds: string[]) => {
     if (candidateIds.length === 0) return;
     const nowIso = new Date().toISOString();
-    const smName = `${currentPersona?.name || 'Siddharth Nair'} (Senior Manager - ${smRegion} Region)`;
+    const smName = `${currentPersona?.name || 'Authorized Senior Manager'} (Senior Manager - ${smRegion} Region)`;
 
     candidateIds.forEach(id => {
       updateCandidate(id, {
@@ -261,7 +258,7 @@ export const SeniorManagerConsole: React.FC<SeniorManagerConsoleProps> = () => {
       candidates: approvedMasterCandidates,
       center: firstCenter,
       batchCode: `SM-REGIONAL-MASTER`,
-      exportedBy: `${currentPersona?.name || 'Siddharth Nair'} (Senior Manager - ${smRegion} QC Command)`,
+      exportedBy: `${currentPersona?.name || 'Authorized Senior Manager'} (Senior Manager - ${smRegion} QC Command)`,
       filterLabel: `QC Approved Master Ledger — (${smCenters.length} Hubs Under Command)`
     });
 
@@ -275,7 +272,7 @@ export const SeniorManagerConsole: React.FC<SeniorManagerConsoleProps> = () => {
         <div className="space-y-2">
           <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-teal-900/80 border border-teal-700/80 text-teal-300 text-[11px] font-bold">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Senior Manager (Siddharth Nair) Regional Quality Control Desk</span>
+            <span>Senior Manager Regional Quality Control Desk — {currentPersona?.name || 'Regional QC Lead'}</span>
           </div>
           <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
             Senior Manager Regional QC & Batch Certification Console
@@ -287,18 +284,15 @@ export const SeniorManagerConsole: React.FC<SeniorManagerConsoleProps> = () => {
           {/* Assigned Centers Display */}
           <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs">
             <span className="font-bold text-teal-300">Assigned Centers:</span>
-            <span className="bg-teal-900/90 border border-teal-700/80 px-2 py-0.5 rounded-md font-mono text-[11px] text-teal-100">
-              Jodhpur Transport Skill Hub (RJ-01)
-            </span>
-            <span className="bg-teal-900/90 border border-teal-700/80 px-2 py-0.5 rounded-md font-mono text-[11px] text-teal-100">
-              Mumbai Central Logistics Hub (MH-03)
-            </span>
-            <span className="bg-teal-900/90 border border-teal-700/80 px-2 py-0.5 rounded-md font-mono text-[11px] text-teal-100">
-              Jaipur Logistics Training Hub (RJ-02)
-            </span>
-            <span className="bg-teal-900/90 border border-teal-700/80 px-2 py-0.5 rounded-md font-mono text-[11px] text-teal-100">
-              Pune Commercial Transport Academy (MH-01)
-            </span>
+            {smCenters.length === 0 ? (
+              <span className="text-teal-300/80 italic text-[11px]">No hubs currently provisioned</span>
+            ) : (
+              smCenters.slice(0, 4).map(ctr => (
+                <span key={ctr.id} className="bg-teal-900/90 border border-teal-700/80 px-2 py-0.5 rounded-md font-mono text-[11px] text-teal-100">
+                  {ctr.name} ({ctr.code})
+                </span>
+              ))
+            )}
             {smCenters.length > 4 && (
               <span className="text-teal-400 font-semibold text-[11px] px-1">
                 (+{smCenters.length - 4} more hubs under command)

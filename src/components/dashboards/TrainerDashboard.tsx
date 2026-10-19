@@ -1090,7 +1090,7 @@ export const TrainerDashboard: React.FC = () => {
               </div>
 
               <div className="p-3 bg-teal-50 rounded-xl border border-teal-200 text-teal-900 text-[11px]">
-                <p><strong>Routing:</strong> Will be submitted to Pooja Verma (Program Officer) & Siddharth Nair (Senior Manager).</p>
+                <p><strong>Routing:</strong> Will be submitted to Program Officer & Senior Manager QC for approval.</p>
                 <p className="text-teal-700 mt-0.5">Calculated: <strong>{calculateDays()} day(s)</strong></p>
               </div>
 
@@ -1421,7 +1421,7 @@ export const TrainerDashboard: React.FC = () => {
               <div className="p-4 bg-teal-50 rounded-2xl border border-teal-200 flex items-center justify-between">
                 <div>
                   <span className="text-[10px] uppercase font-bold text-teal-800">Total Claimed Reimbursement</span>
-                  <p className="text-[11px] text-teal-700">Routes to Siddharth Nair (Senior Manager) for formal audit & sanction</p>
+                  <p className="text-[11px] text-teal-700">Routes to Senior Manager for formal audit & sanction</p>
                 </div>
                 <div className="text-right">
                   <span className="text-lg font-black text-teal-950 font-mono">
@@ -1564,8 +1564,8 @@ export const TrainerDashboard: React.FC = () => {
 
               <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80">
                 <span className="text-slate-400 block text-[10px] uppercase font-bold">Reporting Officer</span>
-                <strong className="text-slate-900 text-sm mt-0.5 block">{currentEmp?.reportingOfficer || 'Pooja Verma (PO)'}</strong>
-                <span className="text-[10px] text-slate-500">Program Officer (North)</span>
+                <strong className="text-slate-900 text-sm mt-0.5 block">{currentEmp?.reportingOfficer || activeCenter.poName || 'Program Officer (PO)'}</strong>
+                <span className="text-[10px] text-slate-500">Program Officer</span>
               </div>
 
               <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80">
@@ -1607,12 +1607,8 @@ export const TrainerDashboard: React.FC = () => {
                     </div>
                   ))
                 ) : (
-                  <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 text-xs flex items-center justify-between">
-                    <div>
-                      <p className="font-bold text-slate-800">ORD/MOB/2026/07/218 • Mumbai Central → Jodhpur Transport Hub</p>
-                      <p className="text-slate-500 text-[11px]">Heavy simulation module trainer deployment and regional instructor calibration</p>
-                    </div>
-                    <span className="text-slate-400 text-[11px]">Effective: 15 Jul 2026 (By Siddharth Nair Senior Manager)</span>
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs text-slate-500 text-center">
+                    No mobilization orders or transfer records on file.
                   </div>
                 )}
               </div>

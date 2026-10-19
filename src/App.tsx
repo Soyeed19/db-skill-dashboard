@@ -20,7 +20,7 @@ import { BatchAttendanceModal } from './components/training/BatchAttendanceModal
 import { ShieldCheck, Info, Wrench, Lock, Server, Clock } from 'lucide-react';
 import { DbSkillsLogo } from './components/common/DbSkillsLogo';
 
-const IS_MAINTENANCE_MODE = true;
+const IS_MAINTENANCE_MODE = false;
 
 const MaintenanceScreen: React.FC = () => {
   return (

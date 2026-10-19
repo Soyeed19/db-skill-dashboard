@@ -98,7 +98,7 @@ export const CenterEnrollmentTrendsChart: React.FC<CenterEnrollmentTrendsChartPr
 
   // Dynamically aggregate real candidates from connected Supabase table by timestamp
   const trendData = useMemo<MonthlyDataPoint[]>(() => {
-    const baseTarget = activeCenter.code === 'DL-02' ? 650 : 600;
+    const baseTarget = activeCenter.targetDrivers || 600;
 
     const data: MonthlyDataPoint[] = monthBuckets.map((m, idx) => {
       const isCurrentMonth = idx === monthBuckets.length - 1;
@@ -371,7 +371,7 @@ export const CenterEnrollmentTrendsChart: React.FC<CenterEnrollmentTrendsChartPr
               </div>
               <span className="text-[10px] text-emerald-800 font-medium flex items-center gap-1">
                 <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                Target: {activeCenter.code === 'DL-02' ? '650' : '600'} / mo
+                Target: {activeCenter.targetDrivers || 600} / mo
               </span>
             </div>
 

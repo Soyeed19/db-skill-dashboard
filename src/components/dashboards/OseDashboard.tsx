@@ -160,7 +160,7 @@ export const OseDashboard: React.FC = () => {
       refMonth = 8; // September
     }
 
-    const baseTarget = activeCenter.code === 'DL-02' ? 650 : 600;
+    const baseTarget = activeCenter.targetDrivers || 600;
 
     const list = [];
     for (let i = 5; i >= 0; i--) {
@@ -362,7 +362,7 @@ export const OseDashboard: React.FC = () => {
       designation: 'Operations Support Executive',
       centerId: activeCenter.id,
       centerName: activeCenter.name,
-      reportingOfficer: 'Pooja Verma (PO)',
+      reportingOfficer: activeCenter.poName || 'Program Officer (PO)',
       dateOfJoining: '2024-03-15',
       tenureMonths: 30,
       phone: currentPersona.phone,
@@ -723,35 +723,31 @@ export const OseDashboard: React.FC = () => {
   // TAB 3: SELF-ATTENDANCE & DEPLOYMENT TIMELINE
   // ----------------------------------------------------
   // Past deployment postings
-  const deploymentPostings = [
-    {
-      centerName: 'Jodhpur Transport Skill Hub (RJ-01)',
-      period: 'March 2024 — Present',
-      duration: '30 Months (Active)',
-      role: 'Operation Support Executive (Level 4)',
-      status: 'Current Posting',
-      isCurrent: true,
-      highlights: `Lead enrollment desk; ${centerCandidates.length} commercial drivers processed; active audit compliance`
-    },
-    {
-      centerName: 'Jaipur Logistics Training Hub (RJ-02)',
-      period: 'July 2023 — February 2024',
-      duration: '8 Months',
-      role: 'Field Operations Associate (Level 4)',
-      status: 'Past Deployment',
-      isCurrent: false,
-      highlights: 'Managed 18 batches; cross-border transport union driver mobilizations'
-    },
-    {
-      centerName: 'Udaipur Commercial Driving Center (RJ-03)',
-      period: 'January 2023 — June 2023',
-      duration: '6 Months',
-      role: 'Junior Ingestion Executive (Level 4)',
-      status: 'Past Deployment',
-      isCurrent: false,
-      highlights: 'Assisted center inauguration, installed biometric terminals & scanner hubs'
+  const deploymentPostings = useMemo(() => {
+    if (oseEmployee.deploymentHistory && oseEmployee.deploymentHistory.length > 0) {
+      return oseEmployee.deploymentHistory.map((dh, idx) => ({
+        centerName: dh.toCenterName,
+        period: `${dh.effectiveDate} — Present`,
+        duration: 'Transferred',
+        role: 'Operation Support Executive (Level 4)',
+        status: idx === 0 ? 'Current Posting' : 'Past Deployment',
+        isCurrent: idx === 0,
+        highlights: dh.reason
+      }));
     }
-  ];
+    if (activeCenter.name && activeCenter.name !== 'No Hub Provisioned') {
+      return [{
+        centerName: `${activeCenter.name} (${activeCenter.code})`,
+        period: 'Present Posting',
+        duration: 'Active Assignment',
+        role: 'Operation Support Executive (Level 4)',
+        status: 'Current Posting',
+        isCurrent: true,
+        highlights: `Active assignment at ${activeCenter.name}`
+      }];
+    }
+    return [];
+  }, [oseEmployee, activeCenter]);
 
   // Self attendance logs for this OSE
   const oseAttendanceLogs = useMemo(() => {
@@ -841,7 +837,7 @@ export const OseDashboard: React.FC = () => {
               <p className="text-xs text-slate-600 mt-0.5">
                 <span className="font-semibold text-slate-700">Assigned Center:</span> {activeCenter.name} ({activeCenter.code})
                 <span className="mx-1.5 text-slate-300">•</span>
-                Reporting Officer: <span className="font-semibold">{oseEmployee.reportingOfficer || 'Pooja Verma (PO)'}</span>
+                Reporting Officer: <span className="font-semibold">{oseEmployee.reportingOfficer || activeCenter.poName || 'Program Officer (PO)'}</span>
               </p>
             </div>
           </div>
@@ -918,10 +914,12 @@ export const OseDashboard: React.FC = () => {
               <History className="w-4 h-4 text-teal-700" />
             </div>
             <p className="text-base font-extrabold text-slate-900 truncate">
-              {activeCenter.city} Hub (Current)
+              {activeCenter.name || 'Primary Assignment'}
             </p>
             <p className="text-[11px] text-slate-500 mt-1 truncate">
-              Past: Jaipur Hub • Udaipur Hub
+              {oseEmployee.deploymentHistory && oseEmployee.deploymentHistory.length > 0
+                ? `${oseEmployee.deploymentHistory.length} Past Order(s)`
+                : 'Current Station Base'}
             </p>
           </div>
 
@@ -1544,7 +1542,7 @@ export const OseDashboard: React.FC = () => {
                     TRAVEL EXPENSES CLAIM FORM
                   </h2>
                   <p className="text-xs text-teal-100 mt-0.5">
-                    Corporate Office: F48/31, Sector 12, Kharghar, Navi Mumbai 410210
+                    Corporate Office: National Operations Headquarters
                   </p>
                 </div>
 

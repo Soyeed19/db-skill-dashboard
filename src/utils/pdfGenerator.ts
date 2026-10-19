@@ -163,9 +163,9 @@ export const generateCandidateDossierPdf = (
 
   // 3 signature blocks
   const sigBlocks = [
-    { title: 'Enrolled & Verified By (OSE)', name: 'Ramesh Sharma', note: 'Biometrics & OCR Verified' },
-    { title: 'Conducted By (Trainer)', name: 'Vikram Singh Rathore', note: 'Classroom & Assessment Completed' },
-    { title: 'PO Quality Clearance', name: candidate.greenSignalBy || 'Pooja Verma (PO)', note: candidate.greenSignalAt ? `Green Signal: ${candidate.greenSignalAt}` : 'Pending Review' }
+    { title: 'Enrolled & Verified By (OSE)', name: candidate.enrolledBy || 'Authorized OSE', note: 'Biometrics & OCR Verified' },
+    { title: 'Conducted By (Trainer)', name: candidate.trainerName || 'Assigned Trainer', note: 'Classroom & Assessment Completed' },
+    { title: 'PO Quality Clearance', name: candidate.greenSignalBy || 'Program Officer (PO)', note: candidate.greenSignalAt ? `Green Signal: ${candidate.greenSignalAt}` : 'Pending Review' }
   ];
 
   sigBlocks.forEach((sig, idx) => {
@@ -440,7 +440,7 @@ export const generateCandidateDossierPdf = (
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(darkGray[0], darkGray[1], darkGray[2]);
-  doc.text(`Authorized Officer: ${candidate.greenSignalBy || 'Pooja Verma (Program Officer)'}`, 20, 177);
+  doc.text(`Authorized Officer: ${candidate.greenSignalBy || 'Program Officer (PO)'}`, 20, 177);
   doc.text(`Timestamp: ${candidate.greenSignalAt || 'Verified & Issued'} | Remarks: All documents clear for video verification call.`, 20, 182);
 
   // Step 2: APM Secondary QC
@@ -456,7 +456,7 @@ export const generateCandidateDossierPdf = (
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(darkGray[0], darkGray[1], darkGray[2]);
-  doc.text(`Quality Auditor: ${candidate.apmApprovedBy || 'Siddharth Nair (APM Quality Lead)'}`, 20, 204);
+  doc.text(`Quality Auditor: ${candidate.apmApprovedBy || 'Quality Lead (QC)'}`, 20, 204);
   doc.text(`QC Status: ${candidate.apmApprovedAt ? 'APPROVED & DISPATCH READY (' + candidate.apmApprovedAt + ')' : 'In Quality Queue'}`, 20, 209);
 
   // Final Dispatch Box

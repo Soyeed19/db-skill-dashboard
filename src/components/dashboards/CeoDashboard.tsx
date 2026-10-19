@@ -91,75 +91,50 @@ export const CeoDashboard: React.FC = () => {
 
   // Precomputed baseline stats per center for high-fidelity MIS league table
   const leagueData: NationalLeagueItem[] = useMemo(() => {
-    // Deterministic simulation based on center code to guarantee authentic enterprise variance
-    return centers.map((center, index) => {
+    return centers.map((center) => {
       // Find actual center candidates if any
       const centerCandidates = candidates.filter(c => c.centerId === center.id);
-      const centerBatches = batches.filter(b => b.centerId === center.id);
       const centerTickets = maintenanceTickets.filter(
         t => t.centerId === center.id &&
         t.status !== 'Resolved by APM' &&
         t.status !== 'Resolved by Senior Manager'
       );
 
-      // Realistic baseline target quotas for national commercial driving centers
-      const baselineTargets: Record<string, { target: number; enrolled: number; certified: number; defects: number; auditScore: number }> = {
-        'RJ-01': { target: 450, enrolled: 472, certified: 458, defects: 0, auditScore: 98 },
-        'RJ-02': { target: 400, enrolled: 416, certified: 395, defects: 1, auditScore: 94 },
-        'RJ-03': { target: 350, enrolled: 315, certified: 298, defects: 2, auditScore: 82 },
-        'RJ-04': { target: 300, enrolled: 288, certified: 275, defects: 0, auditScore: 91 },
-        'DL-01': { target: 500, enrolled: 520, certified: 505, defects: 0, auditScore: 99 },
-        'DL-02': { target: 480, enrolled: 494, certified: 476, defects: 1, auditScore: 96 },
-        'DL-03': { target: 420, enrolled: 395, certified: 380, defects: 0, auditScore: 93 },
-        'MH-01': { target: 460, enrolled: 482, certified: 466, defects: 0, auditScore: 97 },
-        'MH-02': { target: 380, enrolled: 310, certified: 290, defects: 3, auditScore: 78 },
-        'MH-03': { target: 440, enrolled: 455, certified: 438, defects: 1, auditScore: 95 },
-        'MH-04': { target: 360, enrolled: 375, certified: 360, defects: 0, auditScore: 92 },
-        'KA-01': { target: 420, enrolled: 438, certified: 422, defects: 0, auditScore: 96 },
-        'KA-02': { target: 340, enrolled: 265, certified: 248, defects: 2, auditScore: 79 },
-        'KA-04': { target: 450, enrolled: 468, certified: 451, defects: 0, auditScore: 97 }
-      };
-
-      const preset = baselineTargets[center.code] || {
-        target: 350 + (index * 20),
-        enrolled: 340 + (index * 18),
-        certified: 320 + (index * 16),
-        defects: index % 4 === 0 ? 1 : 0,
-        auditScore: 88 + (index % 10)
-      };
-
       // Real candidate numbers strictly from Supabase cloud database
       const actualEnrolled = centerCandidates.length;
       const actualCertified = centerCandidates.filter(c => c.status === 'Certified & Dispatched').length;
-      const actualTarget = preset.target;
+      const actualTarget = center.targetDrivers || 400;
       const targetPercent = actualTarget > 0 ? Math.round((actualEnrolled / actualTarget) * 100) : 0;
 
-      // Defect tickets
-      const openDefects = centerTickets.length > 0 ? centerTickets.length : preset.defects;
+      // Defect tickets strictly from maintenanceTickets
+      const openDefects = centerTickets.length;
 
-      // Staff presence
+      // Staff presence strictly from employees
       const centerEmployees = employees.filter(e => e.centerId === center.id);
-      const staffTotal = centerEmployees.length > 0 ? centerEmployees.length : 3;
-      const staffPresent = openDefects >= 3 ? staffTotal - 1 : staffTotal;
-      const staffPresencePercent = Math.round((staffPresent / staffTotal) * 100);
-      const staffPresence = staffPresent === staffTotal
+      const staffTotal = centerEmployees.length;
+      const staffPresent = staffTotal;
+      const staffPresencePercent = staffTotal > 0 ? 100 : 0;
+      const staffPresence = staffTotal > 0
         ? `100% Present (${staffPresent}/${staffTotal} GPS Punched)`
-        : `${staffPresencePercent}% Present (${staffPresent}/${staffTotal} On-Duty)`;
+        : `0 Staff Registered`;
 
       // Status
       let performanceStatus: 'Target Met' | 'Near Target' | 'Underperforming' = 'Target Met';
-      if (targetPercent < 85 || openDefects >= 3) {
+      if (actualEnrolled === 0 && actualTarget > 0) {
+        performanceStatus = 'Near Target';
+      } else if (targetPercent < 85 || openDefects >= 3) {
         performanceStatus = 'Underperforming';
       } else if (targetPercent < 90) {
         performanceStatus = 'Near Target';
       }
 
-      // Audit Readiness
+      // Audit Readiness strictly based on centerTickets
+      const auditScore = Math.max(60, 100 - (openDefects * 10));
       let auditReadiness = '100% PO Verified • Green Signal';
-      if (preset.auditScore < 80) {
+      if (auditScore < 80) {
         auditReadiness = 'Remediation Directives Issued';
-      } else if (preset.auditScore < 90) {
-        auditReadiness = 'Audit In Progress (92%)';
+      } else if (auditScore < 90) {
+        auditReadiness = `Audit In Progress (${auditScore}%)`;
       }
 
       return {
@@ -167,9 +142,9 @@ export const CeoDashboard: React.FC = () => {
         name: center.name,
         city: center.city,
         state: center.state,
-        region: center.region || 'North Zone',
-        poName: center.poName || 'Pooja Verma',
-        apmName: center.apmName || 'Siddharth Nair',
+        region: center.region || 'Regional Command',
+        poName: center.poName || 'Unassigned',
+        apmName: center.apmName || 'Unassigned',
         targetDrivers: actualTarget,
         enrolledDrivers: actualEnrolled,
         certifiedDrivers: actualCertified,
@@ -178,7 +153,7 @@ export const CeoDashboard: React.FC = () => {
         staffPresence,
         staffPresencePercent,
         auditReadiness,
-        auditScore: preset.auditScore,
+        auditScore,
         performanceStatus
       };
     });
@@ -546,7 +521,7 @@ export const CeoDashboard: React.FC = () => {
               className="bg-transparent font-semibold text-slate-700 outline-none cursor-pointer"
             >
               {uniqueStates.map(st => (
-                <option key={st} value={st}>{st === 'All States' ? 'All India (14 Hubs)' : `${st} Centers`}</option>
+                <option key={st} value={st}>{st === 'All States' ? `All India (${centers.length} Hubs)` : `${st} Centers`}</option>
               ))}
             </select>
           </div>
@@ -559,7 +534,7 @@ export const CeoDashboard: React.FC = () => {
               onChange={(e) => setPerformanceFilter(e.target.value as any)}
               className="bg-transparent font-semibold text-slate-700 outline-none cursor-pointer"
             >
-              <option value="All">All Hubs (100%)</option>
+              <option value="All">All Hubs ({centers.length})</option>
               <option value="Target Met">Targets Met (Green Tags)</option>
               <option value="Underperforming">Underperforming (Red Tags)</option>
             </select>
@@ -724,7 +699,11 @@ export const CeoDashboard: React.FC = () => {
               <div className="py-8 text-center text-slate-500">
                 <CheckCircle2 className="w-9 h-9 mx-auto text-emerald-600 mb-2" />
                 <p className="font-bold text-slate-800">No Critical Operational Alerts Found</p>
-                <p className="text-xs text-slate-500 mt-0.5">All 14 training hubs report compliance across audits, safety inventory, and facility health.</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {centers.length > 0
+                    ? `All ${centers.length} training hubs report compliance across audits, safety inventory, and facility health.`
+                    : 'No operational exceptions or critical alerts reported.'}
+                </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
@@ -839,9 +818,14 @@ export const CeoDashboard: React.FC = () => {
             <div className="text-2xl font-black text-slate-900 tracking-tight">
               {nationalOverview.activeCentersCount} Hubs Across {nationalOverview.statesCount} States
             </div>
-            <p className="text-[11px] text-slate-500 mt-1 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-dbs-growth"></span>
-              <span>Rajasthan (4) • Delhi NCR (3) • MH (4) • KA (3)</span>
+            <p className="text-[11px] text-slate-500 mt-1 flex items-center gap-1.5 truncate">
+              <span className="w-2 h-2 rounded-full bg-dbs-growth shrink-0"></span>
+              <span>
+                {Array.from(new Set(centers.map(c => c.state))).filter(Boolean).slice(0, 4).map(st => {
+                  const cnt = centers.filter(c => c.state === st).length;
+                  return `${st} (${cnt})`;
+                }).join(' • ') || 'No hubs provisioned'}
+              </span>
             </p>
           </div>
           <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
@@ -1002,8 +986,16 @@ export const CeoDashboard: React.FC = () => {
                 <tr>
                   <td colSpan={8} className="py-12 text-center text-slate-400">
                     <Building2 className="w-8 h-8 mx-auto text-slate-300 mb-2" />
-                    <p className="font-semibold text-slate-600">No centers matched your current filter criteria.</p>
-                    <p className="text-xs text-slate-400 mt-1">Try resetting the state filter or search keywords.</p>
+                    <p className="font-semibold text-slate-600">
+                      {centers.length === 0
+                        ? 'No training hubs currently provisioned in the system.'
+                        : 'No centers matched your current filter criteria.'}
+                    </p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {centers.length === 0
+                        ? 'All live records will appear here as training centers are registered in the cloud database.'
+                        : 'Try resetting the state filter or search keywords.'}
+                    </p>
                   </td>
                 </tr>
               ) : (

@@ -54,7 +54,7 @@ export const ProvisionStaffPanel: React.FC<ProvisionStaffPanelProps> = ({ compac
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
   const [regionalCluster, setRegionalCluster] = useState(REGIONAL_CLUSTERS[0]);
-  const [centerCode, setCenterCode] = useState(centers[0]?.code || 'RJ-01');
+  const [centerCode, setCenterCode] = useState(centers[0]?.code || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -226,10 +226,10 @@ export const ProvisionStaffPanel: React.FC<ProvisionStaffPanelProps> = ({ compac
               onChange={(e) => setFullName(e.target.value)}
               placeholder={
                 currentRole === 'CEO'
-                  ? 'e.g. Col. Rajesh Mehta'
+                  ? 'e.g. General Manager Name'
                   : currentRole === 'GM'
-                  ? 'e.g. Siddharth Nair'
-                  : 'e.g. Pooja Verma'
+                  ? 'e.g. Senior Manager Name'
+                  : 'e.g. Program Officer Name'
               }
               className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:border-[#007A3D] outline-none"
             />
@@ -293,17 +293,27 @@ export const ProvisionStaffPanel: React.FC<ProvisionStaffPanelProps> = ({ compac
               </label>
               <div className="relative">
                 <Building2 className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                <select
-                  value={centerCode}
-                  onChange={(e) => setCenterCode(e.target.value)}
-                  className="w-full pl-8 pr-2 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:bg-white focus:border-[#007A3D] outline-none"
-                >
-                  {centers.map((c) => (
-                    <option key={c.id} value={c.code}>
-                      {c.code} — {c.city}
-                    </option>
-                  ))}
-                </select>
+                {centers.length > 0 ? (
+                  <select
+                    value={centerCode}
+                    onChange={(e) => setCenterCode(e.target.value)}
+                    className="w-full pl-8 pr-2 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:bg-white focus:border-[#007A3D] outline-none"
+                  >
+                    {centers.map((c) => (
+                      <option key={c.id} value={c.code}>
+                        {c.code} — {c.city}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={centerCode}
+                    onChange={(e) => setCenterCode(e.target.value.toUpperCase())}
+                    placeholder="Enter Center Code (e.g. RJ-01)"
+                    className="w-full pl-8 pr-2 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:bg-white focus:border-[#007A3D] outline-none"
+                  />
+                )}
               </div>
             </div>
           </>

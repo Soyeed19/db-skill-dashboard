@@ -269,36 +269,11 @@ DROP POLICY IF EXISTS "Batches authenticated write" ON public.batches;
 DROP POLICY IF EXISTS "Batches purge CEO only" ON public.batches;
 
 CREATE POLICY "Profiles read access" ON public.profiles FOR SELECT USING (true);
-
-CREATE POLICY "Profiles write access" ON public.profiles FOR INSERT TO authenticated
-WITH CHECK (
-  LOWER(email) = 'soyeed12@gmail.com'
-  OR EXISTS (
-    SELECT 1 FROM public.profiles p
-    WHERE (p.id = auth.uid() OR LOWER(p.email) = LOWER(auth.jwt() ->> 'email'))
-      AND p.role IN ('CEO', 'GM', 'Senior Manager', 'SM')
-  )
-);
-
-CREATE POLICY "Profiles update access" ON public.profiles FOR UPDATE TO authenticated
-USING (
-  id = auth.uid()
-  OR LOWER(email) = LOWER(auth.jwt() ->> 'email')
-  OR EXISTS (
-    SELECT 1 FROM public.profiles p
-    WHERE (p.id = auth.uid() OR LOWER(p.email) = LOWER(auth.jwt() ->> 'email'))
-      AND p.role IN ('CEO', 'GM', 'Senior Manager', 'SM')
-  )
-);
-
-CREATE POLICY "Profiles delete CEO only" ON public.profiles FOR DELETE TO authenticated
-USING (
-  EXISTS (
-    SELECT 1 FROM public.profiles p
-    WHERE (p.id = auth.uid() OR LOWER(p.email) = LOWER(auth.jwt() ->> 'email'))
-      AND p.role = 'CEO'
-  )
-);
+CREATE POLICY "Profiles authenticated insert" ON public.profiles FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Profiles authenticated update" ON public.profiles FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Profiles authenticated delete" ON public.profiles FOR DELETE TO authenticated USING (true);
+CREATE POLICY "Profiles anon insert" ON public.profiles FOR INSERT TO anon WITH CHECK (true);
+CREATE POLICY "Profiles anon update" ON public.profiles FOR UPDATE TO anon USING (true) WITH CHECK (true);
 
 CREATE POLICY "Candidates center-scoped read" ON public.candidates FOR SELECT TO authenticated
 USING (
@@ -381,6 +356,9 @@ USING (
       AND p.role = 'CEO'
   )
 );
+
+-- Reload PostgREST schema cache immediately
+NOTIFY pgrst, 'reload schema';
 `;
 
   const handleCopySql = () => {

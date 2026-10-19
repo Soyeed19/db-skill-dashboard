@@ -198,10 +198,10 @@ export const CandidateRegistrationModal: React.FC<CandidateRegistrationModalProp
         dlNumber: 'RJ19 20150044812',
         dlExpiryDate: '2030-08-20',
         vehicleClass: 'HMV',
-        address: 'House 54, Sector 7, Kudi Housing Board, Jodhpur Rural',
-        city: activeCenter?.city || 'Jodhpur',
-        state: activeCenter?.state || 'Rajasthan',
-        pincode: '342005'
+        address: activeCenter?.address || 'Driver Training Campus',
+        city: activeCenter?.city || '',
+        state: activeCenter?.state || '',
+        pincode: '110001'
       }));
       setOcrFrontId('https://images.unsplash.com/photo-1589330694653-dad6bc0140fa?auto=format&fit=crop&w=600&q=80');
       setOcrBackId('https://images.unsplash.com/photo-1589330694653-dad6bc0140fa?auto=format&fit=crop&w=600&q=80');

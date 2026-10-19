@@ -146,7 +146,7 @@ export const EditDiscrepancyModal: React.FC<EditDiscrepancyModalProps> = ({
                   PO Reviewer Defect Flag: {openQuery?.field || 'General Discrepancy'}
                 </h4>
                 <span className="text-[11px] font-mono text-amber-800 font-semibold">
-                  Raised by: {openQuery?.raisedByName || 'Pooja Verma (PO)'} • {openQuery?.createdAt || 'Recent'}
+                  Raised by: {openQuery?.raisedByName || 'Program Officer (PO)'} • {openQuery?.createdAt || 'Recent'}
                 </span>
               </div>
               <p className="text-xs text-amber-900 bg-white/80 p-3 rounded-xl border border-amber-200/80 font-medium">

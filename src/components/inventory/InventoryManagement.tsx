@@ -35,7 +35,7 @@ export const InventoryManagement: React.FC = () => {
   const [inwardItemType, setInwardItemType] = useState<ConsumableType>('Certificates');
   const [inwardQty, setInwardQty] = useState<number>(50);
   const [challanNo, setChallanNo] = useState<string>(`CH-HQ-2026-${Math.floor(1000 + Math.random() * 9000)}`);
-  const [challanNotes, setChallanNotes] = useState<string>('Dispatched via BlueDart cargo from Jaipur print depot');
+  const [challanNotes, setChallanNotes] = useState<string>('');
   const [sizeM, setSizeM] = useState<number>(10);
   const [sizeL, setSizeL] = useState<number>(20);
   const [sizeXL, setSizeXL] = useState<number>(15);

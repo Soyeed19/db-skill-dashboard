@@ -140,12 +140,12 @@ export const ApmDashboard: React.FC = () => {
   // --- PERSONAL APM SELF-ATTENDANCE & TOUR CLAIM MODAL STATE ---
   const [isSelfPunchOpen, setIsSelfPunchOpen] = useState(false);
   const [isPersonalTourModalOpen, setIsPersonalTourModalOpen] = useState(false);
-  const [personalDestCity, setPersonalDestCity] = useState('Jaipur Fleet Academy');
+  const [personalDestCity, setPersonalDestCity] = useState('');
   const [personalTravelMode, setPersonalTravelMode] = useState<TravelMode>('Train 2AC');
-  const [personalDepDate, setPersonalDepDate] = useState('2026-10-05');
-  const [personalRetDate, setPersonalRetDate] = useState('2026-10-07');
-  const [personalPurpose, setPersonalPurpose] = useState('Regional Quality Audit and Simulator Recalibration Liaison');
-  const [personalBudget, setPersonalBudget] = useState(12500);
+  const [personalDepDate, setPersonalDepDate] = useState('');
+  const [personalRetDate, setPersonalRetDate] = useState('');
+  const [personalPurpose, setPersonalPurpose] = useState('');
+  const [personalBudget, setPersonalBudget] = useState(0);
 
   // --- TAB 6: REGIONAL FACILITY & MAINTENANCE DESK STATE ---
   const [facilityCenterFilter, setFacilityCenterFilter] = useState('all');
