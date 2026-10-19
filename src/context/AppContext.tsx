@@ -117,6 +117,7 @@ interface AppContextType {
     centerId?: string | null;
     regionalCluster?: string | null;
   }) => Promise<{ success: boolean; message: string }>;
+  updateCurrentUserAvatar: (file: File) => Promise<{ success: boolean; publicUrl?: string; message: string }>;
 
   // Centers
   centers: Center[];
@@ -384,6 +385,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       Trainer: 'Master Road Safety Trainer'
     };
 
+    const cleanProfileEmail = (profile.email || '').trim().toLowerCase();
+    const cachedAvatar = typeof window !== 'undefined' && cleanProfileEmail
+      ? localStorage.getItem(`dbs_avatar_${cleanProfileEmail}`)
+      : null;
+
     return {
       id: profile.id,
       name: profile.full_name,
@@ -394,7 +400,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       centerName: resolvedCenterName,
       email: profile.email,
       phone: '+91 98111 00001',
-      avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=256&q=80',
+      avatar: profile.avatar_url || cachedAvatar || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=256&q=80',
       designation: titleMap[role] || role,
       region: profile.regional_cluster || matchedCenter?.region || 'National',
       assignedRegion: profile.regional_cluster || undefined,
@@ -722,6 +728,121 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       success: true,
       message: 'OTP verified! Mounting secure workspace.'
     };
+  };
+
+  /**
+   * Self-Service Profile Photo Upload:
+   * 1. Uploads file to Supabase Storage bucket `avatars` at `user_${currentUser.email}_${Date.now()}.[ext]`
+   * 2. Retrieves public URL via `supabase.storage.from('avatars').getPublicUrl(filePath).data.publicUrl`
+   * 3. Updates `avatar_url` in `public.profiles` for the current user's email
+   * 4. Immediately updates local user/profile context without page reload
+   */
+  const updateCurrentUserAvatar = async (
+    file: File
+  ): Promise<{ success: boolean; publicUrl?: string; message: string }> => {
+    const currentEmail = (currentPersona.email || authSession?.user?.email || ROOT_CEO_EMAIL).trim().toLowerCase();
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+    const filePath = `user_${currentEmail}_${Date.now()}.${ext}`;
+
+    // Prepare compact local Data URL fallback in case Storage bucket isn't provisioned yet
+    const fileToDataUrl = (f: File): Promise<string> =>
+      new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const maxDim = 256;
+            let w = img.width;
+            let h = img.height;
+            if (w > h && w > maxDim) {
+              h = Math.round((h * maxDim) / w);
+              w = maxDim;
+            } else if (h > maxDim) {
+              w = Math.round((w * maxDim) / h);
+              h = maxDim;
+            }
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(img, 0, 0, w, h);
+              resolve(canvas.toDataURL('image/jpeg', 0.85));
+            } else {
+              resolve(String(reader.result || ''));
+            }
+          };
+          img.onerror = () => resolve(String(reader.result || ''));
+          img.src = String(reader.result || '');
+        };
+        reader.onerror = () => resolve('');
+        reader.readAsDataURL(f);
+      });
+
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true });
+
+      let publicUrl = supabase.storage.from('avatars').getPublicUrl(filePath).data.publicUrl;
+
+      if (uploadError) {
+        console.warn('[Avatar Upload] Supabase Storage upload notice, using inline fallback:', uploadError.message);
+        const fallbackDataUrl = await fileToDataUrl(file);
+        if (fallbackDataUrl) {
+          publicUrl = fallbackDataUrl;
+        }
+      }
+
+      // Update avatar_url in public.profiles for the current user's email
+      const { error: dbError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('email', currentEmail);
+
+      if (dbError) {
+        console.warn('[Avatar Upload] public.profiles avatar_url update notice:', dbError.message);
+      }
+
+      try {
+        localStorage.setItem(`dbs_avatar_${currentEmail}`, publicUrl);
+      } catch {}
+
+      // Immediately update local persona, profiles, and employee states
+      setCurrentPersona(prev => ({
+        ...prev,
+        avatar: publicUrl
+      }));
+
+      setProfiles(prev =>
+        prev.map(p =>
+          p.email.toLowerCase() === currentEmail
+            ? { ...p, avatar_url: publicUrl }
+            : p
+        )
+      );
+
+      setEmployees(prev =>
+        prev.map(emp =>
+          emp.email?.toLowerCase() === currentEmail || emp.id === currentPersona.id
+            ? { ...emp, avatar: publicUrl }
+            : emp
+        )
+      );
+
+      showToast('Profile photo updated successfully.');
+      return {
+        success: true,
+        publicUrl,
+        message: 'Profile photo updated.'
+      };
+    } catch (err: any) {
+      console.error('[Avatar Upload] Unexpected error:', err);
+      return {
+        success: false,
+        message: err?.message || 'Failed to update profile photo.'
+      };
+    }
   };
 
   /**
@@ -2254,6 +2375,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         currentPersona,
         profiles,
         provisionStaffMember,
+        updateCurrentUserAvatar,
         centers,
         selectedCenterId,
         setSelectedCenterId,

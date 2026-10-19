@@ -58,6 +58,7 @@ import { exportCandidatesToExcel } from '../../utils/excelExporter';
 import { CenterEnrollmentTrendsChart } from './CenterEnrollmentTrendsChart';
 import { ModeBCandidateRegistrationDesk } from './ModeBCandidateRegistrationDesk';
 import { ExpenseAuditTrailModal } from '../travel/ExpenseAuditTrailModal';
+import { ProfileAvatarUpload } from '../common/ProfileAvatarUpload';
 
 /**
  * Indian Currency Number to Words converter (e.g., 4850 -> "Rupees Four Thousand Eight Hundred Fifty Only")
@@ -816,14 +817,9 @@ export const OseDashboard: React.FC = () => {
           
           {/* Left: User Identity */}
           <div className="flex items-center gap-3.5 min-w-0">
-            <div className="relative shrink-0">
-              <img 
-                src={currentPersona.avatar} 
-                alt={currentPersona.name} 
-                className="w-12 h-12 rounded-sm border border-slate-300 object-cover" 
-              />
-              <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full"></span>
-            </div>
+            <ProfileAvatarUpload
+              imgClassName="w-12 h-12 rounded-sm border border-slate-300 object-cover"
+            />
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-base font-bold text-slate-900">{currentPersona.name}</h2>

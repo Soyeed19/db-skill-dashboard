@@ -38,6 +38,7 @@ import { Candidate, LeaveType, LeaveRecord, ExpenseItem, ExpenseClaim, CenterIss
 import { ClassroomTrainingModal } from '../training/ClassroomTrainingModal';
 import { EmployeeSelfAttendanceModal } from '../attendance/EmployeeSelfAttendanceModal';
 import { ReportCenterIssueModal } from './ReportCenterIssueModal';
+import { ProfileAvatarUpload } from '../common/ProfileAvatarUpload';
 
 export const TrainerDashboard: React.FC = () => {
   const {
@@ -1513,10 +1514,8 @@ export const TrainerDashboard: React.FC = () => {
           <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-2xs space-y-5">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
               <div className="flex items-center gap-4">
-                <img
-                  src={currentEmp?.avatar || currentPersona.avatar}
-                  alt={currentEmp?.name || currentPersona.name}
-                  className="w-16 h-16 rounded-2xl object-cover border-2 border-emerald-500 shadow-xs"
+                <ProfileAvatarUpload
+                  imgClassName="w-16 h-16 rounded-2xl object-cover border-2 border-emerald-500 shadow-xs"
                 />
                 <div>
                   <div className="flex items-center gap-2">

@@ -12,12 +12,14 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   role TEXT NOT NULL,
   center_id TEXT DEFAULT NULL,
   regional_cluster TEXT DEFAULT NULL,
+  avatar_url TEXT DEFAULT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Ensure optional columns exist if table was created previously
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS regional_cluster TEXT DEFAULT NULL;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT DEFAULT NULL;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 

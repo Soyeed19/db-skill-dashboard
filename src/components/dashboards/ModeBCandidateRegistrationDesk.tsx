@@ -33,6 +33,7 @@ import {
   Download
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { ProfileAvatarUpload } from '../common/ProfileAvatarUpload';
 import { Candidate, Center, Batch, UserPersona } from '../../types';
 import { CandidateEnrollment } from '../../types/candidate';
 import {
@@ -489,10 +490,8 @@ export const ModeBCandidateRegistrationDesk: React.FC<ModeBCandidateRegistration
         </div>
 
         <div className="flex items-center gap-2.5 bg-slate-50 border border-slate-300 px-3 py-1.5 rounded-sm">
-          <img
-            src={currentPersona.avatar}
-            alt={currentPersona.name}
-            className="w-8 h-8 rounded-xs object-cover border border-slate-300"
+          <ProfileAvatarUpload
+            imgClassName="w-8 h-8 rounded-xs object-cover border border-slate-300"
           />
           <div className="text-right">
             <span className="text-[10px] uppercase font-bold text-slate-400 block">Current Operator</span>

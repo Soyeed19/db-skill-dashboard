@@ -49,7 +49,6 @@ import { generateExpenseClaimPdf } from '../../utils/pdfGenerator';
 import { ExpenseAuditTrailModal } from '../travel/ExpenseAuditTrailModal';
 import { TrainingEfficacyChart } from './TrainingEfficacyChart';
 import { CreateHubModal, isAuthorizedForHubCreation } from '../CreateHubModal';
-import { ProvisionStaffPanel } from '../auth/ProvisionStaffModal';
 
 export const CeoLeadershipDashboard: React.FC = () => {
   const {
@@ -365,9 +364,6 @@ export const CeoLeadershipDashboard: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* DOWNSTREAM ROLE PROVISIONING (+ Provision Staff Member: CEO -> GM / GM -> SM) */}
-      <ProvisionStaffPanel />
 
       {/* PAN-INDIA MASTER SUMMARY METRICS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -721,8 +717,6 @@ export const CeoLeadershipDashboard: React.FC = () => {
       {/* TAB 3: EMPLOYEE MANAGEMENT & PROVISIONING */}
       {activeTab === 'employees' && (
         <div className="space-y-6">
-          <ProvisionStaffPanel />
-
           <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs space-y-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>

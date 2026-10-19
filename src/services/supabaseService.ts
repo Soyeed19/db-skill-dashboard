@@ -13,6 +13,7 @@ export interface StaffProfile {
   role: UserRole | 'SM';
   center_id: string | null;
   regional_cluster?: string | null;
+  avatar_url?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -133,6 +134,7 @@ export async function fetchProfilesFromSupabase(): Promise<StaffProfile[]> {
       role: row.role || 'OSE',
       center_id: row.center_id ?? null,
       regional_cluster: row.regional_cluster ?? null,
+      avatar_url: row.avatar_url ?? null,
       created_at: row.created_at,
       updated_at: row.updated_at
     }));
@@ -188,6 +190,7 @@ export async function fetchProfileByEmail(email: string): Promise<{
           role: data.role || 'OSE',
           center_id: data.center_id ?? null,
           regional_cluster: data.regional_cluster ?? null,
+          avatar_url: data.avatar_url ?? null,
           created_at: data.created_at,
           updated_at: data.updated_at
         },

@@ -36,7 +36,7 @@ import { Center } from '../../types';
 import { exportNationalMasterAuditDossier, NationalLeagueItem } from '../../utils/excelExporter';
 import { CreateHubModal, isAuthorizedForHubCreation } from '../CreateHubModal';
 import { purgeAllDataFromSupabase } from '../../services/supabaseService';
-import { ProvisionStaffPanel } from '../auth/ProvisionStaffModal';
+import { ProfileAvatarUpload } from '../common/ProfileAvatarUpload';
 
 export const CeoDashboard: React.FC = () => {
   const {
@@ -471,10 +471,8 @@ export const CeoDashboard: React.FC = () => {
           {/* Authenticated Executive Profile */}
           <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 flex flex-col gap-2 shrink-0 text-xs">
             <div className="flex items-center gap-3">
-              <img
-                src={currentPersona.avatar || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=256&q=80'}
-                alt={currentPersona.name}
-                className="w-10 h-10 rounded-xl object-cover ring-2 ring-emerald-400"
+              <ProfileAvatarUpload
+                imgClassName="w-10 h-10 rounded-xl object-cover ring-2 ring-emerald-400"
               />
               <div>
                 <span className="font-bold text-white block">{currentPersona.name}</span>
@@ -489,9 +487,6 @@ export const CeoDashboard: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* 1B. Downstream Role Provisioning (+ Provision Staff Member: CEO -> GM) */}
-      <ProvisionStaffPanel />
 
       {/* 2. Executive Action Bar with Filters & 1-Click Excel Export */}
       <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
