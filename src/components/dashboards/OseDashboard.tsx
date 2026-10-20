@@ -51,6 +51,7 @@ import { EditDiscrepancyModal } from '../candidates/EditDiscrepancyModal';
 import { EditCandidateModal } from '../candidates/EditCandidateModal';
 import { CertificatePhotoUploadModal } from '../candidates/CertificatePhotoUploadModal';
 import { BatchDispatchValidationModal } from '../candidates/BatchDispatchValidationModal';
+import { BulkUploadModal } from '../candidates/BulkUploadModal';
 import { WhatsAppSummaryModal } from '../common/WhatsAppSummaryModal';
 import { EmployeeSelfAttendanceModal } from '../attendance/EmployeeSelfAttendanceModal';
 import { generateExpenseClaimPdf } from '../../utils/pdfGenerator';
@@ -232,6 +233,7 @@ export const OseDashboard: React.FC = () => {
   const [isEditCandidateModalOpen, setIsEditCandidateModalOpen] = useState(false);
 
   const [isBatchDispatchModalOpen, setIsBatchDispatchModalOpen] = useState(false);
+  const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
 
   // Discrepancy & PO Audit Lock Modal State
   const [selectedCandidateForEditDiscrepancy, setSelectedCandidateForEditDiscrepancy] = useState<Candidate | null>(null);
@@ -457,11 +459,11 @@ export const OseDashboard: React.FC = () => {
   const [vehicleClass, setVehicleClass] = useState<Candidate['vehicleClass']>('TRANS');
 
   // Images
-  const [photoUrl, setPhotoUrl] = useState('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80');
-  const [idFrontUrl, setIdFrontUrl] = useState('https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=600&q=80');
-  const [idBackUrl, setIdBackUrl] = useState('https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=600&q=80');
-  const [dlFrontUrl, setDlFrontUrl] = useState('https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=600&q=80');
-  const [dlBackUrl, setDlBackUrl] = useState('https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=600&q=80');
+  const [photoUrl, setPhotoUrl] = useState('');
+  const [idFrontUrl, setIdFrontUrl] = useState('');
+  const [idBackUrl, setIdBackUrl] = useState('');
+  const [dlFrontUrl, setDlFrontUrl] = useState('');
+  const [dlBackUrl, setDlBackUrl] = useState('');
 
   // Camera State for Live Aadhaar Snapshot + Optical Extraction
   const [isLiveCameraActive, setIsLiveCameraActive] = useState(false);
@@ -1175,6 +1177,16 @@ export const OseDashboard: React.FC = () => {
                       Returned for Correction ({centerCandidates.filter(c => c.status === 'Returned for Correction' || c.status === 'Query Raised').length})
                     </option>
                   </select>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsBulkUploadOpen(true)}
+                    className="px-3.5 py-2 rounded-xl text-xs font-bold bg-[#007A3D] hover:bg-[#005C2E] text-white flex items-center gap-1.5 shadow-xs transition-colors shrink-0 cursor-pointer"
+                    title="Bulk import trainee profiles via CSV with real-time validation preview"
+                  >
+                    <Upload className="w-4 h-4 text-emerald-200" />
+                    <span>Bulk Import</span>
+                  </button>
 
                   <button
                     type="button"
@@ -2393,6 +2405,12 @@ export const OseDashboard: React.FC = () => {
           setIsAuditModalOpen(false);
           setSelectedClaimForAudit(null);
         }}
+      />
+
+      {/* Bulk CSV Import & Real-Time Validation Modal */}
+      <BulkUploadModal
+        isOpen={isBulkUploadOpen}
+        onClose={() => setIsBulkUploadOpen(false)}
       />
     </div>
   );

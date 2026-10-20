@@ -456,6 +456,7 @@ export interface Center {
   contactNumber?: string;
   email?: string;
   capacity?: number;
+  targetDrivers?: number;
   inChargeName?: string;
   status?: string;
   createdAt?: string;

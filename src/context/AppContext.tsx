@@ -59,6 +59,10 @@ import {
   upsertCandidatesBulk,
   fetchBatchesFromSupabase,
   upsertBatchToSupabase,
+  fetchHubsFromSupabase,
+  insertHubToSupabase,
+  updateHubInSupabase,
+  deactivateHubInSupabase,
   purgeAllDataFromSupabase,
   setupSupabaseRealtime
 } from '../services/supabaseService';
@@ -119,18 +123,21 @@ interface AppContextType {
   }) => Promise<{ success: boolean; message: string }>;
   updateCurrentUserAvatar: (file: File) => Promise<{ success: boolean; publicUrl?: string; message: string }>;
 
-  // Centers
+  // Centers / Hubs
   centers: Center[];
   selectedCenterId: string;
   setSelectedCenterId: (centerId: string) => void;
   setActiveCenter: (center: Center) => void;
   activeCenter: Center;
   addCenter: (centerData: Omit<Center, 'id'>) => Center;
+  updateCenter: (centerId: string, updates: Partial<Center>) => Promise<void>;
+  deactivateCenter: (centerId: string) => Promise<void>;
   reassignEmployeeCenter: (employeeId: string, targetCenterId: string, effectiveDate: string, reason?: string) => void;
 
   // Candidates & Workflow
   candidates: Candidate[];
   addCandidate: (candidateData: Partial<Candidate>) => Candidate;
+  addCandidatesBulk: (candidatesData: Partial<Candidate>[]) => Promise<Candidate[]>;
   updateCandidate: (id: string, updates: Partial<Candidate>) => void;
   raiseAuditQuery: (candidateId: string, field: AuditQuery['field'], comment: string) => void;
   resolveAuditQuery: (candidateId: string, queryId: string, resolutionComment: string) => void;
@@ -957,13 +964,94 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const activeCenter = centers.find(c => c.id === selectedCenterId) || centers[0] || EMPTY_FALLBACK_CENTER;
 
   const addCenter = (centerData: Omit<Center, 'id'>): Center => {
+    const cleanCode = centerData.code.trim().toUpperCase();
+    const targetCap = Number(centerData.targetDrivers ?? centerData.capacity ?? 400);
     const newCenter: Center = {
       ...centerData,
-      id: `ctr-${centerData.code.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Date.now().toString().slice(-4)}`
+      code: cleanCode,
+      name: centerData.name.trim(),
+      city: centerData.city.trim(),
+      state: centerData.state.trim(),
+      region: (centerData.region || centerData.state || 'Regional Command').trim(),
+      capacity: targetCap,
+      targetDrivers: targetCap,
+      status: 'ACTIVE',
+      id: `ctr-${cleanCode.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Date.now().toString().slice(-4)}`
     };
-    setCenters(prev => [...prev, newCenter]);
-    showToast(`New center "${newCenter.name}" (${newCenter.code}) created successfully!`);
+
+    setCenters(prev => {
+      const filtered = prev.filter(c => c.code.toUpperCase() !== cleanCode);
+      const next = [...filtered, newCenter];
+      safeLocalStorageSet('dbs_centers', JSON.stringify(next));
+      return next;
+    });
+
+    // Direct Supabase insert against `hubs` table
+    insertHubToSupabase(newCenter).then(res => {
+      if (res.success && res.data && res.data.id !== newCenter.id) {
+        setCenters(prev => {
+          const next = prev.map(c => c.code.toUpperCase() === cleanCode ? { ...newCenter, id: res.data!.id } : c);
+          safeLocalStorageSet('dbs_centers', JSON.stringify(next));
+          return next;
+        });
+      }
+    });
+
+    if (!selectedCenterId) {
+      setSelectedCenterId(newCenter.id);
+    }
+
+    showToast(`New center "${newCenter.name}" (${newCenter.code}) created and synced to Supabase!`);
     return newCenter;
+  };
+
+  const updateCenter = async (centerId: string, updates: Partial<Center>): Promise<void> => {
+    const target = centers.find(c => c.id === centerId);
+    if (!target) return;
+
+    const normalizedUpdates: Partial<Center> = {
+      ...updates,
+      ...(updates.targetDrivers !== undefined ? { capacity: Number(updates.targetDrivers), targetDrivers: Number(updates.targetDrivers) } : {}),
+      ...(updates.capacity !== undefined && updates.targetDrivers === undefined ? { targetDrivers: Number(updates.capacity), capacity: Number(updates.capacity) } : {})
+    };
+
+    setCenters(prev => {
+      const next = prev.map(c => c.id === centerId ? { ...c, ...normalizedUpdates } : c);
+      safeLocalStorageSet('dbs_centers', JSON.stringify(next));
+      return next;
+    });
+
+    // Direct Supabase update against `hubs` table
+    await updateHubInSupabase(target.id, target.code, {
+      name: normalizedUpdates.name,
+      city: normalizedUpdates.city,
+      state: normalizedUpdates.state,
+      region: normalizedUpdates.region,
+      targetDrivers: normalizedUpdates.targetDrivers,
+      capacity: normalizedUpdates.capacity,
+      status: normalizedUpdates.status
+    });
+
+    showToast(`Updated hub "${normalizedUpdates.name || target.name}" (${target.code}) in Supabase.`);
+  };
+
+  const deactivateCenter = async (centerId: string): Promise<void> => {
+    const target = centers.find(c => c.id === centerId);
+    if (!target) return;
+
+    // Soft-delete in Supabase `hubs` table by toggling status to 'INACTIVE'
+    await deactivateHubInSupabase(target.id, target.code);
+
+    setCenters(prev => {
+      const remaining = prev.filter(c => c.id !== centerId && c.code !== target.code);
+      safeLocalStorageSet('dbs_centers', JSON.stringify(remaining));
+      if (selectedCenterId === centerId) {
+        setSelectedCenterId(remaining[0]?.id || '');
+      }
+      return remaining;
+    });
+
+    showToast(`Hub "${target.name}" (${target.code}) deactivated (status set to INACTIVE).`);
   };
 
   const reassignEmployeeCenter = (employeeId: string, targetCenterId: string, effectiveDate: string, reason?: string) => {
@@ -1041,10 +1129,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const syncFromCloud = async (isInitial = false) => {
     if (isInitial) setIsCloudSyncing(true);
     try {
-      const [cloudCandidates, cloudBatches, cloudProfiles] = await Promise.all([
+      const [cloudCandidates, cloudBatches, cloudProfiles, cloudHubs] = await Promise.all([
         fetchCandidatesFromSupabase(),
         fetchBatchesFromSupabase(),
-        fetchProfilesFromSupabase()
+        fetchProfilesFromSupabase(),
+        fetchHubsFromSupabase()
       ]);
       if (cloudCandidates !== null) {
         setCandidates(cloudCandidates);
@@ -1055,6 +1144,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       if (cloudProfiles && cloudProfiles.length > 0) {
         setProfiles(cloudProfiles);
+      }
+      if (cloudHubs !== null && cloudHubs.length > 0) {
+        setCenters(cloudHubs);
+        safeLocalStorageSet('dbs_centers', JSON.stringify(cloudHubs));
       }
     } catch (err) {
       console.warn('[Supabase Cloud Sync Notice]:', err);
@@ -1112,6 +1205,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               const freshProfiles = await fetchProfilesFromSupabase();
               if (freshProfiles && isMounted) {
                 setProfiles(freshProfiles);
+              }
+            },
+            onHubChange: async () => {
+              const freshHubs = await fetchHubsFromSupabase();
+              if (freshHubs !== null && isMounted) {
+                setCenters(freshHubs);
+                safeLocalStorageSet('dbs_centers', JSON.stringify(freshHubs));
               }
             },
             onPurge: () => {
@@ -1376,6 +1476,109 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
 
     return newCandidate;
+  };
+
+  const addCandidatesBulk = async (candidatesData: Partial<Candidate>[]): Promise<Candidate[]> => {
+    if (!candidatesData || candidatesData.length === 0) return [];
+
+    const nowTs = Date.now();
+    const baseSerial = allCandidates.length + 140;
+
+    const newCandidates: Candidate[] = candidatesData.map((candidateData, idx) => {
+      const centerObj = centers.find(c => c.id === (candidateData.centerId || activeCenter.id)) || activeCenter;
+      const centerCodeClean = (centerObj.code || 'HUB').replace('-', '');
+      const serial = String(baseSerial + idx).padStart(4, '0');
+      const regNo = candidateData.registrationNumber || `DBS/2026/${centerCodeClean}/${serial}`;
+      const newId = `cand-${nowTs}-${idx}`;
+      const centerBatch = batches.find(b => b.centerId === centerObj.id) || batches[0];
+
+      return {
+        id: newId,
+        registrationNumber: regNo,
+        batchId: candidateData.batchId || (centerBatch?.id ?? 'batch-1'),
+        centerId: candidateData.centerId || centerObj.id,
+        fullName: (candidateData.fullName || 'New Trainee').trim(),
+        fatherName: (candidateData.fatherName || 'Not Specified').trim(),
+        motherName: candidateData.motherName || '',
+        maritalStatus: candidateData.maritalStatus || 'Married',
+        familyIncome: candidateData.familyIncome || '₹1,50,000 - ₹2,50,000 / year',
+        religion: candidateData.religion || 'Hindu',
+        casteCategory: candidateData.casteCategory || 'OBC',
+        aadhaarIngestionMethod: 'File Upload',
+        dateOfBirth: candidateData.dateOfBirth || '1995-01-01',
+        gender: candidateData.gender || 'Male',
+        mobileNumber: (candidateData.mobileNumber || '').trim(),
+        idCardNumber: (candidateData.idCardNumber || '').trim(),
+        abhaNumber: (candidateData.abhaNumber || `91${String(Math.floor(100000000000 + Math.random() * 899999999999))}`).trim(),
+        dlNumber: (candidateData.dlNumber || `${centerCodeClean.slice(0, 2)}01 201900${String(10000 + idx)}`).trim(),
+        dlExpiryDate: candidateData.dlExpiryDate || '2030-12-31',
+        vehicleClass: candidateData.vehicleClass || 'TRANS',
+        address: candidateData.address || `${centerObj.city} Transport Nagar`,
+        city: candidateData.city || centerObj.city,
+        state: candidateData.state || centerObj.state,
+        pincode: candidateData.pincode || '302001',
+        enrolledAt: new Date().toISOString(),
+        status: candidateData.status || 'Pending PO Review',
+        isLocked: candidateData.isLocked ?? false,
+        photoUrl: candidateData.photoUrl || 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=256&q=80',
+        idFrontUrl: candidateData.idFrontUrl || 'https://images.unsplash.com/photo-1589330694653-dad6bc0140fa?auto=format&fit=crop&w=600&q=80',
+        idBackUrl: candidateData.idBackUrl || 'https://images.unsplash.com/photo-1589330694653-dad6bc0140fa?auto=format&fit=crop&w=600&q=80',
+        dlFrontUrl: candidateData.dlFrontUrl || 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=600&q=80',
+        dlBackUrl: candidateData.dlBackUrl || 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=600&q=80',
+        aadhaarProofUrl: candidateData.aadhaarProofUrl || candidateData.idFrontUrl,
+        dlProofUrl: candidateData.dlProofUrl || candidateData.dlFrontUrl,
+        verificationStatus: candidateData.verificationStatus || 'Auto-Verified',
+        attendanceStatus: candidateData.attendanceStatus || 'Present',
+        trainingDate: candidateData.trainingDate || new Date().toISOString().split('T')[0],
+        preTestScore: candidateData.preTestScore ?? 68,
+        postTestScore: candidateData.postTestScore ?? 90,
+        kitIssued: candidateData.kitIssued ?? true,
+        tshirtSize: candidateData.tshirtSize || 'L',
+        queries: []
+      };
+    });
+
+    setCandidates(prev => [...newCandidates, ...prev]);
+
+    try {
+      const synced = await upsertCandidatesBulk(newCandidates);
+      if (synced) {
+        showToast(`✓ Imported ${newCandidates.length} trainee profile(s) via CSV & synced to Supabase!`);
+      } else {
+        showToast(`Imported ${newCandidates.length} trainee profile(s) locally (Supabase sync notice).`);
+      }
+    } catch (err: any) {
+      showToast(`Imported ${newCandidates.length} trainee profile(s) locally.`);
+    }
+
+    const batchCounts: Record<string, number> = {};
+    newCandidates.forEach(c => {
+      batchCounts[c.batchId] = (batchCounts[c.batchId] || 0) + 1;
+    });
+
+    setBatches(prev => {
+      const next = prev.map(b =>
+        batchCounts[b.id]
+          ? { ...b, enrolledCount: b.enrolledCount + batchCounts[b.id] }
+          : b
+      );
+      next.forEach(b => {
+        if (batchCounts[b.id]) {
+          upsertBatchToSupabase(b).catch(() => {});
+        }
+      });
+      return next;
+    });
+
+    setEmployees(prev =>
+      prev.map(emp =>
+        emp.id === currentPersona.id
+          ? { ...emp, monthlyAchieved: emp.monthlyAchieved + newCandidates.length }
+          : emp
+      )
+    );
+
+    return newCandidates;
   };
 
   const updateCandidate = (id: string, updates: Partial<Candidate>) => {
@@ -2382,9 +2585,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setActiveCenter: (center: Center) => setSelectedCenterId(center.id),
         activeCenter,
         addCenter,
+        updateCenter,
+        deactivateCenter,
         reassignEmployeeCenter,
         candidates,
         addCandidate,
+        addCandidatesBulk,
         updateCandidate,
         raiseAuditQuery,
         resolveAuditQuery,

@@ -11,11 +11,13 @@ import {
   Building,
   Target,
   FileSpreadsheet,
-  Download
+  Download,
+  Upload
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Candidate, CandidateStatus } from '../../types';
 import { DossierViewerModal } from './DossierViewerModal';
+import { BulkUploadModal } from './BulkUploadModal';
 import { WhatsAppSummaryModal } from '../common/WhatsAppSummaryModal';
 import {
   generateCandidateDossierPdf,
@@ -39,6 +41,7 @@ export const CandidateList: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [isWhatsAppOpen, setIsWhatsAppOpen] = useState(false);
+  const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -76,7 +79,11 @@ export const CandidateList: React.FC = () => {
 
   // Candidate pool scoped by role
   const centerScopedCandidates = useMemo(() => {
-    if (currentPersona.role === 'GM' || currentPersona.role === 'Senior Manager') {
+    if (
+      currentPersona.role === 'CEO' ||
+      currentPersona.role === 'GM' ||
+      currentPersona.role === 'Senior Manager'
+    ) {
       return selectedCenterFilter === 'all'
         ? candidates
         : candidates.filter(c => c.centerId === selectedCenterFilter);
@@ -188,7 +195,16 @@ export const CandidateList: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setIsBulkUploadOpen(true)}
+            className="px-3 py-1.5 rounded-sm text-xs font-bold bg-[#007A3D] text-white border border-[#005C2E] hover:bg-[#005C2E] transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+            title="Open BulkUploadModal with real-time validation preview table"
+          >
+            <Upload className="w-4 h-4" />
+            <span>Bulk Import</span>
+          </button>
+
           <button
             onClick={handleExportToExcel}
             disabled={isExporting}
@@ -215,7 +231,9 @@ export const CandidateList: React.FC = () => {
       {/* Filter and Search Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
         <div className="flex items-center gap-2 flex-1 max-w-xl">
-          {(currentPersona.role === 'GM' || currentPersona.role === 'Senior Manager') && (
+          {(currentPersona.role === 'CEO' ||
+            currentPersona.role === 'GM' ||
+            currentPersona.role === 'Senior Manager') && (
             <select
               value={selectedCenterFilter}
               onChange={e => setSelectedCenterFilter(e.target.value)}
@@ -273,16 +291,27 @@ export const CandidateList: React.FC = () => {
             </span>
           </div>
 
-          <button
-            onClick={handleExportToExcel}
-            disabled={isExporting || filteredCandidates.length === 0}
-            className="px-2.5 py-1 rounded-sm text-xs font-bold bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50"
-            title="Download candidates spreadsheet (.xlsx) for local center reporting"
-          >
-            <FileSpreadsheet className="w-3.5 h-3.5 text-[#007A3D]" />
-            <span>Export (.xlsx)</span>
-            <Download className="w-3 h-3 text-slate-500" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsBulkUploadOpen(true)}
+              className="px-2.5 py-1 rounded-sm text-xs font-bold bg-[#E6F4EA] text-[#005C2E] border border-[#007A3D]/40 hover:bg-[#DCFCE7] transition-colors flex items-center gap-1 cursor-pointer"
+              title="Bulk import trainee profiles from a CSV file with real-time validation"
+            >
+              <Upload className="w-3.5 h-3.5 text-[#007A3D]" />
+              <span>Bulk Import</span>
+            </button>
+
+            <button
+              onClick={handleExportToExcel}
+              disabled={isExporting || filteredCandidates.length === 0}
+              className="px-2.5 py-1 rounded-sm text-xs font-bold bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50"
+              title="Download candidates spreadsheet (.xlsx) for local center reporting"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-[#007A3D]" />
+              <span>Export (.xlsx)</span>
+              <Download className="w-3 h-3 text-slate-500" />
+            </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -477,6 +506,11 @@ export const CandidateList: React.FC = () => {
         isOpen={isWhatsAppOpen}
         onClose={() => setIsWhatsAppOpen(false)}
         batchId={todayBatch?.id}
+      />
+
+      <BulkUploadModal
+        isOpen={isBulkUploadOpen}
+        onClose={() => setIsBulkUploadOpen(false)}
       />
     </div>
   );

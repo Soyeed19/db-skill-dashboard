@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { Candidate, Batch, UserRole } from '../types';
+import { Candidate, Batch, Center, UserRole } from '../types';
 
 const FALLBACK_AVATAR = 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=256&q=80';
 
@@ -751,6 +751,221 @@ export async function purgeAllDataFromSupabase(): Promise<{ success: boolean; me
 }
 
 /**
+ * ============================================================================
+ * HUBS / CENTERS CRUD (public.hubs)
+ * ============================================================================
+ */
+export function mapRowToCenter(row: any): Center {
+  const code = String(row.code || row.hub_code || 'HUB').toUpperCase();
+  const city = String(row.city || '');
+  const state = String(row.state || row.region || '');
+  const targetCap = Number(row.target_capacity ?? row.target_drivers ?? row.capacity ?? 400);
+
+  return {
+    id: String(row.id || `ctr-${code.toLowerCase().replace(/[^a-z0-9]/g, '-')}`),
+    code,
+    name: String(row.name || row.center_name || code),
+    city,
+    state,
+    region: String(row.region || row.state || 'Regional Command'),
+    address: String(row.address || `${city}${state ? `, ${state}` : ''}`),
+    latitude: Number(row.latitude) || 26.9124,
+    longitude: Number(row.longitude) || 75.7873,
+    geofenceRadiusMeters: Number(row.geofence_radius_meters ?? row.geofenceRadiusMeters) || 150,
+    poName: String(row.po_name || row.in_charge_name || row.poName || 'Designated PO'),
+    apmName: String(row.apm_name || row.apmName || 'Designated Manager'),
+    contactNumber: row.contact_number || row.contactNumber || '',
+    email: row.email || '',
+    capacity: Number(row.capacity ?? targetCap) || 40,
+    targetDrivers: targetCap || 400,
+    inChargeName: row.in_charge_name || row.inChargeName || '',
+    status: String(row.status || 'ACTIVE').toUpperCase(),
+    createdAt: row.created_at || row.createdAt || new Date().toISOString()
+  };
+}
+
+/**
+ * Fetch all active hubs from public.hubs (excludes status = 'INACTIVE')
+ */
+export async function fetchHubsFromSupabase(): Promise<Center[] | null> {
+  try {
+    const { data, error } = await supabase
+      .from('hubs')
+      .select('*')
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      if (error.code !== 'PGRST205') {
+        console.warn('[Supabase] Hubs fetch notice:', error.message);
+      }
+      return null;
+    }
+
+    const activeHubs = (data || [])
+      .map(mapRowToCenter)
+      .filter(h => (h.status || 'ACTIVE').toUpperCase() !== 'INACTIVE');
+
+    return activeHubs;
+  } catch (err) {
+    console.warn('[Supabase] fetchHubsFromSupabase exception:', err);
+    return null;
+  }
+}
+
+/**
+ * Insert a new hub into public.hubs
+ */
+export async function insertHubToSupabase(hub: Center): Promise<{
+  success: boolean;
+  data?: Center;
+  error?: string;
+}> {
+  try {
+    const payload: Record<string, any> = {
+      id: hub.id,
+      code: hub.code.trim().toUpperCase(),
+      name: hub.name.trim(),
+      city: hub.city.trim(),
+      state: hub.state.trim(),
+      region: (hub.region || hub.state || 'Regional Command').trim(),
+      target_capacity: Number(hub.targetDrivers ?? hub.capacity ?? 400),
+      status: 'ACTIVE'
+    };
+
+    const { data, error } = await supabase
+      .from('hubs')
+      .insert([payload])
+      .select()
+      .maybeSingle();
+
+    if (!error && data) {
+      return { success: true, data: mapRowToCenter(data) };
+    }
+
+    // Retry with core columns if optional columns are not in user's table
+    if (error && (error.code === 'PGRST204' || error.message?.includes('column'))) {
+      const minimalPayload: Record<string, any> = {
+        code: hub.code.trim().toUpperCase(),
+        name: hub.name.trim(),
+        city: hub.city.trim(),
+        state: hub.state.trim(),
+        status: 'ACTIVE'
+      };
+      const retry = await supabase
+        .from('hubs')
+        .insert([minimalPayload])
+        .select()
+        .maybeSingle();
+      if (!retry.error && retry.data) {
+        return { success: true, data: mapRowToCenter(retry.data) };
+      }
+    }
+
+    if (error) {
+      console.warn('[Supabase] insertHubToSupabase notice:', error.message);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data: hub };
+  } catch (err: any) {
+    console.warn('[Supabase] insertHubToSupabase exception:', err);
+    return { success: false, error: err?.message || 'Insert failed' };
+  }
+}
+
+/**
+ * Update an existing hub in public.hubs (Name, City, State/Region, or Monthly Candidate Target)
+ */
+export async function updateHubInSupabase(
+  hubId: string,
+  hubCode: string,
+  updates: {
+    name?: string;
+    city?: string;
+    state?: string;
+    region?: string;
+    targetDrivers?: number;
+    capacity?: number;
+    status?: string;
+  }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const payload: Record<string, any> = {};
+    if (updates.name !== undefined) payload.name = updates.name.trim();
+    if (updates.city !== undefined) payload.city = updates.city.trim();
+    if (updates.state !== undefined) payload.state = updates.state.trim();
+    if (updates.region !== undefined) payload.region = updates.region.trim();
+    if (updates.targetDrivers !== undefined) {
+      payload.target_capacity = Number(updates.targetDrivers);
+    } else if (updates.capacity !== undefined) {
+      payload.target_capacity = Number(updates.capacity);
+    }
+    if (updates.status !== undefined) payload.status = updates.status;
+
+    // Update by id first, fallback to code
+    const { error } = await supabase
+      .from('hubs')
+      .update(payload)
+      .eq('id', hubId);
+
+    if (error && (error.code === 'PGRST204' || error.message?.includes('column'))) {
+      const minimalPayload: Record<string, any> = {};
+      if (updates.name !== undefined) minimalPayload.name = updates.name.trim();
+      if (updates.city !== undefined) minimalPayload.city = updates.city.trim();
+      if (updates.state !== undefined) minimalPayload.state = updates.state.trim();
+      if (updates.status !== undefined) minimalPayload.status = updates.status;
+
+      await supabase.from('hubs').update(minimalPayload).eq('id', hubId);
+    }
+
+    // Also ensure match by code if id differed in DB
+    if (hubCode) {
+      await supabase
+        .from('hubs')
+        .update(payload)
+        .eq('code', hubCode);
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    console.warn('[Supabase] updateHubInSupabase exception:', err);
+    return { success: false, error: err?.message || 'Update failed' };
+  }
+}
+
+/**
+ * Soft-delete / Deactivate a hub by setting status = 'INACTIVE' in Supabase `hubs` table
+ */
+export async function deactivateHubInSupabase(
+  hubId: string,
+  hubCode: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabase
+      .from('hubs')
+      .update({ status: 'INACTIVE' })
+      .eq('id', hubId);
+
+    if (hubCode) {
+      await supabase
+        .from('hubs')
+        .update({ status: 'INACTIVE' })
+        .eq('code', hubCode);
+    }
+
+    if (error && error.code !== 'PGRST205') {
+      console.warn('[Supabase] deactivateHubInSupabase notice:', error.message);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    console.warn('[Supabase] deactivateHubInSupabase exception:', err);
+    return { success: false, error: err?.message || 'Deactivation failed' };
+  }
+}
+
+/**
  * Setup Realtime synchronization across all devices
  */
 export function setupSupabaseRealtime(handlers: {
@@ -759,6 +974,7 @@ export function setupSupabaseRealtime(handlers: {
   onCandidateDelete?: (id: string) => void;
   onBatchChange?: () => void;
   onProfileChange?: () => void;
+  onHubChange?: () => void;
   onPurge?: () => void;
 }) {
   const channelName = `dbs-realtime-channel-${Math.random().toString(36).slice(2, 7)}`;
@@ -791,6 +1007,13 @@ export function setupSupabaseRealtime(handlers: {
         handlers.onProfileChange?.();
       }
     )
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'hubs' },
+      () => {
+        handlers.onHubChange?.();
+      }
+    )
     .subscribe(status => {
       console.log(`[Supabase Realtime] ${channelName} status:`, status);
     });
@@ -799,3 +1022,4 @@ export function setupSupabaseRealtime(handlers: {
     supabase.removeChannel(channel);
   };
 }
+

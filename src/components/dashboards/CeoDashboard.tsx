@@ -557,8 +557,19 @@ export const CeoDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Right: Primary Master Action Button: Export .xlsx */}
-        <div className="flex items-center gap-2 shrink-0">
+        {/* Right: Manage Hubs (GM & CEO) & Export .xlsx */}
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {isHubCreationAllowed && (
+            <button
+              type="button"
+              onClick={() => setIsCreateHubOpen(true)}
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-teal-800 hover:bg-teal-900 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
+              title="Add, Edit, or Deactivate Centers / Hubs in Supabase"
+            >
+              <Plus className="w-4 h-4 text-emerald-300" />
+              <span>+ Manage Centers / Hubs</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={handleExportDossier}
@@ -915,8 +926,8 @@ export const CeoDashboard: React.FC = () => {
             </p>
           </div>
 
-          {/* Quick Counter Summary */}
-          <div className="flex items-center gap-2 text-xs">
+          {/* Quick Counter Summary & Manage Centers CTA */}
+          <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold text-[11px]">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
               {nationalOverview.targetsMetCount} Met Targets
@@ -925,6 +936,16 @@ export const CeoDashboard: React.FC = () => {
               <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
               {nationalOverview.underperformingCount} Attention Required
             </span>
+            {isHubCreationAllowed && (
+              <button
+                type="button"
+                onClick={() => setIsCreateHubOpen(true)}
+                className="px-3 py-1 rounded-lg bg-[#007A3D] hover:bg-[#005C2E] text-white font-bold text-[11px] inline-flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ Manage Centers / Hubs</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -1331,7 +1352,8 @@ export const CeoDashboard: React.FC = () => {
               apmName: 'Designated Manager',
               contactNumber: hubData.contactNumber,
               email: hubData.email,
-              capacity: Number(hubData.capacity) || 40,
+              capacity: Number(hubData.targetDrivers || hubData.targetCapacity || hubData.capacity) || 450,
+              targetDrivers: Number(hubData.targetDrivers || hubData.targetCapacity || hubData.capacity) || 450,
               inChargeName: hubData.inChargeName,
               status: 'ACTIVE',
               createdAt: hubData.createdAt || new Date().toISOString()

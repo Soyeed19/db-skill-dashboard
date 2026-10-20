@@ -386,7 +386,31 @@ USING (
   )
 );
 
--- 8. Enable Realtime Sync for profiles, candidates, and batches
+-- 7B. Hubs / Centers Table (GM & CEO Hub Management)
+CREATE TABLE IF NOT EXISTS public.hubs (
+  id TEXT PRIMARY KEY,
+  code TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  city TEXT NOT NULL,
+  state TEXT NOT NULL,
+  region TEXT DEFAULT 'Regional Command',
+  target_capacity INTEGER DEFAULT 450,
+  status TEXT DEFAULT 'ACTIVE',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.hubs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "hubs_all_access" ON public.hubs;
+CREATE POLICY "hubs_all_access"
+ON public.hubs
+FOR ALL
+TO anon, authenticated
+USING (true)
+WITH CHECK (true);
+
+-- 8. Enable Realtime Sync for profiles, candidates, batches, and hubs
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -410,7 +434,12 @@ BEGIN
     ALTER PUBLICATION supabase_realtime ADD TABLE public.batches;
   EXCEPTION WHEN duplicate_object THEN NULL;
   END;
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.hubs;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
 END $$;
 
 -- 9. Reload PostgREST schema cache immediately
 NOTIFY pgrst, 'reload schema';
+

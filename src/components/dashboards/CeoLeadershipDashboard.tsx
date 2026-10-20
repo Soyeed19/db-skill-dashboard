@@ -361,6 +361,18 @@ export const CeoLeadershipDashboard: React.FC = () => {
                 </span>
               )}
             </button>
+
+            {isHubCreationAllowed && (
+              <button
+                type="button"
+                onClick={() => setIsCreateHubOpen(true)}
+                className="px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer bg-[#007A3D] hover:bg-[#005C2E] text-white border border-emerald-400/40 shadow-md"
+                title="Add, Edit, or Deactivate Centers / Hubs in Supabase"
+              >
+                <Plus className="w-4 h-4 text-emerald-200" />
+                <span>+ Manage Centers / Hubs</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -471,11 +483,11 @@ export const CeoLeadershipDashboard: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setIsCreateHubOpen(true)}
-                    className="px-3.5 py-1.5 bg-[#007A3D] hover:bg-[#005C2E] text-white text-xs font-bold rounded-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
-                    title="Create New Training Hub"
+                    className="px-3.5 py-1.5 bg-[#007A3D] hover:bg-[#005C2E] text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                    title="Manage Centers / Hubs (Add, Edit, Deactivate)"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>Create Training Hub</span>
+                    <span>+ Manage Centers / Hubs</span>
                   </button>
                 )}
               </div>
@@ -488,7 +500,7 @@ export const CeoLeadershipDashboard: React.FC = () => {
                 </div>
                 <h3 className="text-base font-bold text-slate-800">No hubs currently provisioned</h3>
                 <p className="text-xs text-slate-500 mt-1 max-w-sm">
-                  Click "Create Training Hub" above to commission the first regional operations center.
+                  Click "+ Manage Centers / Hubs" above to commission the first regional operations center.
                 </p>
               </div>
             ) : (
@@ -2525,7 +2537,8 @@ export const CeoLeadershipDashboard: React.FC = () => {
               apmName: 'Designated Manager',
               contactNumber: hubData.contactNumber,
               email: hubData.email,
-              capacity: Number(hubData.capacity) || 40,
+              capacity: Number(hubData.targetDrivers || hubData.targetCapacity || hubData.capacity) || 450,
+              targetDrivers: Number(hubData.targetDrivers || hubData.targetCapacity || hubData.capacity) || 450,
               inChargeName: hubData.inChargeName,
               status: 'ACTIVE',
               createdAt: hubData.createdAt || new Date().toISOString()

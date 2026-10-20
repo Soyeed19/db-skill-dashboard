@@ -110,9 +110,7 @@ export const ModeBCandidateRegistrationDesk: React.FC<ModeBCandidateRegistration
   const [dlFrontUrl, setDlFrontUrl] = useState<string>('');
   const [ocrSuccess, setOcrSuccess] = useState<boolean>(false);
   const [ocrScanning, setOcrScanning] = useState<boolean>(false);
-  const [photoUrl, setPhotoUrl] = useState<string>(
-    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80'
-  );
+  const [photoUrl, setPhotoUrl] = useState<string>('');
 
   // Proof Lightbox Inspector Modal
   const [proofInspector, setProofInspector] = useState<{
@@ -355,6 +353,9 @@ export const ModeBCandidateRegistrationDesk: React.FC<ModeBCandidateRegistration
     setDlOcrExtracted(false);
     setAadhaarOcrExtracted(false);
     setAddress('');
+    setPhotoUrl('');
+    setAadhaarProofUrl('');
+    setDlProofUrl('');
     setOcrSuccess(false);
     setSubmittedCandidate(null);
     setSubmittedEnrollment(null);
@@ -813,28 +814,32 @@ export const ModeBCandidateRegistrationDesk: React.FC<ModeBCandidateRegistration
                       ) : (
                         <div className="flex flex-col items-center justify-center p-4 text-center text-slate-400">
                           <User className="w-8 h-8 mb-1.5 opacity-40 text-slate-600" />
-                          <span className="text-[11px] font-medium text-slate-500">Awaiting Photo Capture / Upload</span>
+                          <span className="text-[11px] font-medium text-slate-500">
+                            Awaiting Passport Photo Upload
+                          </span>
                         </div>
                       )}
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setProofInspector({
-                            isOpen: true,
-                            title: 'Slot 1: Candidate Passport Photo',
-                            type: 'Aadhaar',
-                            dataUrl: photoUrl,
-                            fields: {
-                              'Candidate Name': fullName,
-                              'Role': 'Commercial Driver Candidate'
-                            }
-                          })
-                        }
-                        className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-bold text-xs gap-1.5 cursor-pointer backdrop-blur-2xs"
-                      >
-                        <Maximize2 className="w-4 h-4" />
-                        <span>Inspect</span>
-                      </button>
+                      {photoUrl && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setProofInspector({
+                              isOpen: true,
+                              title: 'Slot 1: Candidate Passport Photo',
+                              type: 'Aadhaar',
+                              dataUrl: photoUrl,
+                              fields: {
+                                'Candidate Name': fullName,
+                                'Role': 'Commercial Driver Candidate'
+                              }
+                            })
+                          }
+                          className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-bold text-xs gap-1.5 cursor-pointer backdrop-blur-2xs"
+                        >
+                          <Maximize2 className="w-4 h-4" />
+                          <span>Inspect</span>
+                        </button>
+                      )}
                     </div>
 
                     <p className="text-[10px] text-slate-500 mt-2">
@@ -853,25 +858,6 @@ export const ModeBCandidateRegistrationDesk: React.FC<ModeBCandidateRegistration
                         className="hidden"
                       />
                     </label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const sampleAvatars = [
-                          'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=300&q=80',
-                          'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80',
-                          'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80',
-                          'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=300&q=80',
-                          'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=300&q=80'
-                        ];
-                        const next = sampleAvatars[(sampleAvatars.indexOf(photoUrl) + 1) % sampleAvatars.length];
-                        setPhotoUrl(next);
-                        showToast('Driver profile photo updated');
-                      }}
-                      className="px-2 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 text-[11px] font-semibold"
-                      title="Cycle portrait preset"
-                    >
-                      Preset
-                    </button>
                   </div>
                 </div>
 
